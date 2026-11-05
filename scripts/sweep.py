@@ -1,0 +1,101 @@
+"""Grid sweep over method params using eval.py's scoring (in-memory 16-bit, as main.py writes).
+
+Grid YAML: method, base_params (dict), grid (dict of lists), reference (list of config paths).
+Writes logs/sweep_<name>.csv sorted by PESQ; prints the top 5 + reference rows.
+Does NOT append to results/experiments.csv.
+"""
+from __future__ import annotations
+
+import argparse
+import itertools
+import sys
+import time
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+from _common import REPO_ROOT, load_config
+
+from eval import evaluate_row
+from nrc.io import load_manifest, resolve_data_root, stratified_subset
+from nrc.methods import get_method
+
+
+def grid_points(spec: dict) -> list[dict]:
+    keys = list(spec.get("grid", {}))
+    base = dict(spec.get("base_params", {}))
+    return [{**base, **dict(zip(keys, vals))}
+            for vals in itertools.product(*(spec["grid"][k] for k in keys))]
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--grid", required=True, help="configs/sweeps/<name>.yaml")
+    ap.add_argument("--split", default="validation", choices=("train", "validation"))
+    ap.add_argument("--subset", type=int, default=32)
+    ap.add_argument("--jobs", type=int, default=1)
+    ap.add_argument("--data-root", default=None)
+    args = ap.parse_args(argv)
+
+    grid_path = Path(args.grid)
+    with open(grid_path, encoding="utf-8") as f:
+        spec = yaml.safe_load(f)
+    name = grid_path.stem
+    cfgs = [{"name": f"{name}_{i:03d}", "method": spec["method"], "params": p, "kind": "grid"}
+            for i, p in enumerate(grid_points(spec))]
+    for ref in spec.get("reference", []):
+        c = load_config(REPO_ROOT / ref)
+        cfgs.append({**c, "kind": "reference"})
+    for c in cfgs:
+        get_method(c["method"], **c["params"])  # fail fast on bad params
+    import pesq  # noqa: F401
+
+    root = resolve_data_root(args.data_root)
+    manifest = stratified_subset(load_manifest(root, args.split), args.subset)
+    rows_meta = [r.to_dict() for _, r in manifest.iterrows()]
+    tasks, owners = [], []
+    for ci, c in enumerate(cfgs):
+        for r in rows_meta:
+            tasks.append((root, r, {k: c[k] for k in ("name", "method", "params")},
+                          args.split, "mem16", None))
+            owners.append(ci)
+    t0 = time.perf_counter()
+    if args.jobs > 1:
+        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
+            results = list(pool.map(evaluate_row, tasks, chunksize=4))
+    else:
+        results = [evaluate_row(t) for t in tasks]
+    elapsed = time.perf_counter() - t0
+
+    detail = pd.DataFrame(results).assign(cfg=owners)
+    out = []
+    for ci, g in detail.groupby("cfg"):
+        c = cfgs[ci]
+        by_snr = g.groupby("target_snr_db").pesq.mean()
+        out.append({"kind": c["kind"], "name": c["name"], "method": c["method"],
+                    **{f"p_{k}": v for k, v in c["params"].items()},
+                    "pesq": g.pesq.mean(),
+                    **{f"pesq_snr{int(s)}": by_snr.get(s) for s in (0.0, 5.0, 10.0, 15.0)},
+                    "si_sdr": g.si_sdr.mean(), "stoi": g.stoi.mean(),
+                    "failed": int(g.pesq.isna().sum()), "clipped": int(g.n_clipped.sum()),
+                    "n": len(g)})
+    table = pd.DataFrame(out).sort_values("pesq", ascending=False, ignore_index=True)
+    logs = REPO_ROOT / "logs"
+    logs.mkdir(exist_ok=True)
+    out_csv = logs / f"sweep_{name}.csv"
+    table.to_csv(out_csv, index=False)
+
+    show = (["name"] + [f"p_{k}" for k in spec.get("grid", {})]
+            + ["pesq", "pesq_snr0", "pesq_snr5", "pesq_snr10", "pesq_snr15", "si_sdr", "failed"])
+    fmt = {"float_format": lambda v: f"{v:.4f}", "index": False}
+    print(f"sweep {name}: {len(cfgs)} configs x {len(rows_meta)} files | {args.split} | "
+          f"16-bit | {elapsed:.1f}s -> {out_csv.relative_to(REPO_ROOT)}")
+    print("[top 5]\n" + table[table.kind == "grid"].head(5)[show].to_string(**fmt))
+    print("[reference]\n" + table[table.kind == "reference"][show].to_string(**fmt))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
