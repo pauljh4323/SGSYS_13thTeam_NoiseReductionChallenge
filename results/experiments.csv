@@ -4,3 +4,6 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-05,2595b98,submission,wiener,1.5987,1.1459,1.3788,1.5610,1.9062,12.900,split=validation n=164 failed=0 snr=13.120 stoi=0.8510 clipped=0 src=pred | e2e main.py outputs
 2026-11-05,2595b98,submission,wiener,1.5987,1.1459,1.3788,1.5610,1.9062,12.900,"split=validation n=164 failed=0 snr=13.120 stoi=0.8510 clipped=0 src=mem16 | first submission, 16-bit"
 2026-11-05,2595b98,submission,wiener,1.5984,1.1458,1.3787,1.5608,1.9056,12.900,"split=validation n=164 failed=0 snr=13.120 stoi=0.8510 clipped=0 src=memfloat | first submission, float"
+2026-11-05,204d9d7,mmse_lsa_top1,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 1
+2026-11-05,204d9d7,mmse_lsa_top2,mmse_lsa,1.7399,1.1653,1.4489,1.6865,2.1439,13.306,split=validation n=164 failed=0 snr=13.537 stoi=0.8668 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 2
+2026-11-05,204d9d7,mmse_lsa_top3,mmse_lsa,1.7375,1.1647,1.4406,1.6865,2.1426,13.309,split=validation n=164 failed=0 snr=13.540 stoi=0.8682 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 3
