@@ -1,6 +1,7 @@
 """Grid sweep over method params using eval.py's scoring (in-memory 16-bit, as main.py writes).
 
-Grid YAML: method, base_params (dict), grid (dict of lists), reference (list of config paths).
+Grid YAML: method, base_params (dict), grid (dict of lists) or grid_groups (list of such dicts,
+expanded separately and concatenated), reference (list of config paths).
 Writes logs/sweep_<name>.csv sorted by PESQ; prints the top 5 + reference rows.
 Does NOT append to results/experiments.csv.
 """
@@ -24,10 +25,11 @@ from nrc.methods import get_method
 
 
 def grid_points(spec: dict) -> list[dict]:
-    keys = list(spec.get("grid", {}))
+    """Cartesian product of `grid`, or the concatenation of each product in `grid_groups`."""
     base = dict(spec.get("base_params", {}))
-    return [{**base, **dict(zip(keys, vals))}
-            for vals in itertools.product(*(spec["grid"][k] for k in keys))]
+    groups = spec.get("grid_groups") or [spec.get("grid", {})]
+    return [{**base, **dict(zip(g, vals))}
+            for g in groups for vals in itertools.product(*(g[k] for k in g))]
 
 
 def main(argv=None) -> int:
@@ -87,7 +89,9 @@ def main(argv=None) -> int:
     out_csv = logs / f"sweep_{name}.csv"
     table.to_csv(out_csv, index=False)
 
-    show = (["name"] + [f"p_{k}" for k in spec.get("grid", {})]
+    grid_keys = dict.fromkeys(k for g in (spec.get("grid_groups") or [spec.get("grid", {})])
+                              for k in g)
+    show = (["name"] + [f"p_{k}" for k in grid_keys]
             + ["pesq", "pesq_snr0", "pesq_snr5", "pesq_snr10", "pesq_snr15", "si_sdr", "failed"])
     fmt = {"float_format": lambda v: f"{v:.4f}", "index": False}
     print(f"sweep {name}: {len(cfgs)} configs x {len(rows_meta)} files | {args.split} | "

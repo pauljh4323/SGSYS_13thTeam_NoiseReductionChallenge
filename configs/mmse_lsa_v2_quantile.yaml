@@ -1,0 +1,13 @@
+# MMSE-LSA sweep v2 best quantile (grid point mmse_lsa_v2b_008; robustness reference). Non-causal whole-file noise estimate (subset-32 16-bit PESQ in logs/sweep_mmse_lsa_v2b.csv).
+method: mmse_lsa
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: quantile
+  q: 0.3
+  bias: 1.5
+  smooth_frames: 0
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25

@@ -1,7 +1,11 @@
 """Ephraim-Malah MMSE log-spectral amplitude (LSA) estimator.
 
-Decision-directed a priori SNR; noise PSD from either the lowest-energy frames
-("initial", same as the Wiener port) or Cohen's MCRA (minima-controlled recursive averaging).
+Decision-directed a priori SNR; noise PSD from one of:
+  "initial"  the lowest-energy frames (same as the Wiener port),
+  "mcra"     Cohen's MCRA (minima-controlled recursive averaging, causal),
+  "quantile" per-bin q-th quantile of the noisy power over the whole file, times a bias.
+             NON-CAUSAL: it looks at every frame of the file. That is allowed here because
+             inference is offline, file-by-file (the full noisy file is available up front).
 """
 from __future__ import annotations
 
@@ -52,11 +56,30 @@ def mcra_noise(power, alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, window=96, delta=5
     return noise
 
 
+def quantile_noise(power, q=0.2, bias=1.0, smooth_frames=0):
+    """Stationary noise PSD (bins,): bias * q-th quantile over frames of |Y|^2.
+
+    smooth_frames > 1 first applies a centred moving average of that many frames along time
+    (reduces the variance of the per-frame periodogram before taking the quantile).
+    Non-causal: uses all frames of the file.
+    """
+    p = power
+    k = int(smooth_frames)
+    if k > 1 and p.shape[1] > 1:
+        k = min(k, p.shape[1])
+        kernel = np.ones(k) / k
+        padded = np.pad(p, ((0, 0), (k // 2, k - 1 - k // 2)), mode="edge")
+        p = np.apply_along_axis(lambda r: np.convolve(r, kernel, mode="valid"), 1, padded)
+    return bias * np.quantile(p, q, axis=1)
+
+
 def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
-             mcra_window, delta):
+             mcra_window, delta, q=0.2, bias=1.0, smooth_frames=0):
     check_nola(n_fft, hop, window)
-    if noise_est not in ("initial", "mcra"):
-        raise ValueError("noise_est must be 'initial' or 'mcra'.")
+    if noise_est not in ("initial", "mcra", "quantile"):
+        raise ValueError("noise_est must be 'initial', 'mcra' or 'quantile'.")
+    if not 0 <= q <= 1 or bias <= 0 or smooth_frames < 0:
+        raise ValueError("quantile needs q in [0, 1], bias > 0, smooth_frames >= 0.")
     if not 0 < noise_fraction <= 1:
         raise ValueError("noise_fraction must be in (0, 1].")
     for name, v in (("alpha", alpha), ("alpha_d", alpha_d), ("alpha_p", alpha_p),
@@ -69,17 +92,20 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
 
 def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initial",
             noise_fraction=0.20, alpha=0.98, xi_min_db=-25.0, gmin_db=-25.0,
-            alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, mcra_window=96, delta=5.0):
+            alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, mcra_window=96, delta=5.0,
+            q=0.2, bias=1.0, smooth_frames=0):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
     validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
-             mcra_window, delta)
+             mcra_window, delta, q, bias, smooth_frames)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
     if noise_est == "initial":
         noise = np.repeat(estimate_noise_power(z, times, len(x), sr, n_fft, noise_fraction)[:, None],
                           z.shape[1], axis=1)
+    elif noise_est == "quantile":
+        noise = np.repeat(quantile_noise(power, q, bias, smooth_frames)[:, None], z.shape[1], axis=1)
     else:
         noise = mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
     noise = np.maximum(noise, _EPS)

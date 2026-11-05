@@ -26,12 +26,19 @@ def main() -> int:
             f"wiener len {n}: length preserved ({w.size}), finite": w.size == n
             and bool(np.isfinite(w).all()),
         }
-        for est in ("initial", "mcra"):
+        for est in ("initial", "mcra", "quantile"):
             lsa = get_method("mmse_lsa", noise_est=est)
             for kind, sig in (("noise", x), ("zeros", np.zeros(n))):
                 m = lsa(sig, 16000)
                 checks[f"mmse_lsa[{est}] {kind} len {n}: length preserved ({m.size}), finite"] = (
                     m.size == n and bool(np.isfinite(m).all()))
+                if kind == "zeros":
+                    checks[f"mmse_lsa[{est}] zeros len {n}: output all zero"] = not np.any(m)
+        q = get_method("mmse_lsa", noise_est="quantile", q=0.1, bias=1.5, smooth_frames=5)
+        for kind, sig in (("noise", x), ("zeros", np.zeros(n))):
+            m = q(sig, 16000)
+            checks[f"mmse_lsa[quantile q=.1 b=1.5 s=5] {kind} len {n}: length, finite"] = (
+                m.size == n and bool(np.isfinite(m).all()))
         for label, passed in checks.items():
             print(("PASS " if passed else "FAIL ") + label)
             ok &= passed
