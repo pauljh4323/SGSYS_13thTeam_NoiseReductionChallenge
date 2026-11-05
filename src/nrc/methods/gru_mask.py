@@ -13,7 +13,7 @@ _MODELS: dict = {}
 
 def _model(weights: str, device: str):
     path = Path(weights)
-    if not path.is_absolute():
+    if not path.is_absolute():  # relative to the repo root (dir of main.py), never the cwd
         path = REPO_ROOT / path
     key = (str(path.resolve()), device)
     if key not in _MODELS:

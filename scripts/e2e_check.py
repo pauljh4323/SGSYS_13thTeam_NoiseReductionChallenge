@@ -4,6 +4,8 @@
     then score the written files with scripts/eval.py --pred-dir.
 (b) git clone the local repo (HEAD) to outputs/e2e/clone/ and run the clone's main.py on the
     same input -> outputs/e2e/output_clone/.
+(c) run the local main.py with cwd=outputs/ (absolute --input/--output) -> outputs/e2e/output_cwd/;
+    relative paths in the config (e.g. weights) must resolve against the repo, not the cwd.
 Asserts both output sets are bit-identical and match the inputs (names/count/length/sr/subtype),
 then checks a 44.1 kHz stereo file (in a subfolder, .WAV) and a 1.7 s file.
 """
@@ -55,10 +57,11 @@ def run(cmd, cwd) -> str:
     return r.stdout
 
 
-def run_main(main_py: Path, inp: Path, out: Path) -> int:
-    """Run main.py; return its reported failure count."""
+def run_main(main_py: Path, inp: Path, out: Path, cwd: Path | None = None) -> int:
+    """Run main.py (cwd defaults to its repo); return its reported failure count."""
     rmtree(out)
-    stdout = run([sys.executable, main_py, "--input", inp, "--output", out], cwd=main_py.parent)
+    stdout = run([sys.executable, main_py, "--input", inp.resolve(), "--output", out.resolve()],
+                 cwd=cwd or main_py.parent)
     summary = stdout.strip().splitlines()[-1]
     print(summary)
     m = re.search(r"failed=(\d+)", summary)
@@ -122,6 +125,15 @@ def main(argv=None) -> int:
             or (out_a / r).read_bytes() != (out_b / r).read_bytes()]
     check(wavs(out_a) == wavs(out_b) and not diff,
           f"(a)==(b) bit-identical ({len(wavs(out_a))} files, {len(diff)} differ)")
+
+    # (c) local main.py launched from another working directory
+    out_c = E2E / "output_cwd"
+    check(run_main(REPO_ROOT / "main.py", inp, out_c, cwd=REPO_ROOT / "outputs") == 0,
+          "(c) main.py from cwd=outputs/ failed=0")
+    diff = [r for r in wavs(out_a) if not (out_c / r).is_file()
+            or (out_a / r).read_bytes() != (out_c / r).read_bytes()]
+    check(wavs(out_a) == wavs(out_c) and not diff,
+          f"(a)==(c) bit-identical ({len(wavs(out_a))} files, {len(diff)} differ)")
 
     # extra: 44.1 kHz stereo in a subfolder with .WAV, and a 1.7 s file
     x_in, x_out = E2E / "extra_input", E2E / "extra_output"

@@ -10,6 +10,9 @@ The method only ever sees the noisy waveform; clean audio is read afterwards for
 --shift-start F (robustness probe, in-memory sources only): circularly shift noisy AND clean by
 -round(F*n) samples before enhancing/scoring, so the file starts F of the way in. Probe results
 go to logs/ only and are never appended to results/experiments.csv.
+
+--input-gain-db G (level probe, in-memory sources only): scale the noisy input by 10^(G/20) before
+enhancing; clean is unchanged. Probe results go to logs/ only, never to results/experiments.csv.
 """
 from __future__ import annotations
 
@@ -48,8 +51,11 @@ def _shift_samples(frac: float, n: int) -> int:
 def evaluate_row(task) -> dict:
     root, row, cfg, split, source, pred_path, *rest = task
     shift = _shift_samples(rest[0] if rest else 0.0, int(row["num_samples"]))
+    gain_db = rest[1] if len(rest) > 1 else 0.0
     sr = int(row["sample_rate_hz"])
     noisy = np.roll(read_row(root, row, "noisy"), -shift)
+    if gain_db:
+        noisy = noisy * 10.0 ** (gain_db / 20.0)  # level probe: system input only, clean unchanged
     t0 = time.perf_counter()
     if source == "outputs":
         y = read_wav(output_path(cfg["name"], split, row["noisy_path"]), sr, row["num_samples"])
@@ -102,6 +108,9 @@ def main(argv=None) -> int:
     parser.add_argument("--shift-start", type=float, default=0.0,
                         help="robustness probe: circular shift fraction (e.g. 0.4); "
                              "logs only, not appended to results/experiments.csv")
+    parser.add_argument("--input-gain-db", type=float, default=0.0,
+                        help="level probe: scale noisy by this gain (dB) before enhancement; "
+                             "clean unchanged; logs only, not appended to results/experiments.csv")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
     root = resolve_data_root(args.data_root)
@@ -113,6 +122,9 @@ def main(argv=None) -> int:
               else "memfloat" if args.float else "mem16")
     if args.shift_start and source not in ("mem16", "memfloat"):
         parser.error("--shift-start needs in-memory enhancement (not --from-outputs/--pred-dir)")
+    if args.input_gain_db and source not in ("mem16", "memfloat"):
+        parser.error("--input-gain-db needs in-memory enhancement (not --from-outputs/--pred-dir)")
+    probe = bool(args.shift_start or args.input_gain_db)
     pred_paths = {}
     if args.pred_dir:
         names = load_manifest(root, args.split).noisy_path.map(lambda p: Path(p).name)
@@ -130,7 +142,7 @@ def main(argv=None) -> int:
                 raise FileNotFoundError(f"missing prediction for {name} in {pred_dir}")
             pred_paths[rel] = found[name]
     tasks = [(root, row.to_dict(), cfg, args.split, source, pred_paths.get(row["noisy_path"]),
-              args.shift_start)
+              args.shift_start, args.input_gain_db)
              for _, row in manifest.iterrows()]
     started = time.perf_counter()
     if args.jobs > 1:
@@ -147,7 +159,8 @@ def main(argv=None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"_sub{args.subset}" if args.subset else ""
     sfx = ("" if source == "mem16" else f"_{source}") + (
-        f"_shift{args.shift_start:g}" if args.shift_start else "")
+        f"_shift{args.shift_start:g}" if args.shift_start else "") + (
+        f"_gain{args.input_gain_db:g}dB" if args.input_gain_db else "")
     detail.to_csv(out_dir / f"eval_{args.split}{tag}{sfx}.csv", index=False)
 
     tables = {"overall": summarize(detail),
@@ -157,7 +170,8 @@ def main(argv=None) -> int:
     n_clipped = int(detail.n_clipped.sum())
     label = {"mem16": "in-memory 16-bit", "memfloat": "in-memory float",
              "outputs": "16-bit outputs", "pred": f"pred-dir {args.pred_dir}"}[source] + (
-        f" | PROBE shift-start {args.shift_start:g}" if args.shift_start else "")
+        f" | PROBE shift-start {args.shift_start:g}" if args.shift_start else "") + (
+        f" | PROBE input-gain {args.input_gain_db:g} dB" if args.input_gain_db else "")
     header = (f"{cfg['name']} ({cfg['method']}) | {args.split} n={len(detail)} | {label} | "
               f"jobs={args.jobs} | {elapsed:.1f}s | PESQ failed={n_failed} | "
               f"clipped samples={n_clipped}")
@@ -175,8 +189,8 @@ def main(argv=None) -> int:
         print("PESQ failures:\n" + detail[detail.pesq.isna()][["segment_id", "pesq_error"]]
               .to_string(index=False))
 
-    if args.shift_start:
-        print("(shift-start probe: not appended to results/experiments.csv)")
+    if probe:
+        print("(probe run: not appended to results/experiments.csv)")
         return 0
     by_snr = detail.groupby("target_snr_db").pesq.mean()
     notes = (f"split={args.split} n={len(detail)} failed={n_failed} "
