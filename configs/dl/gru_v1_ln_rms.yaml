@@ -1,0 +1,11 @@
+# gru_v1 weights + inference-only level normalization (no retraining). Measure: rms;
+# target = train-split median of the rms level (scripts/level_stats.py, logs/level_stats.csv).
+method: gru_mask
+params:
+  weights: weights/gru_v1.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: true
+  level_measure: rms
+  target_dbfs: -22.03
+  max_boost_db: 30.0
+  max_cut_db: 12.0

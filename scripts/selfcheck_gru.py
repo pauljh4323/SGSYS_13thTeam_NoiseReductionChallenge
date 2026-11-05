@@ -2,6 +2,8 @@
 
 Checks: param count < 2M; output length == input length for 48000, 47999, short inputs and an
 all-zeros input; finite output; 16-bit quantization without clipping.
+level_norm on: length preserved, all-zeros input (g = 0, silent output), and scale equivariance
+(input x0.1 vs x1: outputs differ only by the 0.1 factor, relative error < 1e-3).
 """
 from __future__ import annotations
 
@@ -41,6 +43,20 @@ def main() -> int:
             if name.startswith("zeros"):
                 assert np.max(np.abs(y)) < 1e-6, name
             print(f"ok  {name:<11} len {y.size}  peak {np.max(np.abs(y)):.4f}")
+        for measure in ("active", "rms"):
+            fn_ln = get_method("gru_mask", weights=str(path), device="cpu", level_norm=True,
+                               level_measure=measure)
+            for name, x in cases.items():
+                y = fn_ln(x, 16000)
+                assert y.shape == x.shape and np.isfinite(y).all(), (measure, name)
+                if name.startswith("zeros"):
+                    assert np.max(np.abs(y)) < 1e-6, (measure, name)
+            # speech-like level variation so the "active" measure is not trivially the RMS
+            x = cases["48000"] * np.repeat(rng.uniform(0.05, 1.0, 48000 // 1600), 1600)
+            y1, y01 = fn_ln(x, 16000), fn_ln(0.1 * x, 16000)
+            rel = np.linalg.norm(y01 - 0.1 * y1) / np.linalg.norm(0.1 * y1)
+            assert rel < 1e-3, (measure, rel)
+            print(f"ok  level_norm {measure:<6} length/zeros OK, x0.1 rel err {rel:.2e}")
     print(f"gru_mask selfcheck OK: {n_params:,} params, weights {size_mb:.2f} MB")
     return 0
 
