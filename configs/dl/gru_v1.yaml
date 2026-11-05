@@ -1,0 +1,29 @@
+# BiGRU magnitude mask (from scratch, train split only). Inference: method/params; training: model/train.
+method: gru_mask
+params:
+  weights: weights/gru_v1.pt   # copy <ckpt-dir>/best.pt here after training (< 50 MB)
+  device: cpu
+
+model:
+  n_fft: 512
+  hop: 128
+  hidden: 128
+  layers: 2
+
+train:
+  seed: 0
+  epochs: 150
+  batch_size: 16          # full 3 s segments
+  lr: 1.0e-3
+  grad_clip: 5.0
+  compress: 0.3           # loss = MSE(|S_hat|^c, |S|^c)
+  val_every: 2            # epochs between full-validation PESQ runs
+  val_batch: 16
+  plateau_factor: 0.5     # ReduceLROnPlateau on val PESQ (mode=max), counted in validations
+  plateau_patience: 3
+  min_lr: 1.0e-5
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_db: [-6, 3]
+    peak: 0.99
