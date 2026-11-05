@@ -18,8 +18,8 @@ pip alternative (Python 3.12) instead of conda: `python -m venv .venv`, activate
 
 ## Current method
 
-Course Wiener filter (`configs/submission.yaml`): STFT (n_fft 512, hop 128, Hann), noise PSD from the first 20 % of frames, decision-directed a-priori SNR (smoothing 0.98), Wiener gain with floor 0.05.
-Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): see `docs/submissions.md`.
+MMSE log-spectral amplitude estimator (Ephraim-Malah LSA, `configs/submission.yaml` = `configs/mmse_lsa_top1.yaml`): STFT (n_fft 512, hop 128, Hann), noise PSD from the first 20 % of frames, decision-directed a-priori SNR (alpha 0.96, floor -15 dB), LSA gain with floor -25 dB.
+Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): 1.7505 (course Wiener baseline: 1.5987). Details in `docs/submissions.md`.
 
 ## Setup
 
