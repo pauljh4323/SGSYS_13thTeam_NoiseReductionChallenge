@@ -12,6 +12,7 @@ dependencies:
   - tqdm
   - pyyaml
   - matplotlib
+  - pytorch>=2.4,<3
   - pip
   - pip:
       - pystoi

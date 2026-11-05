@@ -11,3 +11,5 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-05,f4cf7c6,mmse_lsa_v2_top2,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=mem16 | mmse-lsa sweep v2 top2
 2026-11-05,f4cf7c6,mmse_lsa_v2_quantile,mmse_lsa,1.6683,1.1812,1.4221,1.6097,2.0235,11.888,split=validation n=164 failed=0 snr=12.094 stoi=0.8717 clipped=0 src=mem16 | mmse-lsa sweep v2 quantile
 2026-11-05,f780702,submission,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=pred | e2e main.py outputs
+2026-11-05,d3bff1b,gru_v1,gru_mask,2.3594,1.7324,2.0606,2.3624,2.7271,15.106,split=validation n=164 failed=0 snr=15.135 stoi=0.9294 clipped=0 src=mem16 | gru_v1 Colab BiGRU mask best ep148
+2026-11-05,d3bff1b,gru_v1,gru_mask,2.3594,1.7324,2.0606,2.3624,2.7271,15.106,split=validation n=164 failed=0 snr=15.135 stoi=0.9294 clipped=0 src=pred | gru_v1 main.py outputs (timing check)

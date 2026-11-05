@@ -7,3 +7,4 @@ tqdm
 pyyaml
 matplotlib
 pystoi
+torch>=2.4,<3
