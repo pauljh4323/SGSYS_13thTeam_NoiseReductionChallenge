@@ -14,7 +14,7 @@ python main.py
 
 pip alternative (Python 3.12) instead of conda: `python -m venv .venv`, activate it, `pip install -r requirements.txt`, then `python main.py`.
 
-`main.py` processes every `.wav` under `input/` (recursively, subfolders mirrored) and writes 16-bit PCM wavs with the same filename, sample rate and length to `output/`. Multi-channel input is averaged to mono; non-16 kHz input is resampled to 16 kHz for enhancement and back. If a file cannot be processed, it is copied through unchanged and the run continues. CPU-only, no network.
+`main.py` processes every `.wav` under `input/` (recursively, subfolders mirrored) and writes 16-bit PCM wavs with the same filename, sample rate and length to `output/`. Multi-channel input is averaged to mono for enhancement and the result is written to every channel (shape preserved); non-16 kHz input is resampled to 16 kHz for enhancement and back. If a file cannot be processed, it is copied through unchanged and the run continues. CPU-only, no network.
 
 ## Current method
 

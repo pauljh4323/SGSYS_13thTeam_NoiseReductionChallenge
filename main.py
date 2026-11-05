@@ -4,7 +4,8 @@
 
 Any channel count / sample rate is accepted: channels are averaged to mono, non-16 kHz audio is
 resampled to 16 kHz for enhancement and back to the original rate. Output keeps the input's
-filename, sample rate and length and is written as 16-bit PCM. If a file fails, the input is
+filename, sample rate, length and channel count (the enhanced mono mix is written to every
+channel) and is written as 16-bit PCM. If a file fails, the input is
 copied through unchanged and processing continues. CPU-only, offline.
 """
 from __future__ import annotations
@@ -25,7 +26,7 @@ import soundfile as sf  # noqa: E402
 import yaml  # noqa: E402
 from scipy.signal import resample_poly  # noqa: E402
 
-from nrc.io import write_wav_pcm16  # noqa: E402
+from nrc.io import to_pcm16, write_wav_pcm16  # noqa: E402
 from nrc.methods import get_method  # noqa: E402
 
 MODEL_SR = 16000
@@ -47,7 +48,7 @@ def _fit_length(y: np.ndarray, n: int) -> np.ndarray:
 def enhance_file(method, src: Path, dst: Path) -> int:
     """Enhance one file; returns the number of clipped samples."""
     x, sr = sf.read(str(src), dtype="float64", always_2d=True)
-    n = x.shape[0]
+    n, n_ch = x.shape
     if n == 0:
         raise ValueError("empty file")
     x = x.mean(axis=1)
@@ -61,7 +62,13 @@ def enhance_file(method, src: Path, dst: Path) -> int:
     y = _fit_length(y, n)
     if not np.isfinite(y).all():
         raise ValueError("non-finite output")
-    return write_wav_pcm16(dst, y, sr)
+    if n_ch == 1:
+        return write_wav_pcm16(dst, y, sr)
+    # Multi-channel: the enhanced mono mix is written to every channel (input shape preserved).
+    pcm, n_clipped = to_pcm16(y)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(str(dst), np.repeat(pcm[:, None], n_ch, axis=1), sr, subtype="PCM_16")
+    return n_clipped * n_ch
 
 
 def main(argv=None) -> int:
