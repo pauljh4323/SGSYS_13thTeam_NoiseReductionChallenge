@@ -15,3 +15,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-05,d3bff1b,gru_v1,gru_mask,2.3594,1.7324,2.0606,2.3624,2.7271,15.106,split=validation n=164 failed=0 snr=15.135 stoi=0.9294 clipped=0 src=pred | gru_v1 main.py outputs (timing check)
 2026-11-05,1c8a744,submission,gru_mask,2.3594,1.7324,2.0606,2.3624,2.7271,15.106,split=validation n=164 failed=0 snr=15.135 stoi=0.9294 clipped=0 src=pred | e2e main.py outputs
 2026-11-05,9d325ea,gru_v1_lnrb,gru_mask,2.3598,1.7341,2.0614,2.3629,2.7268,15.119,split=validation n=164 failed=0 snr=15.148 stoi=0.9295 clipped=0 src=mem16
+2026-11-05,4f8774c,submission,gru_mask,2.3598,1.7341,2.0614,2.3629,2.7268,15.119,split=validation n=164 failed=0 snr=15.148 stoi=0.9295 clipped=0 src=pred | e2e main.py outputs

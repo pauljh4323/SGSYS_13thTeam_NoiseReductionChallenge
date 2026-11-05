@@ -1,6 +1,6 @@
 # CLAUDE.md — Speech Noise Reduction Challenge
 ## Objective
-Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best / submission: gru_v1 (configs/dl/gru_v1.yaml params = configs/submission.yaml, weights/gru_v1.pt) / val PESQ 2.3594 / best-v3 (fallback: mmse_lsa_top1 1.7505, best-v2) (last submitted: Wiener 1.5987, sub-20261105).
+Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best / submission: gru_v1_lnrb (configs/dl/gru_v1_lnrb.yaml params = configs/submission.yaml, weights/gru_v1.pt, range_boost input level guard) / val PESQ 2.3598 / best-v4 (fallback: mmse_lsa_top1 1.7505, best-v2) (last submitted: Wiener 1.5987, sub-20261105).
 ## Environment
 - `conda env create -f environment.yml`; run Python via `conda run -n nrc python ...` (or `conda activate nrc` before launching claude).
 - Conda at D:/miniconda3. Repo path contains spaces: always quote paths.

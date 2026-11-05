@@ -18,8 +18,8 @@ pip alternative (Python 3.12) instead of conda: `python -m venv .venv`, activate
 
 ## Current method
 
-BiGRU magnitude mask (`configs/submission.yaml` = inference params of `configs/dl/gru_v1.yaml`, weights `weights/gru_v1.pt`, 2.4 MB, trained from scratch on the train split only): STFT (n_fft 512, hop 128), log1p magnitude -> 2-layer bidirectional GRU (hidden 128, 594k params) -> sigmoid mask on the noisy magnitude, noisy phase, inverse STFT.
-Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): **2.3594** (0/5/10/15 dB: 1.7324/2.0606/2.3624/2.7271). Previous: MMSE-LSA 1.7505, course Wiener baseline 1.5987. Details in `docs/submissions.md`.
+BiGRU magnitude mask (`configs/submission.yaml` = inference params of `configs/dl/gru_v1_lnrb.yaml`, weights `weights/gru_v1.pt`, 2.4 MB, trained from scratch on the train split only): STFT (n_fft 512, hop 128), log1p magnitude -> 2-layer bidirectional GRU (hidden 128, 594k params) -> sigmoid mask on the noisy magnitude, noisy phase, inverse STFT. Inference-only input level guard (no retraining): the active level (RMS of the loudest 50% of 32 ms frames) is left untouched inside the train-split p5..p95 range [-27.88, -15.27] dBFS, cut to -15.27 above it, boosted to the train median -19.60 below it; the output is scaled back by the inverse gain.
+Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): **2.3598** (0/5/10/15 dB: 1.7341/2.0614/2.3629/2.7268); with input attenuated by -20/-30 dB: 2.3533/2.3370. Previous: gru_v1 without level guard 2.3594 (-20 dB 2.0695), MMSE-LSA 1.7505, course Wiener baseline 1.5987. Details in `docs/submissions.md`.
 
 CPU runtime: ~36 s for the 164 validation files (3 s each) on a 16-thread desktop CPU (torch limited to 4 threads); no GPU used or needed.
 
