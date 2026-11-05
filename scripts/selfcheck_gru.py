@@ -6,6 +6,8 @@ level_norm on: length preserved, all-zeros input (g = 0, silent output), and sca
 (input x0.1 vs x1: outputs differ only by the 0.1 factor, relative error < 1e-3).
 level_mode range: length preserved, all-zeros input silent, an in-range input is bit-identical to
 level_norm off, and an out-of-range input is moved to the range edge (g matches the formula).
+level_mode range_boost: length preserved, all-zeros input silent, an in-range input is bit-identical
+to level_norm off; below lo g = target - measured, above hi g = hi - measured.
 """
 from __future__ import annotations
 
@@ -18,7 +20,8 @@ import _common  # noqa: F401  (sys.path)
 
 from nrc.io import to_pcm16
 from nrc.methods import get_method
-from nrc.methods.gru_mask import level_gain_range_db, measure_level_dbfs
+from nrc.methods.gru_mask import (level_gain_range_boost_db, level_gain_range_db,
+                                   measure_level_dbfs)
 
 
 def main() -> int:
@@ -79,6 +82,22 @@ def main() -> int:
             g = level_gain_range_db(x_out, "active", lo, hi, 30.0, 12.0)
             assert abs(g - (edge - measure_level_dbfs(x_out, "active"))) < 1e-9, (target, g)
         print("ok  level_mode range  length/zeros OK, in-range bit-identical to off, edge gains OK")
+        tgt = -19.60
+        fn_rb = get_method("gru_mask", weights=str(path), device="cpu", level_norm=True,
+                           level_measure="active", level_mode="range_boost", lo_dbfs=lo,
+                           hi_dbfs=hi, target_dbfs=tgt)
+        for name, xc in cases.items():
+            y = fn_rb(xc, 16000)
+            assert y.shape == xc.shape and np.isfinite(y).all(), ("range_boost", name)
+            if name.startswith("zeros"):
+                assert np.max(np.abs(y)) < 1e-6, ("range_boost", name)
+        assert level_gain_range_boost_db(x_in, "active", lo, hi, tgt, 30.0, 12.0) == 0.0
+        assert np.array_equal(fn_rb(x_in, 16000), fn(x_in, 16000)), "rb in-range not bit-identical"
+        for lvl, ref in ((lo - 6.0, tgt), (hi + 6.0, hi)):
+            x_out = x * 10.0 ** ((lvl - measure_level_dbfs(x, "active")) / 20.0)
+            g = level_gain_range_boost_db(x_out, "active", lo, hi, tgt, 30.0, 12.0)
+            assert abs(g - (ref - measure_level_dbfs(x_out, "active"))) < 1e-9, (lvl, g)
+        print("ok  level_mode range_boost  length/zeros OK, in-range bit-identical to off, gains OK")
     print(f"gru_mask selfcheck OK: {n_params:,} params, weights {size_mb:.2f} MB")
     return 0
 

@@ -59,6 +59,25 @@ def level_gain_range_db(x, measure: str, lo_dbfs: float, hi_dbfs: float, max_boo
     return float(np.clip(g, -max_cut_db, max_boost_db))
 
 
+def level_gain_range_boost_db(x, measure: str, lo_dbfs: float, hi_dbfs: float, target_dbfs: float,
+                              max_boost_db: float, max_cut_db: float) -> float:
+    """Asymmetric train-range level: g = 0 inside [lo, hi]; above hi -> hi - measured (cut to the
+    edge); below lo -> target - measured (boost to the train median), then clamp(-max_cut,
+    +max_boost); 0 for silent / near-silent input."""
+    if not lo_dbfs <= target_dbfs <= hi_dbfs:
+        raise ValueError(f"need lo_dbfs <= target_dbfs <= hi_dbfs, got {lo_dbfs}, {target_dbfs}, {hi_dbfs}")
+    level = measure_level_dbfs(x, measure)
+    if not np.isfinite(level) or level <= SILENCE_DBFS:
+        return 0.0
+    if level < lo_dbfs:
+        g = target_dbfs - level
+    elif level > hi_dbfs:
+        g = hi_dbfs - level
+    else:
+        return 0.0
+    return float(np.clip(g, -max_cut_db, max_boost_db))
+
+
 def _model(weights: str, device: str):
     path = Path(weights)
     if not path.is_absolute():  # relative to the repo root (dir of main.py), never the cwd
@@ -80,7 +99,8 @@ def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: 
             lo_dbfs: float | None = None, hi_dbfs: float | None = None):
     """level_norm: scale x by g dB before the model, undo it after.
     level_mode "target": g = clamp(target - level); "range": g moves the level only as far as the
-    nearest edge of [lo_dbfs, hi_dbfs] (g = 0 inside it). Both clamped by max_boost/max_cut."""
+    nearest edge of [lo_dbfs, hi_dbfs] (g = 0 inside it); "range_boost": as "range" above hi, but
+    below lo boosts to target_dbfs (train median). All clamped by max_boost/max_cut."""
     if sr != 16000:
         raise ValueError(f"gru_mask expects 16 kHz input, got {sr}")
     import torch
@@ -96,8 +116,13 @@ def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: 
             lo = RANGE_DBFS[level_measure][0] if lo_dbfs is None else float(lo_dbfs)
             hi = RANGE_DBFS[level_measure][1] if hi_dbfs is None else float(hi_dbfs)
             g = level_gain_range_db(x, level_measure, lo, hi, max_boost_db, max_cut_db)
+        elif level_mode == "range_boost":
+            lo = RANGE_DBFS[level_measure][0] if lo_dbfs is None else float(lo_dbfs)
+            hi = RANGE_DBFS[level_measure][1] if hi_dbfs is None else float(hi_dbfs)
+            target = TARGET_DBFS[level_measure] if target_dbfs is None else float(target_dbfs)
+            g = level_gain_range_boost_db(x, level_measure, lo, hi, target, max_boost_db, max_cut_db)
         else:
-            raise ValueError(f"level_mode must be 'target' or 'range', got {level_mode!r}")
+            raise ValueError(f"level_mode must be 'target', 'range' or 'range_boost', got {level_mode!r}")
     scale = 10.0 ** (g / 20.0)  # g = 0 -> scale exactly 1.0 -> bit-identical to level_norm off
     model = _model(weights, device)
     with torch.inference_mode():
