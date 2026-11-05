@@ -1,6 +1,6 @@
 # CLAUDE.md — Speech Noise Reduction Challenge
 ## Objective
-Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best: course Wiener baseline / val PESQ 1.598 (not yet reproduced).
+Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best: course Wiener baseline (configs/wiener_baseline.yaml) / val PESQ 1.598 (reproduced: 1.5984).
 ## Environment
 - `conda env create -f environment.yml`; run Python via `conda run -n nrc python ...` (or `conda activate nrc` before launching claude).
 - Conda at D:/miniconda3. Repo path contains spaces: always quote paths.

@@ -1,1 +1,3 @@
 date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_sdr,notes
+2026-11-05,7dc2b45-dirty,noisy,noisy,1.3947,1.0796,1.2181,1.3575,1.6354,9.635,split=validation n=164 failed=0 snr=9.634 stoi=0.8611 clipped=0 src=memory | full val reproduction of course baseline
+2026-11-05,7dc2b45-dirty,wiener_baseline,wiener,1.5984,1.1458,1.3787,1.5608,1.9056,12.900,split=validation n=164 failed=0 snr=13.120 stoi=0.8510 clipped=0 src=memory | full val reproduction of course baseline

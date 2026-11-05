@@ -1,0 +1,9 @@
+# Course notebook Wiener filter (Config defaults). Reference: course val PESQ 1.598.
+method: wiener
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_fraction: 0.20
+  wiener_smoothing: 0.98
+  wiener_gain_floor: 0.05
