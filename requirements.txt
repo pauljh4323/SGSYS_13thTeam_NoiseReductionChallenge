@@ -1,0 +1,9 @@
+numpy>=1.26,<3
+scipy>=1.12,<2
+pandas>=2.1,<4
+soundfile>=0.12,<1
+pesq==0.0.4
+tqdm
+pyyaml
+matplotlib
+pystoi

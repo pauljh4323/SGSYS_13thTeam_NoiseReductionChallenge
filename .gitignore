@@ -1,0 +1,13 @@
+data/
+outputs/
+logs/
+reference/
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+*.wav
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+.env
