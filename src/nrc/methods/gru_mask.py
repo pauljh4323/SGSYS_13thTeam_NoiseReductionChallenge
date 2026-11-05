@@ -13,6 +13,7 @@ _MODELS: dict = {}
 FRAME = 512             # 32 ms at 16 kHz, for the "active" level measure
 SILENCE_DBFS = -80.0    # at or below this measured level the input is left unscaled (g = 0)
 TARGET_DBFS = {"active": -19.60, "rms": -22.03}  # train-split noisy medians (scripts/level_stats.py)
+RANGE_DBFS = {"active": (-27.88, -15.27), "rms": (-30.58, -17.25)}  # train-split p5 / p95
 
 
 def measure_level_dbfs(x, measure: str = "active") -> float:
@@ -40,6 +41,24 @@ def level_gain_db(x, measure: str, target_dbfs: float, max_boost_db: float,
     return float(np.clip(target_dbfs - level, -max_cut_db, max_boost_db))
 
 
+def level_gain_range_db(x, measure: str, lo_dbfs: float, hi_dbfs: float, max_boost_db: float,
+                        max_cut_db: float) -> float:
+    """Train-range clamp: g = 0 inside [lo, hi], lo - measured below, hi - measured above,
+    then clamp(-max_cut, +max_boost); 0 for silent / near-silent input."""
+    if lo_dbfs > hi_dbfs:
+        raise ValueError(f"lo_dbfs ({lo_dbfs}) > hi_dbfs ({hi_dbfs})")
+    level = measure_level_dbfs(x, measure)
+    if not np.isfinite(level) or level <= SILENCE_DBFS:
+        return 0.0
+    if level < lo_dbfs:
+        g = lo_dbfs - level
+    elif level > hi_dbfs:
+        g = hi_dbfs - level
+    else:
+        return 0.0
+    return float(np.clip(g, -max_cut_db, max_boost_db))
+
+
 def _model(weights: str, device: str):
     path = Path(weights)
     if not path.is_absolute():  # relative to the repo root (dir of main.py), never the cwd
@@ -57,8 +76,11 @@ def _model(weights: str, device: str):
 
 def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: str = "cpu",
             level_norm: bool = False, level_measure: str = "active", target_dbfs: float | None = None,
-            max_boost_db: float = 30.0, max_cut_db: float = 12.0):
-    """level_norm: scale x by g = clamp(target - level) dB before the model, undo it after."""
+            max_boost_db: float = 30.0, max_cut_db: float = 12.0, level_mode: str = "target",
+            lo_dbfs: float | None = None, hi_dbfs: float | None = None):
+    """level_norm: scale x by g dB before the model, undo it after.
+    level_mode "target": g = clamp(target - level); "range": g moves the level only as far as the
+    nearest edge of [lo_dbfs, hi_dbfs] (g = 0 inside it). Both clamped by max_boost/max_cut."""
     if sr != 16000:
         raise ValueError(f"gru_mask expects 16 kHz input, got {sr}")
     import torch
@@ -67,9 +89,16 @@ def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: 
     if level_norm:
         if level_measure not in TARGET_DBFS:
             raise ValueError(f"level_measure must be 'active' or 'rms', got {level_measure!r}")
-        target = TARGET_DBFS[level_measure] if target_dbfs is None else float(target_dbfs)
-        g = level_gain_db(x, level_measure, target, max_boost_db, max_cut_db)
-    scale = 10.0 ** (g / 20.0)
+        if level_mode == "target":
+            target = TARGET_DBFS[level_measure] if target_dbfs is None else float(target_dbfs)
+            g = level_gain_db(x, level_measure, target, max_boost_db, max_cut_db)
+        elif level_mode == "range":
+            lo = RANGE_DBFS[level_measure][0] if lo_dbfs is None else float(lo_dbfs)
+            hi = RANGE_DBFS[level_measure][1] if hi_dbfs is None else float(hi_dbfs)
+            g = level_gain_range_db(x, level_measure, lo, hi, max_boost_db, max_cut_db)
+        else:
+            raise ValueError(f"level_mode must be 'target' or 'range', got {level_mode!r}")
+    scale = 10.0 ** (g / 20.0)  # g = 0 -> scale exactly 1.0 -> bit-identical to level_norm off
     model = _model(weights, device)
     with torch.inference_mode():
         y = model(torch.from_numpy((x * scale).astype(np.float32))[None].to(device))[0]
