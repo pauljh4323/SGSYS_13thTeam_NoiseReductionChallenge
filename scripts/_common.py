@@ -48,7 +48,9 @@ def git_hash() -> str:
     try:
         h = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT,
                            capture_output=True, text=True, check=True).stdout.strip()
-        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+        # results/experiments.csv is appended by eval.py itself; it must not mark later rows dirty.
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--",
+                                ".", ":!results/experiments.csv"],
                                cwd=REPO_ROOT, capture_output=True, text=True).stdout.strip()
         return h + ("-dirty" if dirty else "")
     except (OSError, subprocess.CalledProcessError):

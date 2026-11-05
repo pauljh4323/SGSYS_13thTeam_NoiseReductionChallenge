@@ -2,7 +2,24 @@
 
 SWE2011 Signals and Systems project: single-channel speech enhancement, scored by wideband PESQ (16 kHz).
 
-**Status: scaffold only** — no enhancement algorithm implemented yet.
+## How to run (for TAs)
+
+```bash
+conda env create -f environment.yml
+conda activate nrc
+# put the noisy .wav files in input/
+python main.py
+# enhanced files (same filenames) are written to output/
+```
+
+pip alternative (Python 3.12) instead of conda: `python -m venv .venv`, activate it, `pip install -r requirements.txt`, then `python main.py`.
+
+`main.py` processes every `.wav` under `input/` (recursively, subfolders mirrored) and writes 16-bit PCM wavs with the same filename, sample rate and length to `output/`. Multi-channel input is averaged to mono; non-16 kHz input is resampled to 16 kHz for enhancement and back. If a file cannot be processed, it is copied through unchanged and the run continues. CPU-only, no network.
+
+## Current method
+
+Course Wiener filter (`configs/submission.yaml`): STFT (n_fft 512, hop 128, Hann), noise PSD from the first 20 % of frames, decision-directed a-priori SNR (smoothing 0.98), Wiener gain with floor 0.05.
+Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): see `docs/submissions.md`.
 
 ## Setup
 

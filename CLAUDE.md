@@ -1,6 +1,6 @@
 # CLAUDE.md — Speech Noise Reduction Challenge
 ## Objective
-Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best: course Wiener baseline (configs/wiener_baseline.yaml) / val PESQ 1.598 (reproduced: 1.5984).
+Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best / submission: course Wiener baseline (configs/wiener_baseline.yaml = configs/submission.yaml) / val PESQ 1.598 (reproduced: 1.5984).
 ## Environment
 - `conda env create -f environment.yml`; run Python via `conda run -n nrc python ...` (or `conda activate nrc` before launching claude).
 - Conda at D:/miniconda3. Repo path contains spaces: always quote paths.
@@ -11,6 +11,7 @@ Maximize wideband PESQ (pesq==0.0.4, fs=16000, 'wb'). Current best: course Wiene
 - Evaluate: `python scripts/eval.py --config configs/<name>.yaml --split validation [--subset 32]`
 ## Rules
 - Only scripts/eval.py produces metrics; append to results/experiments.csv.
+- Commit code before the final eval run so results rows record a clean git hash.
 - Output wav: same length/fs/filename as input, 16-bit PCM, no clipping. Inference CPU-only, offline.
 - Clean audio is never used at inference.
 - Never commit data/, outputs/, logs/, reference/, input/*.wav, output/*.wav. Weights in weights/ (<50 MB each, no LFS).

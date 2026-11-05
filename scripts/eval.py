@@ -1,7 +1,10 @@
 """Evaluate a config on a split: PESQ-WB, SI-SDR, STOI, course SNR.
 
-Enhances in memory (float64, as in the course notebook) unless --from-outputs is given,
-in which case the 16-bit wavs written by scripts/enhance.py are scored.
+Sources (mutually exclusive):
+  default        enhance in memory, quantize to 16-bit PCM exactly as main.py writes, score that
+  --float        enhance in memory, score the unquantized float64 output (course notebook)
+  --from-outputs score the 16-bit wavs written by scripts/enhance.py
+  --pred-dir DIR score existing wavs in DIR, matched to the manifest by noisy filename
 The method only ever sees the noisy waveform; clean audio is read afterwards for scoring.
 """
 from __future__ import annotations
@@ -9,6 +12,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from pathlib import Path
 import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import date
@@ -34,16 +38,21 @@ def _get_method(name, params):
 
 
 def evaluate_row(task) -> dict:
-    root, row, cfg, split, from_outputs = task
+    root, row, cfg, split, source, pred_path = task
     sr = int(row["sample_rate_hz"])
     noisy = read_row(root, row, "noisy")
     t0 = time.perf_counter()
-    if from_outputs:
+    if source == "outputs":
         y = read_wav(output_path(cfg["name"], split, row["noisy_path"]), sr, row["num_samples"])
+        n_clipped = 0
+    elif source == "pred":
+        y = read_wav(pred_path, sr, row["num_samples"])
         n_clipped = 0
     else:
         y = _get_method(cfg["method"], cfg["params"])(noisy, sr)
-        n_clipped = to_pcm16(y)[1]
+        pcm, n_clipped = to_pcm16(y)
+        if source == "mem16":
+            y = pcm.astype(np.float64) / 32768.0  # exactly what main.py writes
     enhance_s = time.perf_counter() - t0
     if y.shape != noisy.shape:
         raise ValueError(f"{row['segment_id']}: output length {y.shape} != {noisy.shape}")
@@ -73,8 +82,13 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     add_common_args(parser)
     parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument("--from-outputs", action="store_true",
-                        help="score outputs/<config>/<split>/ wavs instead of enhancing in memory")
+    src = parser.add_mutually_exclusive_group()
+    src.add_argument("--float", action="store_true",
+                     help="score unquantized float output (default: 16-bit PCM as main.py writes)")
+    src.add_argument("--from-outputs", action="store_true",
+                     help="score outputs/<config>/<split>/ wavs instead of enhancing in memory")
+    src.add_argument("--pred-dir", default=None,
+                     help="score existing wavs in DIR, matched by noisy filename")
     parser.add_argument("--notes", default="")
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
@@ -83,7 +97,25 @@ def main(argv=None) -> int:
     get_method(cfg["method"], **cfg["params"])  # fail fast on bad config
     import pesq  # noqa: F401  # fail fast if PESQ is missing; never silently omit it
 
-    tasks = [(root, row.to_dict(), cfg, args.split, args.from_outputs)
+    source = ("outputs" if args.from_outputs else "pred" if args.pred_dir
+              else "memfloat" if args.float else "mem16")
+    pred_paths = {}
+    if args.pred_dir:
+        names = load_manifest(root, args.split).noisy_path.map(lambda p: Path(p).name)
+        dup = names[names.duplicated()].tolist()
+        assert not dup, f"noisy filenames not unique in {args.split}: {dup[:5]}"
+        pred_dir = Path(args.pred_dir).resolve()
+        found = {}
+        for p in pred_dir.rglob("*"):
+            if p.is_file() and p.suffix.lower() == ".wav":
+                assert p.name not in found, f"duplicate filename in pred dir: {p.name}"
+                found[p.name] = p
+        for rel in manifest.noisy_path:
+            name = Path(rel).name
+            if name not in found:
+                raise FileNotFoundError(f"missing prediction for {name} in {pred_dir}")
+            pred_paths[rel] = found[name]
+    tasks = [(root, row.to_dict(), cfg, args.split, source, pred_paths.get(row["noisy_path"]))
              for _, row in manifest.iterrows()]
     started = time.perf_counter()
     if args.jobs > 1:
@@ -99,15 +131,17 @@ def main(argv=None) -> int:
     out_dir = output_dir(cfg["name"], args.split).parent
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"_sub{args.subset}" if args.subset else ""
-    detail.to_csv(out_dir / f"eval_{args.split}{tag}.csv", index=False)
+    sfx = "" if source == "mem16" else f"_{source}"
+    detail.to_csv(out_dir / f"eval_{args.split}{tag}{sfx}.csv", index=False)
 
     tables = {"overall": summarize(detail),
               "by target_snr_db": summarize(detail, "target_snr_db"),
               "by noise_difficulty": summarize(detail, "noise_difficulty")}
     n_failed = int(detail.pesq.isna().sum())
     n_clipped = int(detail.n_clipped.sum())
-    source = "16-bit outputs" if args.from_outputs else "in-memory float"
-    header = (f"{cfg['name']} ({cfg['method']}) | {args.split} n={len(detail)} | {source} | "
+    label = {"mem16": "in-memory 16-bit", "memfloat": "in-memory float",
+             "outputs": "16-bit outputs", "pred": f"pred-dir {args.pred_dir}"}[source]
+    header = (f"{cfg['name']} ({cfg['method']}) | {args.split} n={len(detail)} | {label} | "
               f"jobs={args.jobs} | {elapsed:.1f}s | PESQ failed={n_failed} | "
               f"clipped samples={n_clipped}")
     text = header + "\n" + "\n".join(
@@ -115,7 +149,7 @@ def main(argv=None) -> int:
         for name, t in tables.items())
     logs = REPO_ROOT / "logs"
     logs.mkdir(exist_ok=True)
-    stem = f"eval_{cfg['name']}_{args.split}{tag}"
+    stem = f"eval_{cfg['name']}_{args.split}{tag}{sfx}"
     (logs / f"{stem}.txt").write_text(text + "\n", encoding="utf-8")
     pd.concat([t.assign(table=name).rename(columns={t.columns[0]: "key"})
                for name, t in tables.items()]).to_csv(logs / f"{stem}_summary.csv", index=False)
@@ -127,7 +161,7 @@ def main(argv=None) -> int:
     by_snr = detail.groupby("target_snr_db").pesq.mean()
     notes = (f"split={args.split} n={len(detail)} failed={n_failed} "
              f"snr={detail.snr_db.mean():.3f} stoi={detail.stoi.mean():.4f} "
-             f"clipped={n_clipped} src={'outputs' if args.from_outputs else 'memory'}"
+             f"clipped={n_clipped} src={source}"
              + (f" subset={args.subset}" if args.subset else "")
              + (f" | {args.notes}" if args.notes else ""))
     record = [date.today().isoformat(), git_hash(), cfg["name"], cfg["method"],
