@@ -18,8 +18,12 @@ pip alternative (Python 3.12) instead of conda: `python -m venv .venv`, activate
 
 ## Current method
 
-MMSE log-spectral amplitude estimator (Ephraim-Malah LSA, `configs/submission.yaml` = `configs/mmse_lsa_top1.yaml`): STFT (n_fft 512, hop 128, Hann), noise PSD from the first 20 % of frames, decision-directed a-priori SNR (alpha 0.96, floor -15 dB), LSA gain with floor -25 dB.
-Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): 1.7505 (course Wiener baseline: 1.5987). Details in `docs/submissions.md`.
+BiGRU magnitude mask (`configs/submission.yaml` = inference params of `configs/dl/gru_v1.yaml`, weights `weights/gru_v1.pt`, 2.4 MB, trained from scratch on the train split only): STFT (n_fft 512, hop 128), log1p magnitude -> 2-layer bidirectional GRU (hidden 128, 594k params) -> sigmoid mask on the noisy magnitude, noisy phase, inverse STFT.
+Validation PESQ (wideband, 164 files, scored on main.py's 16-bit outputs): **2.3594** (0/5/10/15 dB: 1.7324/2.0606/2.3624/2.7271). Previous: MMSE-LSA 1.7505, course Wiener baseline 1.5987. Details in `docs/submissions.md`.
+
+CPU runtime: ~36 s for the 164 validation files (3 s each) on a 16-thread desktop CPU (torch limited to 4 threads); no GPU used or needed.
+
+Fallback (classical, no neural network): `python main.py --config configs/mmse_lsa_top1.yaml` (MMSE-LSA, val PESQ 1.7505).
 
 ## Setup
 
@@ -29,6 +33,8 @@ Conda (recommended):
 conda env create -f environment.yml
 conda activate nrc
 ```
+
+The environment includes PyTorch (CPU build is enough; `main.py` always runs on CPU). With pip, `pip install -r requirements.txt` pulls the default torch wheel; on Linux you can use the smaller CPU-only wheel via `pip install torch --index-url https://download.pytorch.org/whl/cpu` first.
 
 If conda fails with `CondaToSNonInteractiveError` (Anaconda `defaults` channels in your condarc), restrict that one command to conda-forge, e.g. in bash: `CONDA_CHANNELS=conda-forge conda env create -f environment.yml`.
 
@@ -46,4 +52,4 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Reads every `.wav` in `input/` and writes the enhanced file with the same name to `output/`.
+Reads every `.wav` in `input/` and writes the enhanced file with the same name to `output/`. Paths can be given explicitly (`python main.py --input /path/to/noisy --output /path/to/out`); `main.py` can be launched from any working directory: the config and the weights are resolved against the repo folder.
