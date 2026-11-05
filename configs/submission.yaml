@@ -1,6 +1,17 @@
-# Submission config = inference params of configs/dl/gru_v1.yaml (BiGRU magnitude mask, weights/gru_v1.pt). Val PESQ 2.3594.
+# Submission config = inference params of configs/dl/gru_v1_lnrb.yaml (BiGRU magnitude mask,
+# weights/gru_v1.pt, + inference-only asymmetric train-range level: active level inside train
+# p5..p95 [-27.88, -15.27] dBFS untouched, above cut to -15.27, below boosted to train median
+# -19.60, output scaled back). Val PESQ 2.3598 (level probe -30/-20 dB 2.3370/2.3533).
 # Fallback (classical, no torch): python main.py --config configs/mmse_lsa_top1.yaml  (val PESQ 1.7505)
 method: gru_mask
 params:
   weights: weights/gru_v1.pt   # resolved against the repo root, not the cwd
   device: cpu
+  level_norm: true
+  level_measure: active
+  level_mode: range_boost
+  lo_dbfs: -27.88
+  hi_dbfs: -15.27
+  target_dbfs: -19.60
+  max_boost_db: 30.0
+  max_cut_db: 12.0
