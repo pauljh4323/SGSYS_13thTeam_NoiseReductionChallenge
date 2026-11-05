@@ -7,3 +7,6 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-05,204d9d7,mmse_lsa_top1,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 1
 2026-11-05,204d9d7,mmse_lsa_top2,mmse_lsa,1.7399,1.1653,1.4489,1.6865,2.1439,13.306,split=validation n=164 failed=0 snr=13.537 stoi=0.8668 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 2
 2026-11-05,204d9d7,mmse_lsa_top3,mmse_lsa,1.7375,1.1647,1.4406,1.6865,2.1426,13.309,split=validation n=164 failed=0 snr=13.540 stoi=0.8682 clipped=0 src=mem16 | mmse-lsa sweep v1 rank 3
+2026-11-05,f4cf7c6,mmse_lsa_v2_top1,mmse_lsa,1.7501,1.1654,1.4405,1.7051,2.1610,13.184,split=validation n=164 failed=0 snr=13.435 stoi=0.8712 clipped=0 src=mem16 | mmse-lsa sweep v2 top1
+2026-11-05,f4cf7c6,mmse_lsa_v2_top2,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=mem16 | mmse-lsa sweep v2 top2
+2026-11-05,f4cf7c6,mmse_lsa_v2_quantile,mmse_lsa,1.6683,1.1812,1.4221,1.6097,2.0235,11.888,split=validation n=164 failed=0 snr=12.094 stoi=0.8717 clipped=0 src=mem16 | mmse-lsa sweep v2 quantile
