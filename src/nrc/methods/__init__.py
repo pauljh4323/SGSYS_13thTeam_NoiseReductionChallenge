@@ -7,9 +7,10 @@ from __future__ import annotations
 import functools
 import inspect
 
-from . import noisy, wiener
+from . import mmse_lsa, noisy, wiener
 
 _REGISTRY = {
+    "mmse_lsa": mmse_lsa.enhance,
     "noisy": noisy.enhance,
     "wiener": wiener.enhance,
 }

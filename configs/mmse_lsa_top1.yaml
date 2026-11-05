@@ -1,0 +1,11 @@
+# MMSE-LSA sweep v1 rank 1 (grid point mmse_lsa_v1_003; subset-32 16-bit PESQ in logs/sweep_mmse_lsa_v1.csv).
+method: mmse_lsa
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.20
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25

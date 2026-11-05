@@ -1,0 +1,11 @@
+# MMSE-LSA sweep v2 rank 2 (grid point mmse_lsa_v2b_001; same params as mmse_lsa_top1) (subset-32 16-bit PESQ in logs/sweep_mmse_lsa_v2b.csv).
+method: mmse_lsa
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.20
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25

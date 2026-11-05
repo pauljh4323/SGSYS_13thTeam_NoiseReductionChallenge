@@ -1,0 +1,14 @@
+# MMSE-LSA sweep v2 Stage A: widen v1 edges, noise_est=initial. 3 x 3 x 3 = 27 points (subset 32).
+method: mmse_lsa
+base_params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.20
+grid:
+  alpha: [0.90, 0.93, 0.96]
+  xi_min_db: [-15, -10, -5]
+  gmin_db: [-35, -30, -25]
+reference:
+  - configs/mmse_lsa_top1.yaml

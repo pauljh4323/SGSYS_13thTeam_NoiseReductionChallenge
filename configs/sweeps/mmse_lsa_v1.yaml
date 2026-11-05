@@ -1,0 +1,19 @@
+# MMSE-LSA sweep v1: 2 x 2 x 2 x 3 = 24 points (subset 32, 16-bit scoring).
+method: mmse_lsa
+base_params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_fraction: 0.20
+  alpha_d: 0.95
+  alpha_p: 0.2
+  alpha_s: 0.8
+  mcra_window: 96
+  delta: 5.0
+grid:
+  noise_est: [initial, mcra]
+  alpha: [0.96, 0.98]
+  xi_min_db: [-25, -15]
+  gmin_db: [-25, -15, -10]
+reference:
+  - configs/wiener_baseline.yaml

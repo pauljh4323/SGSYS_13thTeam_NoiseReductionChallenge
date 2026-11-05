@@ -1,0 +1,18 @@
+# MMSE-LSA sweep v2 Stage B: noise estimators at the Stage A best (alpha 0.96, xi_min -15, gmin -25).
+# grid_groups are expanded separately and concatenated: 3 (initial) + 3 x 2 (quantile) = 9 points.
+method: mmse_lsa
+base_params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25
+grid_groups:
+  - noise_est: [initial]
+    noise_fraction: [0.10, 0.20, 0.30]
+  - noise_est: [quantile]
+    q: [0.1, 0.2, 0.3]
+    bias: [1.0, 1.5]
+reference:
+  - configs/mmse_lsa_top1.yaml
