@@ -20,3 +20,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-07,1b08a42,gru_v2a_lnrb,gru_mask,2.2246,1.6050,1.9144,2.2090,2.6165,14.463,split=validation n=164 failed=0 snr=14.344 stoi=0.9191 clipped=0 src=mem16
 2026-11-07,1b08a42,gru_v2b_off,gru_mask,2.5051,1.7975,2.2128,2.5067,2.8913,15.768,split=validation n=164 failed=0 snr=15.865 stoi=0.9365 clipped=0 src=mem16
 2026-11-07,1b08a42,gru_v2b_lnrb,gru_mask,2.5042,1.7977,2.2119,2.5056,2.8905,15.769,split=validation n=164 failed=0 snr=15.868 stoi=0.9365 clipped=0 src=mem16
+2026-11-07,c95c063,submission,gru_mask,2.5051,1.7975,2.2128,2.5067,2.8913,15.768,split=validation n=164 failed=0 snr=15.865 stoi=0.9365 clipped=0 src=pred | e2e main.py outputs
