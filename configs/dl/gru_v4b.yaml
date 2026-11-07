@@ -1,0 +1,40 @@
+# gru_v4b: fine-tune from gru_v3b (same architecture), mixture gain augmentation + cmag+mrstft (0.5) + SI-SDR (0.1), lr 2e-4. Inference: method/params; training: model/train.
+method: gru_mask
+params:
+  weights: weights/gru_v4b.pt  # copy <ckpt-dir>/best.pt here after training (< 50 MB)
+  device: cpu
+
+model:
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d   # identical to gru_v2b/v3b
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  init_from: weights/gru_v3b.pt   # warm start: weights + norm buffers; fresh optimizer/scheduler
+  epochs: 100
+  batch_size: 16
+  lr: 2.0e-4
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr # cmag + lambda_mrstft * MR-STFT + lambda_sisdr * (-SI-SDR dB)
+  lambda_mrstft: 0.5
+  lambda_sisdr: 0.1
+  val_every: 2
+  val_batch: 16
+  plateau_factor: 0.5
+  plateau_patience: 3
+  min_lr: 1.0e-5
+  patience_val_points: 8          # early stop: 8 val points (16 epochs) without val PESQ gain
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_mode: mixture              # p_wide: U(-30,+6) dB, else U(-6,+3) dB, all samples
+    p_wide: 0.5
+    gain_wide_db: [-30, 6]
+    gain_narrow_db: [-6, 3]
+    peak: 0.99

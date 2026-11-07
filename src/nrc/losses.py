@@ -4,12 +4,14 @@ cmag:   MSE(|S_hat|^c, |S|^c) on the model's STFT magnitudes (gru_v1/v2 loss).
 mrstft: multi-resolution STFT loss on time-domain waves; per resolution (FFT 256/512/1024,
         hop 64/128/256, periodic hann) spectral convergence ||  |S|-|S_hat| ||_F / || |S| ||_F
         plus mean |log|S| - log|S_hat||, averaged over resolutions.
+sisdr:  negative scale-invariant SDR (dB) on zero-mean time-domain waves, mean over batch;
+        eps-stabilized so an all-zeros clean or estimate stays finite (additive term, gru_v4b).
 """
 from __future__ import annotations
 
 import torch
 
-LOSSES = ("cmag", "cmag+mrstft")
+LOSSES = ("cmag", "cmag+mrstft", "cmag+mrstft+sisdr")
 MRSTFT_RES = ((256, 64), (512, 128), (1024, 256))
 _EPS = 1e-7
 
@@ -35,3 +37,13 @@ def mrstft_loss(est: torch.Tensor, clean: torch.Tensor, resolutions=MRSTFT_RES) 
             torch.linalg.norm(s.flatten(1), dim=1).clamp_min(1e-5)
         total = total + sc.mean() + torch.mean(torch.abs(torch.log(s) - torch.log(s_hat)))
     return total / len(resolutions)
+
+
+def sisdr_loss(est: torch.Tensor, clean: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    """(B, N) estimate vs (B, N) clean -> scalar -mean_b SI-SDR_b (dB)."""
+    est = est - est.mean(dim=-1, keepdim=True)
+    clean = clean - clean.mean(dim=-1, keepdim=True)
+    alpha = (est * clean).sum(-1, keepdim=True) / ((clean ** 2).sum(-1, keepdim=True) + eps)
+    target = alpha * clean
+    ratio = ((target ** 2).sum(-1) + eps) / (((est - target) ** 2).sum(-1) + eps)
+    return -torch.mean(10 * torch.log10(ratio))
