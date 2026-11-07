@@ -8,6 +8,11 @@ level_mode range: length preserved, all-zeros input silent, an in-range input is
 level_norm off, and an out-of-range input is moved to the range edge (g matches the formula).
 level_mode range_boost: length preserved, all-zeros input silent, an in-range input is bit-identical
 to level_norm off; below lo g = target - measured, above hi g = hi - measured.
+front_end (gru_v2): weights/gru_v1.pt rebuilt with explicit front_end="none" is bit-identical to
+load_weights (same state_dict keys, model_cfg unchanged); v2b (conv2d, H=256) random init keeps
+length for 48000/47999 and gives finite, silent output for all-zeros input.
+remix: apply_to_original_pairs off returns original pairs untouched; on, the clean/noisy ratio is
+preserved and |noisy| <= peak.
 """
 from __future__ import annotations
 
@@ -98,8 +103,61 @@ def main() -> int:
             g = level_gain_range_boost_db(x_out, "active", lo, hi, tgt, 30.0, 12.0)
             assert abs(g - (ref - measure_level_dbfs(x_out, "active"))) < 1e-9, (lvl, g)
         print("ok  level_mode range_boost  length/zeros OK, in-range bit-identical to off, gains OK")
+    _check_front_end(rng)
+    _check_remix()
     print(f"gru_mask selfcheck OK: {n_params:,} params, weights {size_mb:.2f} MB")
     return 0
+
+
+def _check_front_end(rng) -> None:
+    import torch
+    from nrc.models.gru_mask import GRUMask, count_params, load_weights
+
+    v1 = _common.REPO_ROOT / "weights" / "gru_v1.pt"
+    if v1.is_file():
+        ck = torch.load(v1, map_location="cpu", weights_only=True)
+        assert set(ck["model_cfg"]) == {"n_fft", "hop", "hidden", "layers"}, ck["model_cfg"]
+        ref = load_weights(v1)
+        m = GRUMask(**ck["model_cfg"], front_end="none")
+        m.load_state_dict(ck["model_state"])  # strict: same key set
+        m.eval()
+        assert m.config == ref.config, (m.config, ref.config)
+        x = torch.from_numpy((0.1 * rng.standard_normal((2, 48000))).astype(np.float32))
+        with torch.inference_mode():
+            assert torch.equal(m(x), ref(x)), "gru_v1 front_end none not bit-identical"
+        print("ok  gru_v1 weights front_end=none bit-identical")
+    else:
+        print("skip gru_v1 bit-identity (weights/gru_v1.pt missing)")
+    torch.manual_seed(0)
+    v2b = GRUMask(hidden=256, front_end="conv2d", conv_channels=16, conv_norm="group").eval()
+    for n in (48000, 47999):
+        for name, x in (("rand", 0.1 * rng.standard_normal(n)), ("zeros", np.zeros(n))):
+            with torch.inference_mode():
+                y = v2b(torch.from_numpy(x.astype(np.float32))[None])[0].numpy()
+            assert y.shape == (n,) and np.isfinite(y).all(), (n, name)
+            if name == "zeros":
+                assert np.max(np.abs(y)) < 1e-6, n
+    print(f"ok  v2b conv2d H=256 random init ({count_params(v2b):,} params) length 48000/47999, zeros")
+
+
+def _check_remix() -> None:
+    from nrc.data.remix import RemixData
+
+    r = np.random.default_rng(0)
+    c = (0.3 * r.standard_normal((8, 4000))).astype(np.float32)
+    n = c + (0.3 * r.standard_normal((8, 4000))).astype(np.float32)
+    off = RemixData(c, n, p_original=1.0)
+    co, no = off.sample(np.random.default_rng(1))
+    assert any(np.array_equal(co, c[i]) and np.array_equal(no, n[i]) for i in range(8))
+    on = RemixData(c, n, p_original=1.0, gain_db_range=(-30, 6), apply_to_original_pairs=True)
+    g = np.random.default_rng(2)
+    for _ in range(50):
+        cs, ns = on.sample(g)
+        i = int(np.argmin([np.abs(ns / n[k] - ns[0] / n[k][0]).max() for k in range(8)]))
+        ratio = ns[0] / n[i][0]
+        assert np.allclose(cs, c[i] * ratio, rtol=1e-4, atol=1e-6) and np.allclose(ns, n[i] * ratio, rtol=1e-4, atol=1e-6)
+        assert np.max(np.abs(ns)) <= 0.99 + 1e-6 and ratio <= 10 ** (6 / 20) + 1e-6
+    print("ok  remix gain on original pairs (same gain on clean/noisy, peak <= 0.99); off untouched")
 
 
 if __name__ == "__main__":

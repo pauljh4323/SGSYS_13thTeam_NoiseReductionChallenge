@@ -1,0 +1,33 @@
+# gru_v2b: conv2d front-end + H=256 + v2 gain augmentation U(-30,+6) dB on all samples. Inference: method/params; training: model/train.
+method: gru_mask
+params:
+  weights: weights/gru_v2b.pt  # copy <ckpt-dir>/best.pt here after training (< 50 MB)
+  device: cpu
+
+model:
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d   # 2 x Conv2d(16 ch, 3x3, freq stride 2) + GroupNorm + PReLU
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  epochs: 150
+  batch_size: 16          # full 3 s segments
+  lr: 1.0e-3
+  grad_clip: 5.0
+  compress: 0.3           # loss = MSE(|S_hat|^c, |S|^c)
+  val_every: 2            # epochs between full-validation PESQ runs
+  val_batch: 16
+  plateau_factor: 0.5     # ReduceLROnPlateau on val PESQ (mode=max), counted in validations
+  plateau_patience: 3
+  min_lr: 1.0e-5
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_db_range: [-30, 6]         # v2: wide input-gain augmentation
+    apply_to_original_pairs: true   # original pairs get the same gain (clean target scaled alike)
+    peak: 0.99                      # rescale both if |noisy| > 0.99
