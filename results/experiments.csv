@@ -24,3 +24,6 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-07,97f9274,gru_v3a_off,gru_mask,2.5249,1.8181,2.2370,2.5204,2.9140,15.822,split=validation n=164 failed=0 snr=15.928 stoi=0.9374 clipped=0 src=mem16
 2026-11-07,97f9274,gru_v3b_off,gru_mask,2.5885,1.8833,2.3314,2.5864,2.9538,16.463,split=validation n=164 failed=0 snr=16.560 stoi=0.9402 clipped=0 src=mem16
 2026-11-08,eeebebc,submission,gru_mask,2.5885,1.8833,2.3314,2.5864,2.9538,16.463,split=validation n=164 failed=0 snr=16.560 stoi=0.9402 clipped=0 src=pred | e2e main.py outputs
+2026-11-08,e5a84ba,gru_v3b_off,gru_mask,2.4295,1.7709,2.2303,2.6228,3.0968,15.013,split=val_remix n=328 failed=0 snr=15.164 stoi=0.9203 clipped=0 src=mem16 | val_remix
+2026-11-08,e5a84ba,gru_v2b_off,gru_mask,2.3502,1.6998,2.1366,2.5310,3.0374,14.322,split=val_remix n=328 failed=0 snr=14.494 stoi=0.9163 clipped=0 src=mem16 | val_remix
+2026-11-08,e5a84ba,mmse_lsa_top1,mmse_lsa,1.6626,1.1501,1.3902,1.7851,2.3303,11.312,split=val_remix n=328 failed=0 snr=11.682 stoi=0.8299 clipped=0 src=mem16 | val_remix
