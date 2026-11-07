@@ -12,7 +12,9 @@ front_end (gru_v2): weights/gru_v1.pt rebuilt with explicit front_end="none" is 
 load_weights (same state_dict keys, model_cfg unchanged); v2b (conv2d, H=256) random init keeps
 length for 48000/47999 and gives finite, silent output for all-zeros input.
 remix: apply_to_original_pairs off returns original pairs untouched; on, the clean/noisy ratio is
-preserved and |noisy| <= peak.
+preserved and |noisy| <= peak; gain_mode mixture keeps the ratio, gains stay in U(-30,+6) dB and
+~62.5 % fall in [-6,+3] dB (0.5 + 0.5 * 9/36).
+losses (gru_v3): mrstft(x, x) ~ 0, mrstft/cmag finite with finite gradients through the ISTFT.
 """
 from __future__ import annotations
 
@@ -105,6 +107,7 @@ def main() -> int:
         print("ok  level_mode range_boost  length/zeros OK, in-range bit-identical to off, gains OK")
     _check_front_end(rng)
     _check_remix()
+    _check_losses()
     print(f"gru_mask selfcheck OK: {n_params:,} params, weights {size_mb:.2f} MB")
     return 0
 
@@ -158,6 +161,41 @@ def _check_remix() -> None:
         assert np.allclose(cs, c[i] * ratio, rtol=1e-4, atol=1e-6) and np.allclose(ns, n[i] * ratio, rtol=1e-4, atol=1e-6)
         assert np.max(np.abs(ns)) <= 0.99 + 1e-6 and ratio <= 10 ** (6 / 20) + 1e-6
     print("ok  remix gain on original pairs (same gain on clean/noisy, peak <= 0.99); off untouched")
+    small_c, small_n = 0.01 * c, 0.01 * n
+    mix = RemixData(small_c, small_n, p_original=1.0, gain_mode="mixture")
+    g, gains = np.random.default_rng(3), []
+    for _ in range(2000):
+        cs, ns = mix.sample(g)
+        i = int(np.argmin([np.abs(ns / small_n[k] - ns[0] / small_n[k][0]).max() for k in range(8)]))
+        ratio = ns[0] / small_n[i][0]
+        assert np.allclose(cs, small_c[i] * ratio, rtol=1e-4, atol=1e-8)
+        gains.append(20 * np.log10(ratio))
+    gains = np.array(gains)
+    narrow = float(np.mean((gains >= -6 - 1e-4) & (gains <= 3 + 1e-4)))
+    assert gains.min() >= -30 - 1e-4 and gains.max() <= 6 + 1e-4, (gains.min(), gains.max())
+    assert 0.58 < narrow < 0.67, narrow
+    print(f"ok  remix gain_mode mixture (range [{gains.min():.1f}, {gains.max():.1f}] dB, "
+          f"in [-6,+3]: {100 * narrow:.1f} %)")
+
+
+def _check_losses() -> None:
+    import torch
+    from nrc.losses import cmag_loss, mrstft_loss
+    from nrc.models.gru_mask import GRUMask
+
+    torch.manual_seed(0)
+    clean = 0.1 * torch.randn(2, 16000)
+    noisy = clean + 0.05 * torch.randn(2, 16000)
+    assert float(mrstft_loss(clean, clean)) < 1e-6
+    model = GRUMask(hidden=32, layers=1)
+    spec = model.stft(noisy)
+    m = model.mask(spec.abs())
+    est = model.istft(m * spec, length=16000)
+    loss = cmag_loss(m * spec.abs(), model.stft(clean).abs()) + 0.5 * mrstft_loss(est, clean)
+    loss.backward()
+    assert torch.isfinite(loss) and all(torch.isfinite(p.grad).all() for p in model.parameters()
+                                        if p.grad is not None)
+    print(f"ok  losses cmag+mrstft finite ({float(loss):.4f}), mrstft(x, x) ~ 0, finite grads")
 
 
 if __name__ == "__main__":

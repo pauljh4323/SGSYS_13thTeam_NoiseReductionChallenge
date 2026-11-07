@@ -4,6 +4,12 @@ Validation PESQ (wideband, 16-bit quantized exactly like main.py writes) runs on
 `val_every` epochs. Checkpoints in --ckpt-dir: last.pt (full training state, every epoch),
 best.pt (inference weights, on val PESQ gain), train_log.csv (one row per epoch).
 --resume continues from last.pt if present (fresh start otherwise), so it is safe to always pass.
+--init-from PATH (or train.init_from) warm-starts from an inference checkpoint (model weights and
+norm buffers only; fresh optimizer/scheduler/epoch counter); ignored when resuming from last.pt.
+train.loss: "cmag" (default) or "cmag+mrstft" (+ mrstft_lambda * multi-resolution STFT loss on
+the ISTFT output). train.patience_val_points: early stop after N val points without improvement
+(log column early_stop = 1; a resumed early-stopped run exits at once). --max-steps 0 only
+validates the initial model (warm-start sanity) and exits without writing checkpoints.
 """
 from __future__ import annotations
 
@@ -22,7 +28,8 @@ from _common import REPO_ROOT, load_config
 from nrc.io import load_manifest, read_row, resolve_data_root, stratified_subset, to_pcm16
 from nrc.metrics import pesq_wb
 
-LOG_FIELDS = ("epoch", "step", "train_loss", "val_pesq", "val_failed", "lr", "epoch_s", "val_s", "best_pesq")
+LOG_FIELDS = ("epoch", "step", "train_loss", "val_pesq", "val_failed", "lr", "epoch_s", "val_s", "best_pesq",
+              "early_stop")
 
 
 def _atomic_save(obj, path: Path) -> None:
@@ -78,7 +85,9 @@ def main(argv=None) -> int:
     parser.add_argument("--data-root", default=None)
     parser.add_argument("--ckpt-dir", default=None, help="default outputs/ckpt/<config name>")
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--max-steps", type=int, default=None, help="stop after N optimizer steps (smoke)")
+    parser.add_argument("--max-steps", type=int, default=None,
+                        help="stop after N optimizer steps (smoke); 0 = validate initial model only")
+    parser.add_argument("--init-from", default=None, help="warm start from inference weights (.pt)")
     parser.add_argument("--device", default="auto", choices=("auto", "cpu", "cuda"))
     parser.add_argument("--val-subset", type=int, default=None, help="stratified val subset (seed 0)")
     parser.add_argument("--val-jobs", type=int, default=min(8, os.cpu_count() or 1))
@@ -87,6 +96,7 @@ def main(argv=None) -> int:
 
     import torch
     from nrc.data.remix import RemixData
+    from nrc.losses import LOSSES, cmag_loss, mrstft_loss
     from nrc.models.gru_mask import GRUMask, count_params, save_weights
 
     cfg = load_config(args.config)
@@ -117,6 +127,8 @@ def main(argv=None) -> int:
         opt, mode="max", factor=float(tcfg.get("plateau_factor", 0.5)),
         patience=int(tcfg.get("plateau_patience", 3)), min_lr=float(tcfg.get("min_lr", 1e-5)))
     start_epoch, step, best, best_epoch = 0, 0, -math.inf, -1
+    since_best = 0
+    init_from = args.init_from or tcfg.get("init_from")
     last_path, best_path, log_path = ckpt_dir / "last.pt", ckpt_dir / "best.pt", ckpt_dir / "train_log.csv"
     if args.resume and last_path.is_file():
         ck = torch.load(last_path, map_location=device, weights_only=False)
@@ -124,14 +136,36 @@ def main(argv=None) -> int:
         opt.load_state_dict(ck["optimizer"])
         sched.load_state_dict(ck["scheduler"])
         start_epoch, step, best, best_epoch = ck["epoch"], ck["step"], ck["best_pesq"], ck["best_epoch"]
+        since_best = int(ck.get("since_best", 0))
+        if ck.get("early_stopped"):
+            print(f"{last_path} is early-stopped (epoch {start_epoch}, best {best:.4f} ep {best_epoch}); nothing to do")
+            return 0
         rng.bit_generator.state = ck["np_rng"]
         torch.set_rng_state(ck["torch_rng"])
         if device == "cuda" and ck.get("cuda_rng") is not None:
             torch.cuda.set_rng_state_all(ck["cuda_rng"])
         print(f"resumed from {last_path}: epoch {start_epoch}, step {step}, best {best:.4f} (ep {best_epoch})")
+    elif init_from:
+        init_path = Path(init_from) if Path(init_from).is_absolute() else REPO_ROOT / init_from
+        ck = torch.load(init_path, map_location=device, weights_only=True)
+        if ck.get("model_cfg") != model.config:
+            raise ValueError(f"--init-from model_cfg {ck.get('model_cfg')} != config model {model.config}")
+        model.load_state_dict(ck["model_state"])  # strict; includes feat_mean/feat_std buffers
+        print(f"init from {init_path} (epoch {ck.get('epoch')}, pesq {ck.get('pesq')}); fresh optimizer")
     else:
         model.set_norm_stats(*_norm_stats(model, data.noisy, device))
     print(f"model: {count_params(model):,} params")
+    if args.max_steps == 0:
+        with ProcessPoolExecutor(max_workers=max(1, args.val_jobs)) as pool:
+            pesq_v, failed = validate(model, val, device, int(tcfg.get("val_batch", 16)), pool)
+        print(f"initial val PESQ {pesq_v:.6f} (failed {failed}, n {len(val_df)}); no training (--max-steps 0)")
+        return 0
+
+    loss_name, lam = tcfg.get("loss", "cmag"), float(tcfg.get("mrstft_lambda", 0.5))
+    if loss_name not in LOSSES:
+        raise ValueError(f"train.loss must be one of {LOSSES}, got {loss_name!r}")
+    patience = tcfg.get("patience_val_points")
+    patience = int(patience) if patience else None
 
     epochs, bs = int(tcfg["epochs"]), int(tcfg.get("batch_size", 16))
     steps_per_epoch = math.ceil(len(data) / bs)
@@ -145,15 +179,21 @@ def main(argv=None) -> int:
         if new_log:
             log.writeheader()
         for epoch in range(start_epoch, epochs):
-            te, losses, stop = time.perf_counter(), [], False
+            te, losses, stop, early = time.perf_counter(), [], False, False
             for _ in range(steps_per_epoch):
                 clean_b, noisy_b = data.batch(rng, bs)
                 clean_t, noisy_t = torch.from_numpy(clean_b).to(device), torch.from_numpy(noisy_b).to(device)
                 with torch.no_grad():
                     target = model.stft(clean_t).abs()
-                mag = model.stft(noisy_t).abs()
-                est = model.mask(mag) * mag
-                loss = torch.mean((est.clamp_min(1e-8) ** c - target.clamp_min(1e-8) ** c) ** 2)
+                if loss_name == "cmag":
+                    mag = model.stft(noisy_t).abs()
+                    loss = cmag_loss(model.mask(mag) * mag, target, c)
+                else:
+                    spec = model.stft(noisy_t)
+                    mag = spec.abs()
+                    m = model.mask(mag)
+                    est_wave = model.istft(m * spec, length=noisy_t.shape[-1])
+                    loss = cmag_loss(m * mag, target, c) + lam * mrstft_loss(est_wave, clean_t)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -172,26 +212,33 @@ def main(argv=None) -> int:
                 if math.isfinite(pesq_v):
                     sched.step(pesq_v)
                     if pesq_v > best:
-                        best, best_epoch = pesq_v, epoch + 1
+                        best, best_epoch, since_best = pesq_v, epoch + 1, 0
                         tmp = best_path.with_suffix(".pt.tmp")
                         save_weights(tmp, model, epoch=best_epoch, pesq=best, config=cfg["name"])
                         os.replace(tmp, best_path)
+                    else:
+                        since_best += 1
+                    early = patience is not None and since_best >= patience
             lr = opt.param_groups[0]["lr"]
             _atomic_save({"model": model.state_dict(), "optimizer": opt.state_dict(),
                           "scheduler": sched.state_dict(), "epoch": epoch + 1, "step": step,
-                          "best_pesq": best, "best_epoch": best_epoch, "np_rng": rng.bit_generator.state,
+                          "best_pesq": best, "best_epoch": best_epoch, "since_best": since_best,
+                          "early_stopped": early, "np_rng": rng.bit_generator.state,
                           "torch_rng": torch.get_rng_state(),
                           "cuda_rng": torch.cuda.get_rng_state_all() if device == "cuda" else None,
                           "cfg": cfg}, last_path)
             log.writerow({"epoch": epoch + 1, "step": step, "train_loss": f"{np.mean(losses):.6f}",
                           "val_pesq": "" if not math.isfinite(pesq_v) else f"{pesq_v:.4f}",
                           "val_failed": failed, "lr": f"{lr:.2e}", "epoch_s": f"{epoch_s:.1f}",
-                          "val_s": f"{val_s:.1f}", "best_pesq": f"{best:.4f}" if best > -math.inf else ""})
+                          "val_s": f"{val_s:.1f}", "best_pesq": f"{best:.4f}" if best > -math.inf else "",
+                          "early_stop": "1" if early else ""})
             logf.flush()
             print(f"epoch {epoch + 1}/{epochs} step {step} loss {np.mean(losses):.5f} "
                   f"val_pesq {pesq_v:.4f} best {best:.4f} (ep {best_epoch}) lr {lr:.1e} "
                   f"[{epoch_s:.1f}s + val {val_s:.1f}s, {epoch_s / max(1, len(losses)):.3f}s/step]", flush=True)
-            if stop:
+            if early:
+                print(f"early stop: no val PESQ gain for {since_best} val points", flush=True)
+            if stop or early:
                 break
     print(f"done: best val PESQ {best:.4f} at epoch {best_epoch}; weights {best_path}")
     return 0
