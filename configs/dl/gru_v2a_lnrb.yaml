@@ -1,0 +1,14 @@
+# gru_v2a weights + the same inference-only range_boost level as gru_v1_lnrb (train-split active
+# p5..p95 [-27.88, -15.27] dBFS untouched, above cut to -15.27, below boosted to -19.60).
+method: gru_mask
+params:
+  weights: weights/gru_v2a.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: true
+  level_measure: active
+  level_mode: range_boost
+  lo_dbfs: -27.88
+  hi_dbfs: -15.27
+  target_dbfs: -19.60
+  max_boost_db: 30.0
+  max_cut_db: 12.0
