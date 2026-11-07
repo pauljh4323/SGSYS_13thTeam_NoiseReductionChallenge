@@ -1,10 +1,11 @@
-# Submission config = inference params of configs/dl/gru_v2b_off.yaml (conv2d front-end + BiGRU
-# H=256 magnitude mask, weights/gru_v2b.pt, trained with U(-30,+6) dB input-gain augmentation,
-# level norm off). Val PESQ 2.5051 (level probe -30/-20/-10 dB 2.4390/2.4791/2.4921).
-# Previous: gru_v1_lnrb (configs/dl/gru_v1_lnrb.yaml, weights/gru_v1.pt) val PESQ 2.3598.
+# Submission config = inference params of configs/dl/gru_v3b_off.yaml (conv2d front-end + BiGRU
+# H=256 magnitude mask, weights/gru_v3b.pt: fine-tuned from gru_v2b with mixture gain augmentation
+# + cmag+mrstft loss, configs/dl/gru_v3b.yaml; level norm off). Val PESQ 2.5885
+# (level probe -30/-20/-10 dB 2.5284/2.5622/2.5746).
+# Previous: gru_v2b_off (configs/dl/gru_v2b_off.yaml, weights/gru_v2b.pt) val PESQ 2.5051.
 # Fallback (classical, no torch): python main.py --config configs/mmse_lsa_top1.yaml  (val PESQ 1.7505)
 method: gru_mask
 params:
-  weights: weights/gru_v2b.pt   # resolved against the repo root, not the cwd
+  weights: weights/gru_v3b.pt   # resolved against the repo root, not the cwd
   device: cpu
   level_norm: false
