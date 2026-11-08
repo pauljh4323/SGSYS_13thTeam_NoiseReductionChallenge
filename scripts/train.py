@@ -6,8 +6,9 @@ best.pt (inference weights, on val PESQ gain), train_log.csv (one row per epoch)
 --resume continues from last.pt if present (fresh start otherwise), so it is safe to always pass.
 --init-from PATH (or train.init_from) warm-starts from an inference checkpoint (model weights and
 norm buffers only; fresh optimizer/scheduler/epoch counter); ignored when resuming from last.pt.
-train.loss: "cmag" (default) or "cmag+mrstft" (+ mrstft_lambda * multi-resolution STFT loss on
-the ISTFT output). train.patience_val_points: early stop after N val points without improvement
+train.loss: "cmag" (default), "cmag+mrstft" (+ lambda_mrstft * multi-resolution STFT loss on
+the ISTFT output; legacy key mrstft_lambda) or "cmag+mrstft+sisdr" (+ lambda_sisdr * negative
+SI-SDR on the ISTFT output). train.patience_val_points: early stop after N val points without improvement
 (log column early_stop = 1; a resumed early-stopped run exits at once). --max-steps 0 only
 validates the initial model (warm-start sanity) and exits without writing checkpoints.
 """
@@ -96,7 +97,7 @@ def main(argv=None) -> int:
 
     import torch
     from nrc.data.remix import RemixData
-    from nrc.losses import LOSSES, cmag_loss, mrstft_loss
+    from nrc.losses import LOSSES, cmag_loss, mrstft_loss, sisdr_loss
     from nrc.models.gru_mask import GRUMask, count_params, save_weights
 
     cfg = load_config(args.config)
@@ -161,7 +162,9 @@ def main(argv=None) -> int:
         print(f"initial val PESQ {pesq_v:.6f} (failed {failed}, n {len(val_df)}); no training (--max-steps 0)")
         return 0
 
-    loss_name, lam = tcfg.get("loss", "cmag"), float(tcfg.get("mrstft_lambda", 0.5))
+    loss_name = tcfg.get("loss", "cmag")
+    lam = float(tcfg.get("lambda_mrstft", tcfg.get("mrstft_lambda", 0.5)))
+    lam_sisdr = float(tcfg.get("lambda_sisdr", 0.0))
     if loss_name not in LOSSES:
         raise ValueError(f"train.loss must be one of {LOSSES}, got {loss_name!r}")
     patience = tcfg.get("patience_val_points")
@@ -194,6 +197,8 @@ def main(argv=None) -> int:
                     m = model.mask(mag)
                     est_wave = model.istft(m * spec, length=noisy_t.shape[-1])
                     loss = cmag_loss(m * mag, target, c) + lam * mrstft_loss(est_wave, clean_t)
+                    if loss_name == "cmag+mrstft+sisdr":
+                        loss = loss + lam_sisdr * sisdr_loss(est_wave, clean_t)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)

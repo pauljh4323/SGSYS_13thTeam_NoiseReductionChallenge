@@ -12,6 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_ROOT = REPO_ROOT / "data" / "noise_reduction_challenge"
 SAMPLE_RATE = 16000
 SPLITS = ("train", "validation")
+# Derived held-out splits: name -> folder holding samples.csv (paths relative to that folder).
+EXTRA_SPLITS = {"val_remix": REPO_ROOT / "data" / "val_remix"}  # scripts/make_val_remix.py
+ALL_SPLITS = SPLITS + tuple(EXTRA_SPLITS)
 REQUIRED_COLUMNS = {
     "segment_id", "clean_path", "noisy_path", "sample_rate_hz", "num_samples",
     "noise_category", "noise_collection", "noise_code", "noise_difficulty",
@@ -29,12 +32,21 @@ def resolve_data_root(cli_value: str | None = None) -> Path:
     return root
 
 
+def split_root(root: Path, split: str) -> Path:
+    """Folder that a split's manifest paths are relative to (data root, or the derived split dir)."""
+    if split not in ALL_SPLITS:
+        raise ValueError(f"split must be one of {ALL_SPLITS}")
+    return Path(EXTRA_SPLITS.get(split, root)).resolve()
+
+
 def load_manifest(root: Path, split: str) -> pd.DataFrame:
-    """Load and validate <root>/<split>/samples.csv (same checks as the course notebook)."""
-    if split not in SPLITS:
-        raise ValueError(f"split must be one of {SPLITS}")
-    root = Path(root).resolve()
-    df = pd.read_csv(root / split / "samples.csv", encoding="utf-8-sig")
+    """Load and validate <root>/<split>/samples.csv (same checks as the course notebook).
+
+    Derived splits (EXTRA_SPLITS) read <split dir>/samples.csv; read rows with split_root(root, split).
+    """
+    csv_path = (Path(root).resolve() / split if split in SPLITS else split_root(root, split)) / "samples.csv"
+    root = split_root(root, split)
+    df = pd.read_csv(csv_path, encoding="utf-8-sig")
     if df.empty or not REQUIRED_COLUMNS.issubset(df.columns):
         raise ValueError("Empty manifest or required columns missing.")
     if df.segment_id.duplicated().any():

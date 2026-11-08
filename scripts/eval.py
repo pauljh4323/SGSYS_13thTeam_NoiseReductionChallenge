@@ -11,6 +11,8 @@ The method only ever sees the noisy waveform; clean audio is read afterwards for
 -round(F*n) samples before enhancing/scoring, so the file starts F of the way in. Probe results
 go to logs/ only and are never appended to results/experiments.csv.
 
+--split val_remix: secondary held-out set built by scripts/make_val_remix.py (data/val_remix/).
+
 --input-gain-db G (level probe, in-memory sources only): scale the noisy input by 10^(G/20) before
 enhancing; clean is unchanged. Probe results go to logs/ only, never to results/experiments.csv.
 """
@@ -29,7 +31,8 @@ import pandas as pd
 
 from _common import REPO_ROOT, add_common_args, git_hash, load_config, output_dir, output_path
 
-from nrc.io import load_manifest, read_row, read_wav, resolve_data_root, stratified_subset, to_pcm16
+from nrc.io import (load_manifest, read_row, read_wav, resolve_data_root, split_root, stratified_subset,
+                    to_pcm16)
 from nrc.methods import get_method
 from nrc.metrics import pesq_wb, si_sdr, snr_db, stoi
 
@@ -115,6 +118,7 @@ def main(argv=None) -> int:
     cfg = load_config(args.config)
     root = resolve_data_root(args.data_root)
     manifest = stratified_subset(load_manifest(root, args.split), args.subset)
+    data_root, root = root, split_root(root, args.split)  # val_remix: data/val_remix
     get_method(cfg["method"], **cfg["params"])  # fail fast on bad config
     import pesq  # noqa: F401  # fail fast if PESQ is missing; never silently omit it
 
@@ -127,7 +131,7 @@ def main(argv=None) -> int:
     probe = bool(args.shift_start) or args.input_gain_db is not None  # any explicit gain, even 0
     pred_paths = {}
     if args.pred_dir:
-        names = load_manifest(root, args.split).noisy_path.map(lambda p: Path(p).name)
+        names = load_manifest(data_root, args.split).noisy_path.map(lambda p: Path(p).name)
         dup = names[names.duplicated()].tolist()
         assert not dup, f"noisy filenames not unique in {args.split}: {dup[:5]}"
         pred_dir = Path(args.pred_dir).resolve()
