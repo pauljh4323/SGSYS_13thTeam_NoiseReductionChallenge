@@ -5,8 +5,9 @@ import os
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import soundfile as sf
+
+# pandas is imported lazily (manifest tools only) so main.py needs only requirements.txt.
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_ROOT = REPO_ROOT / "data" / "noise_reduction_challenge"
@@ -45,6 +46,8 @@ def load_manifest(root: Path, split: str) -> pd.DataFrame:
     Derived splits (EXTRA_SPLITS) read <split dir>/samples.csv; read rows with split_root(root, split).
     """
     csv_path = (Path(root).resolve() / split if split in SPLITS else split_root(root, split)) / "samples.csv"
+    import pandas as pd
+
     root = split_root(root, split)
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     if df.empty or not REQUIRED_COLUMNS.issubset(df.columns):
@@ -120,6 +123,8 @@ def stratified_subset(df: pd.DataFrame, n: int | None, seed: int = 0) -> pd.Data
     order = sorted(range(len(keys)), key=lambda i: (-(quota[i] - alloc[i]), -sizes[i], i))
     for i in order[: n - alloc.sum()]:
         alloc[i] += 1
+    import pandas as pd
+
     picks = []
     for key, k in zip(keys, alloc):
         g = groups[key]

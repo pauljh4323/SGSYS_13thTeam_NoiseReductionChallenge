@@ -1,0 +1,7 @@
+# Evaluation / development tools (scripts/eval.py, sweep.py, report_val.py, plot_spectrograms.py).
+-r requirements.txt
+pesq==0.0.4
+pystoi==0.4.1
+pandas==3.1.1
+tqdm==4.70.1
+matplotlib==3.11.2
