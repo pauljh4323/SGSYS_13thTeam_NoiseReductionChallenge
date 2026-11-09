@@ -41,3 +41,7 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-09,ffa094e,submission,mmse_lsa,1.6626,1.1501,1.3902,1.7851,2.3303,11.312,split=val_remix n=328 failed=0 snr=11.682 stoi=0.8299 clipped=0 src=pred | dsp-v1 main.py outputs val_remix
 2026-11-09,ffa094e,mmse_lsa_top1,mmse_lsa,1.7505,1.1728,1.4687,1.6993,2.1468,13.338,split=validation n=164 failed=0 snr=13.565 stoi=0.8656 clipped=0 src=mem16
 2026-11-09,ffa094e,wiener_baseline,wiener,1.5987,1.1459,1.3788,1.5610,1.9062,12.900,split=validation n=164 failed=0 snr=13.120 stoi=0.8510 clipped=0 src=mem16
+2026-11-09,084d500,dsp_tune_c,mmse_lsa,1.8746,1.2398,1.5725,1.8446,2.2791,12.693,split=validation n=164 failed=0 snr=12.636 stoi=0.8853 clipped=0 src=mem16 | dsp-tune finalist
+2026-11-09,084d500,dsp_tune_c,mmse_lsa,1.7866,1.1990,1.4959,1.9364,2.5202,10.814,split=val_remix n=328 failed=0 snr=10.960 stoi=0.8502 clipped=0 src=mem16 | dsp-tune finalist
+2026-11-09,084d500,dsp_tune_a,mmse_lsa,1.8085,1.1933,1.5082,1.7438,2.2407,13.531,split=validation n=164 failed=0 snr=13.732 stoi=0.8672 clipped=0 src=mem16 | dsp-tune finalist
+2026-11-09,084d500,dsp_tune_a,mmse_lsa,1.7211,1.1688,1.4240,1.8605,2.4363,11.500,split=val_remix n=328 failed=0 snr=11.822 stoi=0.8321 clipped=0 src=mem16 | dsp-tune finalist

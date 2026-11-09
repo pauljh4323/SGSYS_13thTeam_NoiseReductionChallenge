@@ -2,13 +2,15 @@
 
 Grid YAML: method, base_params (dict), grid (dict of lists) or grid_groups (list of such dicts,
 expanded separately and concatenated), reference (list of config paths).
-Writes logs/sweep_<name>.csv sorted by PESQ; prints the top 5 + reference rows.
+Writes logs/sweep_<name>.csv sorted by PESQ; prints the top 5 + reference rows. Each finished
+point is appended to that CSV immediately; a restart skips points already present (same key).
 Does NOT append to results/experiments.csv.
 """
 from __future__ import annotations
 
 import argparse
 import itertools
+import json
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
@@ -57,37 +59,51 @@ def main(argv=None) -> int:
     root = resolve_data_root(args.data_root)
     manifest = stratified_subset(load_manifest(root, args.split), args.subset)
     rows_meta = [r.to_dict() for _, r in manifest.iterrows()]
-    tasks, owners = [], []
-    for ci, c in enumerate(cfgs):
-        for r in rows_meta:
-            tasks.append((root, r, {k: c[k] for k in ("name", "method", "params")},
-                          args.split, "mem16", None))
-            owners.append(ci)
-    t0 = time.perf_counter()
-    if args.jobs > 1:
-        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
-            results = list(pool.map(evaluate_row, tasks, chunksize=4))
-    else:
-        results = [evaluate_row(t) for t in tasks]
-    elapsed = time.perf_counter() - t0
-
-    detail = pd.DataFrame(results).assign(cfg=owners)
-    out = []
-    for ci, g in detail.groupby("cfg"):
-        c = cfgs[ci]
-        by_snr = g.groupby("target_snr_db").pesq.mean()
-        out.append({"kind": c["kind"], "name": c["name"], "method": c["method"],
-                    **{f"p_{k}": v for k, v in c["params"].items()},
-                    "pesq": g.pesq.mean(),
-                    **{f"pesq_snr{int(s)}": by_snr.get(s) for s in (0.0, 5.0, 10.0, 15.0)},
-                    "si_sdr": g.si_sdr.mean(), "stoi": g.stoi.mean(),
-                    "failed": int(g.pesq.isna().sum()), "clipped": int(g.n_clipped.sum()),
-                    "n": len(g)})
-    table = pd.DataFrame(out).sort_values("pesq", ascending=False, ignore_index=True)
     logs = REPO_ROOT / "logs"
     logs.mkdir(exist_ok=True)
     out_csv = logs / f"sweep_{name}.csv"
-    table.to_csv(out_csv, index=False)
+    # Resume: each finished point is appended to out_csv at once; on restart, points whose
+    # (method, params, split, n) key is already in the CSV are skipped.
+    done = pd.read_csv(out_csv) if out_csv.exists() else pd.DataFrame()
+    done_keys = set(done["key"]) if "key" in done.columns else set()
+
+    def point_key(c):
+        return json.dumps({"method": c["method"], "params": c["params"], "split": args.split,
+                           "n": len(rows_meta)}, sort_keys=True, default=str)
+
+    todo = [c for c in cfgs if point_key(c) not in done_keys]
+    if len(todo) < len(cfgs):
+        print(f"resume: {len(cfgs) - len(todo)} of {len(cfgs)} points already in "
+              f"{out_csv.relative_to(REPO_ROOT)}, skipped")
+    t0 = time.perf_counter()
+    pool = ProcessPoolExecutor(max_workers=args.jobs) if args.jobs > 1 else None
+    try:
+        for c in todo:
+            tasks = [(root, r, {k: c[k] for k in ("name", "method", "params")},
+                      args.split, "mem16", None) for r in rows_meta]
+            results = (list(pool.map(evaluate_row, tasks, chunksize=4)) if pool
+                       else [evaluate_row(t) for t in tasks])
+            g = pd.DataFrame(results)
+            by_snr = g.groupby("target_snr_db").pesq.mean()
+            row = {"kind": c["kind"], "name": c["name"], "method": c["method"],
+                   **{f"p_{k}": v for k, v in c["params"].items()},
+                   "pesq": g.pesq.mean(),
+                   **{f"pesq_snr{int(s)}": by_snr.get(s) for s in (0.0, 5.0, 10.0, 15.0)},
+                   "si_sdr": g.si_sdr.mean(), "stoi": g.stoi.mean(),
+                   "failed": int(g.pesq.isna().sum()), "clipped": int(g.n_clipped.sum()),
+                   "n": len(g), "key": point_key(c)}
+            done = pd.concat([done, pd.DataFrame([row])], ignore_index=True)
+            done.to_csv(out_csv, index=False)
+            print(f"  done {c['name']}: pesq {row['pesq']:.4f}", flush=True)
+    finally:
+        if pool:
+            pool.shutdown()
+    elapsed = time.perf_counter() - t0
+
+    keys = {point_key(c) for c in cfgs}
+    table = (done[done["key"].isin(keys)] if "key" in done.columns else done)
+    table = table.sort_values("pesq", ascending=False, ignore_index=True)
+    done.sort_values("pesq", ascending=False, ignore_index=True).to_csv(out_csv, index=False)
 
     grid_keys = dict.fromkeys(k for g in (spec.get("grid_groups") or [spec.get("grid", {})])
                               for k in g)

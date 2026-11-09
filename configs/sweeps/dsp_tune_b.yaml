@@ -1,0 +1,19 @@
+# dsp-tune Stage B at the Stage A best (dsp_tune_a_012: n_fft 1024, hop 256, noise_bias 1.25,
+# noise_fraction 0.10): a priori SNR estimator xi_mode x cepstral smoothing. 3 x 2 = 6 points.
+# Run on the 400-file stratified train subset (seed 0): --split train --subset 400.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25
+grid:
+  xi_mode: [dd, tsnr, hrnr]
+  xi_cepstral_smoothing: [false, true]
+reference:
+  - configs/mmse_lsa_top1.yaml
