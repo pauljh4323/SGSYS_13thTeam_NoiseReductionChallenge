@@ -1,7 +1,7 @@
-# Submission config (Challenge 1, traditional DSP) = configs/dsp_retune.yaml verbatim:
-# dsp-retune finalist (D3 best dsp_retune_d3_001, branch exp/dsp-retune): dsp-v2 (MMSE-LSA, n_fft 1024,
-# noise_bias 1.25, noise_fraction 0.10, HRNR a priori SNR, 100 Hz zero-phase high-pass) with
-# decision-directed alpha 0.94 and xi_min_db -20. Val PESQ 1.9352 (dsp-v2 1.8746). Tag dsp-v3.
+# Submission config (Challenge 1, traditional DSP) = configs/dsp_edge.yaml verbatim:
+# dsp-edge finalist (E2 best dsp_edge_e2_001, branch exp/dsp-edge): dsp-v3 (MMSE-LSA, n_fft 1024,
+# noise_bias 1.25, noise_fraction 0.10, HRNR a priori SNR, alpha 0.94, 100 Hz zero-phase high-pass) with
+# xi_min_db -25 and gmin_db -30. Val PESQ 1.9497 (dsp-v3 1.9352). Tag dsp-v4.
 method: mmse_lsa
 params:
   n_fft: 1024
@@ -11,8 +11,8 @@ params:
   noise_fraction: 0.10
   noise_bias: 1.25
   alpha: 0.94
-  xi_min_db: -20
-  gmin_db: -25
+  xi_min_db: -25
+  gmin_db: -30
   xi_mode: hrnr
   hrnr_rho: 0.5
   xi_cepstral_smoothing: false
