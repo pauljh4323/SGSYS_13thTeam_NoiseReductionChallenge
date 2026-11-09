@@ -1,0 +1,18 @@
+# dsp-edge finalist: E2 best (dsp_edge_e2_001; 400-file train subset PESQ 1.9077 vs dsp-v3 dsp_retune 1.9002,
+# logs/sweep_dsp_edge_e{1,2}.csv). dsp-v3 with xi_min_db -20 -> -25 (E1; alpha 0.94 kept) and gmin_db -25 -> -30 (E2).
+# E2 gmin -35 and -30 scored identically (floor inactive below ~-30 dB at xi_min -25); -30 chosen as the non-edge value.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100

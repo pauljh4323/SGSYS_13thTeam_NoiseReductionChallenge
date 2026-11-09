@@ -1,0 +1,20 @@
+# dsp-edge Stage E2 at the E1 best (dsp_edge_e1_007: alpha 0.94, xi_min_db -25; train-400 PESQ 1.9074):
+# gain floor gmin_db. 4 points. Run on the 400-file stratified train subset (seed 0): --split train --subset 400.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  gmin_db: [-35, -30, -25, -20]
+reference:
+  - configs/dsp_retune.yaml
