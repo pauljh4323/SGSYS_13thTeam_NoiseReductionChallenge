@@ -1,0 +1,16 @@
+# dsp-tune finalist C: Stage C best (dsp_tune_c_002; 400-file train subset PESQ 1.8568 vs dsp-v1 1.7659,
+# logs/sweep_dsp_tune_{a,b,c}.csv). Stage A n_fft/noise_bias/noise_fraction + HRNR + 100 Hz high-pass.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25
+  xi_mode: hrnr
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
