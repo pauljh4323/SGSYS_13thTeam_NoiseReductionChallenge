@@ -52,3 +52,5 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-09,7080f9b,submission,mmse_lsa,1.9352,1.2727,1.6609,1.9145,2.3192,12.767,split=validation n=164 failed=0 snr=12.708 stoi=0.8907 clipped=0 src=pred | e2e main.py outputs
 2026-11-09,7080f9b,submission,mmse_lsa,1.9352,1.2727,1.6609,1.9145,2.3192,12.767,split=validation n=164 failed=0 snr=12.708 stoi=0.8907 clipped=0 src=pred | dsp-v3 main.py outputs
 2026-11-09,7080f9b,submission,mmse_lsa,1.8350,1.2191,1.5416,1.9943,2.5903,10.885,split=val_remix n=328 failed=0 snr=11.021 stoi=0.8557 clipped=0 src=pred | dsp-v3 main.py outputs val_remix
+2026-11-09,e094ae0,dsp_edge,mmse_lsa,1.9497,1.2834,1.6831,1.9341,2.3245,12.778,split=validation n=164 failed=0 snr=12.716 stoi=0.8917 clipped=0 src=mem16 | dsp-edge finalist validation
+2026-11-09,e094ae0,dsp_edge,mmse_lsa,1.8449,1.2246,1.5574,2.0030,2.6000,10.898,split=val_remix n=328 failed=0 snr=11.030 stoi=0.8567 clipped=0 src=mem16 | dsp-edge finalist val_remix gate
