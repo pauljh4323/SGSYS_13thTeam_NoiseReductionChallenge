@@ -11,7 +11,7 @@ Single-channel speech enhancement scored by wideband PESQ (PESQ-WB, 16 kHz); SNR
 
 | round | date | tag | commit | method | val PESQ | val SNR (dB) |
 |---|---|---|---|---|---|---|
-| 1 (first) | pending | dsp-v4 | db1085e | MMSE-LSA + HRNR + 100 Hz high-pass, re-tuned alpha / xi_min / gain floor (`configs/submission.yaml`) | 1.9497 | 12.72 |
+| 1 (first) |  | dsp-v4 | db1085e | MMSE-LSA + HRNR (n_fft 1024) | 1.9497 | 12.72 |
 | - (superseded, never submitted) | - | dsp-v3 | 7080f9b | MMSE-LSA + HRNR + 100 Hz high-pass, re-tuned alpha / xi_min (`configs/dsp_retune.yaml`) | 1.9352 | 12.71 |
 | - (superseded, never submitted) | - | dsp-v2 | e68a073 | MMSE-LSA + HRNR + 100 Hz high-pass (`configs/dsp_tune_c.yaml`) | 1.8746 | 12.64 |
 | - (superseded, never submitted) | - | dsp-v1 | af75105 | MMSE-LSA (`configs/mmse_lsa_top1.yaml`) | 1.7505 | 13.56 |

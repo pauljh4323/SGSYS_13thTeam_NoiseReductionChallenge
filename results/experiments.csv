@@ -57,3 +57,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-09,db1085e,submission,mmse_lsa,1.9497,1.2834,1.6831,1.9341,2.3245,12.778,split=validation n=164 failed=0 snr=12.716 stoi=0.8917 clipped=0 src=pred | e2e main.py outputs
 2026-11-09,db1085e,submission,mmse_lsa,1.9497,1.2834,1.6831,1.9341,2.3245,12.778,split=validation n=164 failed=0 snr=12.716 stoi=0.8917 clipped=0 src=pred | dsp-v4 main.py outputs
 2026-11-09,db1085e,submission,mmse_lsa,1.8449,1.2246,1.5574,2.0030,2.6000,10.898,split=val_remix n=328 failed=0 snr=11.030 stoi=0.8567 clipped=0 src=pred | dsp-v4 main.py outputs val_remix
+2026-11-09,dbf2c0e,submission,mmse_lsa,1.9497,1.2834,1.6831,1.9341,2.3245,12.778,split=validation n=164 failed=0 snr=12.716 stoi=0.8917 clipped=0 src=pred | e2e main.py outputs
