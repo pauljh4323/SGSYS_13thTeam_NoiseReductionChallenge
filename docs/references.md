@@ -31,6 +31,13 @@ exists and that the bibliographic data (title, authors, year, DOI) are correct. 
 |---|---|---|---|---|---|
 | Noise estimation by minima controlled recursive averaging for robust speech enhancement (IEEE Signal Processing Letters 9(1)) | I. Cohen, B. Berdugo | 2002 | https://doi.org/10.1109/97.988717 | `noise_est: mcra` option (rejected: lower PESQ than the initial-frames estimate) | pending (team must confirm) |
 
+## IMCRA and OM-LSA (`src/nrc/methods/omlsa.py`, branch exp/omlsa)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Noise spectrum estimation in adverse environments: improved minima controlled recursive averaging (IEEE Trans. Speech and Audio Processing 11(5)) | I. Cohen | 2003 | https://doi.org/10.1109/TSA.2003.811544 | `noise_est: imcra` (two-iteration minimum tracking, sub-windows, a priori absence q, bias beta; paper default constants) | pending (team must confirm) |
+| Speech enhancement for non-stationary noise environments (Signal Processing 81(11)) | I. Cohen, B. Berdugo | 2001 | https://doi.org/10.1016/S0165-1684(01)00128-1 | `gain_mode: omlsa` (G = G_LSA^p G_min^(1-p); a priori absence from local/global/frame recursive xi, q_max) | pending (team must confirm) |
+
 ## Software
 
 | title | authors | year | DOI / link | used for | verification |

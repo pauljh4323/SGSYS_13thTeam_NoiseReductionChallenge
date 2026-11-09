@@ -1,0 +1,14 @@
+# OM-LSA sweep v1 rank 2 (grid point omlsa_v1_003; train subset-160 16-bit PESQ 1.7504 in logs/sweep_omlsa_v1.csv).
+# Note: gain_mode lsa + initial noise is numerically identical to mmse_lsa; with xi_min -15 dB the
+# gmin floor never binds, so this point equals dsp-v1 (mmse_lsa_top1, tie with omlsa_v1_002).
+method: omlsa
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  gain_mode: lsa
+  noise_fraction: 0.20
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -20

@@ -1,0 +1,13 @@
+# OM-LSA sweep v1 rank 1 (grid point omlsa_v1_010; train subset-160 16-bit PESQ 1.7577 in logs/sweep_omlsa_v1.csv).
+method: omlsa
+params:
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  gain_mode: omlsa
+  noise_fraction: 0.20
+  alpha: 0.92
+  xi_min_db: -15
+  gmin_db: -20
+  q_max: 0.5
