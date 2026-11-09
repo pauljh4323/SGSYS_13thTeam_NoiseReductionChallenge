@@ -26,6 +26,11 @@ def load(cfg_name: str, split: str, suffix: str) -> tuple[pd.DataFrame, Path]:
     return df, path
 
 
+def z(v: float, nd: int = 2) -> float:
+    """Round and drop the sign of zero (no '-0.00')."""
+    return round(float(v), nd) + 0.0
+
+
 def table(df: pd.DataFrame, by: str | None, label: str) -> str:
     groups = [("overall", df)] if by is None else [
         (f"{k:g} dB" if by == "target_snr_db" else str(k), g)
@@ -37,8 +42,8 @@ def table(df: pd.DataFrame, by: str | None, label: str) -> str:
              "|---|---|---|---|---|---|---|---|"]
     for key, g in groups:
         lines.append(f"| {key} | {len(g)} | {g.pesq_noisy.mean():.4f} | {g.pesq.mean():.4f} | "
-                     f"{g.delta_pesq.mean():+.4f} | {g.snr_noisy.mean():.2f} | {g.snr_db.mean():.2f} | "
-                     f"{g.delta_snr_db.mean():+.2f} |")
+                     f"{g.delta_pesq.mean():+.4f} | {z(g.snr_noisy.mean()):.2f} | {z(g.snr_db.mean()):.2f} | "
+                     f"{z(g.delta_snr_db.mean()):+.2f} |")
     return "\n".join(lines)
 
 
