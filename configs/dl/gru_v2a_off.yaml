@@ -1,6 +1,0 @@
-# gru_v2a weights (Colab-trained, configs/dl/gru_v2a.yaml), inference with level norm off.
-method: gru_mask
-params:
-  weights: weights/gru_v2a.pt   # resolved against the repo root, not the cwd
-  device: cpu
-  level_norm: false

@@ -1,10 +1,12 @@
-# Submission config = inference params of configs/dl/gru_v5b_off.yaml (conv2d front-end + BiGRU
-# H=256 magnitude mask, weights/gru_v5b.pt: Colab fine-tune of gru_v4b, configs/dl/gru_v5b.yaml; level norm off).
-# Val PESQ 2.6962 (level probe -30/-20/-10 dB 2.6137/2.6700/2.6843), val_remix 2.5170.
-# Previous: gru_v4b_off (configs/dl/gru_v4b_off.yaml, weights/gru_v4b.pt) val PESQ 2.6796.
-# Fallback (classical, no torch): python main.py --config configs/mmse_lsa_top1.yaml  (val PESQ 1.7505)
-method: gru_mask
+# Submission config (Challenge 1, traditional DSP) = configs/mmse_lsa_top1.yaml verbatim:
+# MMSE-LSA sweep v1 rank 1 (grid point mmse_lsa_v1_003), val PESQ 1.7505. Tag dsp-v1.
+method: mmse_lsa
 params:
-  weights: weights/gru_v5b.pt   # resolved against the repo root, not the cwd
-  device: cpu
-  level_norm: false
+  n_fft: 512
+  hop: 128
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.20
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25
