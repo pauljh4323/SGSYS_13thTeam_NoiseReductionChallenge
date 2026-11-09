@@ -11,12 +11,14 @@ Consequences for this repository:
 - **No round has been submitted yet.** Tag `sub-20261105` was created but never actually submitted; it was replaced by
   tag `baseline-wiener` (same commit 6083c83) and deleted. `sub-YYYYMMDD` tags are created only after the team confirms
   a submission.
-- The first submission candidate is **dsp-v1** = MMSE-LSA (`configs/mmse_lsa_top1.yaml` parameters), validation results in
-  `docs/validation_results.md`.
+- The first submission candidate is **dsp-v2** = MMSE-LSA with n_fft 1024, noise bias 1.25, HRNR a priori SNR and a
+  100 Hz high-pass (`configs/dsp_tune_c.yaml` parameters), validation results in `docs/validation_results.md`.
+  It supersedes dsp-v1 (never submitted).
 
 | date | tag | method (config) | code commit | val PESQ / SNR (main.py outputs) | val_remix PESQ / SNR | e2e |
 |---|---|---|---|---|---|---|
-| 2026-11-09 | dsp-v1 (first submission candidate, not yet submitted) | MMSE-LSA (configs/submission.yaml = mmse_lsa_top1: noise_est initial, nf 0.20, alpha 0.96, xi_min_db -15, gmin_db -25) | af75105 (eval rows ffa094e) | 1.7505 / 13.56 dB (0/5/10/15 dB PESQ 1.1728/1.4687/1.6993/2.1468, SNR 6.02/10.36/13.83/17.50) | 1.6626 / 11.68 dB | PASS: classical allow-list, torch-free main.py, local + fresh clone + other cwd + fresh pip venv (requirements.txt only) all bit-identical (164 files), 44.1 kHz stereo + 1.7 s file enhanced, 0 failed / 0 clipped |
+| 2026-11-09 | dsp-v2 (first submission candidate, not yet submitted) | MMSE-LSA + HRNR + HP (configs/submission.yaml = dsp_tune_c: n_fft 1024, hop 256, noise_est initial, nf 0.10, noise_bias 1.25, alpha 0.96, xi_min_db -15, gmin_db -25, xi_mode hrnr, highpass_hz 100) | e68a073 (eval rows e68a073) | 1.8746 / 12.64 dB (0/5/10/15 dB PESQ 1.2398/1.5725/1.8446/2.2791, SNR 6.71/11.03/12.76/15.20) | 1.7866 / 10.96 dB | PASS: classical allow-list, torch-free main.py, local + fresh clone + other cwd + fresh pip venv (requirements.txt only) all bit-identical (164 files), 44.1 kHz stereo + 1.7 s file enhanced, 0 failed / 0 clipped; main.py CPU 13.4 s (164 files) |
+| 2026-11-09 | dsp-v1 (superseded by dsp-v2, never submitted) | MMSE-LSA (configs/submission.yaml = mmse_lsa_top1: noise_est initial, nf 0.20, alpha 0.96, xi_min_db -15, gmin_db -25) | af75105 (eval rows ffa094e) | 1.7505 / 13.56 dB (0/5/10/15 dB PESQ 1.1728/1.4687/1.6993/2.1468, SNR 6.02/10.36/13.83/17.50) | 1.6626 / 11.68 dB | PASS: classical allow-list, torch-free main.py, local + fresh clone + other cwd + fresh pip venv (requirements.txt only) all bit-identical (164 files), 44.1 kHz stereo + 1.7 s file enhanced, 0 failed / 0 clipped |
 
 ## History (before the rule change)
 

@@ -11,27 +11,35 @@ Single-channel speech enhancement scored by wideband PESQ (PESQ-WB, 16 kHz); SNR
 
 | round | date | tag | commit | method | val PESQ | val SNR (dB) |
 |---|---|---|---|---|---|---|
-| 1 (first) | pending | dsp-v1 | af75105 | MMSE-LSA (`configs/submission.yaml`) | 1.7505 | 13.56 |
+| 1 (first) | pending | dsp-v2 | e68a073 | MMSE-LSA + HRNR + 100 Hz high-pass (`configs/submission.yaml`) | 1.8746 | 12.64 |
+| - (superseded, never submitted) | - | dsp-v1 | af75105 | MMSE-LSA (`configs/mmse_lsa_top1.yaml`) | 1.7505 | 13.56 |
 
 Validation = official validation split (164 files), scored on the 16-bit WAVs written by `main.py`
-(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v1`
-points to the merge on `main` with identical `main.py`, `src/` and `configs/`. Round history: [docs/submissions.md](docs/submissions.md).
+(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v2`
+points to the commit on `main` with identical `main.py`, `src/` and `configs/`. Round history: [docs/submissions.md](docs/submissions.md).
 
 ## Method (submitted)
 
-MMSE log-spectral amplitude estimator (Ephraim & Malah, 1985) with the decision-directed a priori SNR
-(Ephraim & Malah, 1984), `src/nrc/methods/mmse_lsa.py`:
+MMSE log-spectral amplitude estimator (Ephraim & Malah, 1985) with a two-step a priori SNR and harmonic
+regeneration (HRNR, Plapous, Marro & Scalart, 2006), `src/nrc/methods/mmse_lsa.py`:
 
-1. STFT: 512-point Hann window, hop 128 (32 ms / 8 ms at 16 kHz).
-2. Noise PSD: mean power of the 20 % lowest-energy frames of the file (`noise_fraction: 0.20`),
-   smoothed over 3 frequency bins.
-3. A posteriori SNR gamma = |Y|^2 / noise PSD; a priori SNR by decision-directed smoothing
-   (`alpha: 0.96`), floored at `xi_min_db: -15`.
-4. LSA gain G = xi / (1 + xi) * exp(0.5 * E1(v)), v = xi * gamma / (1 + xi), clipped to [`gmin_db: -25` dB, 0 dB].
-5. Enhanced magnitude = G * |Y| with the noisy phase, inverse STFT to the original length.
+1. STFT: 1024-point Hann window, hop 256 (64 ms / 16 ms at 16 kHz).
+2. Noise PSD: mean power of the 10 % lowest-energy frames of the file (`noise_fraction: 0.10`),
+   smoothed over 3 frequency bins, multiplied by a noise bias of 1.25 (`noise_bias: 1.25`).
+3. A posteriori SNR gamma = |Y|^2 / noise PSD; first-step a priori SNR by decision-directed smoothing
+   (Ephraim & Malah, 1984; `alpha: 0.96`), floored at `xi_min_db: -15`.
+4. HRNR (`xi_mode: hrnr`): TSNR second step xi = |G_dd Y|^2 / noise; the TSNR estimate is resynthesized,
+   half-wave rectified to regenerate harmonics, re-analysed, and the final a priori SNR is
+   xi = (0.5 |G_tsnr Y|^2 + 0.5 |S_harmo|^2) / noise.
+5. LSA gain G = xi / (1 + xi) * exp(0.5 * E1(v)), v = xi * gamma / (1 + xi), clipped to [`gmin_db: -25` dB, 0 dB];
+   enhanced magnitude = G * |Y| with the noisy phase, inverse STFT to the original length.
+6. Output high-pass: 4th-order Butterworth at 100 Hz applied forward-backward (zero phase, `highpass_hz: 100`).
 
-Parameters were chosen by grid search (`configs/sweeps/`, `scripts/sweep.py`); see `configs/mmse_lsa_top1.yaml`.
-Validation PESQ 1.7505 vs 1.5987 for the course Wiener baseline and 1.3947 for the unprocessed noisy input.
+Parameters were chosen by three grid-search stages on a 400-file stratified train subset only
+(`configs/sweeps/dsp_tune_{a,b,c}.yaml`, `scripts/sweep.py`); see `configs/dsp_tune_c.yaml`.
+Validation PESQ 1.8746 / SNR 12.64 dB (dsp-v1 1.7505 / 13.56 dB, course Wiener baseline 1.5987 / 13.12 dB,
+unprocessed noisy input 1.3947 / 9.63 dB). The PESQ gain costs about 0.9 dB of validation SNR overall: SNR improves at
+0/5 dB input SNR and drops at 10/15 dB (high-pass and noise over-estimation remove some speech energy).
 References: [docs/references.md](docs/references.md).
 
 ## Install
