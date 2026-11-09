@@ -1,0 +1,29 @@
+# dsp-adaptive: dsp_edge (dsp-v4) + rule-based SNR-adaptive xi_min_db / hrnr_rho / noise_bias,
+# built by scripts/build_adaptive.py from logs/sweep_dsp_adaptive_s1{,_perfile}.csv and logs/snr_hat_train_sub400.csv (400-file train subset only).
+# anchors = train median snr_hat per target SNR 0/5/10/15 dB; values linearly interpolated over
+# snr_hat, clamped outside. Per-group best kept only if >= 0.01 over the global best.
+# global best dsp_adaptive_s1_010: xi_min_db -25, hrnr_rho 0.3, noise_bias 1.25 (train mean 1.9109)
+# group 0 (target 0 dB, anchor 1.87 dB, n=31): best dsp_adaptive_s1_002 xi_min_db -30, hrnr_rho 0.3, noise_bias 1.5 1.3255 vs global 1.3154 (+0.0100) -> KEPT
+# group 1 (target 5 dB, anchor 5.86 dB, n=82): best dsp_adaptive_s1_002 xi_min_db -30, hrnr_rho 0.3, noise_bias 1.5 1.6229 vs global 1.6145 (+0.0084) -> global
+# group 2 (target 10 dB, anchor 10.59 dB, n=128): best dsp_adaptive_s1_010 xi_min_db -25, hrnr_rho 0.3, noise_bias 1.25 2.0038 vs global 2.0038 (+0.0000) -> global
+# group 3 (target 15 dB, anchor 15.06 dB, n=159): best dsp_adaptive_s1_014 xi_min_db -25, hrnr_rho 0.5, noise_bias 1.5 2.1100 vs global 2.1050 (+0.0049) -> global
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.1
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  adapt: true
+  adapt_anchors_db: [1.87, 5.86, 10.59, 15.06]
+  adapt_xi_min_db: [-30.0, -25.0, -25.0, -25.0]
+  adapt_hrnr_rho: [0.3, 0.3, 0.3, 0.3]
+  adapt_noise_bias: [1.5, 1.25, 1.25, 1.25]
