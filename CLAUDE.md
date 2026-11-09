@@ -1,7 +1,7 @@
 # CLAUDE.md — Speech Noise Reduction Challenge 1 (traditional DSP)
 ## Objective
 Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Deadline 2026-11-17 23:59 KST.
-Current submission candidate: dsp_retune / val PESQ 1.9352, SNR 12.71 dB / tag dsp-v3 (first submission, not yet sent; supersedes dsp-v2 1.8746, dsp-v1 1.7505).
+Current submission candidate: dsp_edge / val PESQ 1.9497, SNR 12.72 dB / tag dsp-v4 (first submission, not yet sent; supersedes dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505).
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.
 - Clean audio for evaluation only. Output keeps sample rate, channel count, sample count, filename. No absolute paths.
