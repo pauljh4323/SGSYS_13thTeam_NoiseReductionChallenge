@@ -1,0 +1,21 @@
+# dsp-tune Stage A: STFT size x noise over-estimation x noise-frame fraction (noise_est initial).
+# alpha 0.96, xi_min -15, gmin -25 fixed (dsp-v1). hop = n_fft/4. 2 x 4 x 2 = 16 points.
+# Run on the 400-file stratified train subset (seed 0): --split train --subset 400.
+method: mmse_lsa
+base_params:
+  window: hann
+  noise_est: initial
+  alpha: 0.96
+  xi_min_db: -15
+  gmin_db: -25
+grid_groups:
+  - n_fft: [512]
+    hop: [128]
+    noise_bias: [0.8, 1.0, 1.25, 1.5]
+    noise_fraction: [0.10, 0.20]
+  - n_fft: [1024]
+    hop: [256]
+    noise_bias: [0.8, 1.0, 1.25, 1.5]
+    noise_fraction: [0.10, 0.20]
+reference:
+  - configs/mmse_lsa_top1.yaml
