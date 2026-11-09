@@ -47,3 +47,8 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-09,084d500,dsp_tune_a,mmse_lsa,1.7211,1.1688,1.4240,1.8605,2.4363,11.500,split=val_remix n=328 failed=0 snr=11.822 stoi=0.8321 clipped=0 src=mem16 | dsp-tune finalist
 2026-11-09,e68a073,submission,mmse_lsa,1.8746,1.2398,1.5725,1.8446,2.2791,12.693,split=validation n=164 failed=0 snr=12.636 stoi=0.8853 clipped=0 src=pred | dsp-v2 main.py outputs
 2026-11-09,e68a073,submission,mmse_lsa,1.7866,1.1990,1.4959,1.9364,2.5202,10.814,split=val_remix n=328 failed=0 snr=10.960 stoi=0.8502 clipped=0 src=pred | dsp-v2 main.py outputs val_remix
+2026-11-09,3e60b9f,dsp_retune,mmse_lsa,1.9352,1.2727,1.6609,1.9145,2.3192,12.767,split=validation n=164 failed=0 snr=12.708 stoi=0.8907 clipped=0 src=mem16 | dsp-retune finalist
+2026-11-09,3e60b9f,dsp_retune,mmse_lsa,1.8350,1.2191,1.5416,1.9943,2.5903,10.885,split=val_remix n=328 failed=0 snr=11.021 stoi=0.8557 clipped=0 src=mem16 | dsp-retune finalist
+2026-11-09,7080f9b,submission,mmse_lsa,1.9352,1.2727,1.6609,1.9145,2.3192,12.767,split=validation n=164 failed=0 snr=12.708 stoi=0.8907 clipped=0 src=pred | e2e main.py outputs
+2026-11-09,7080f9b,submission,mmse_lsa,1.9352,1.2727,1.6609,1.9145,2.3192,12.767,split=validation n=164 failed=0 snr=12.708 stoi=0.8907 clipped=0 src=pred | dsp-v3 main.py outputs
+2026-11-09,7080f9b,submission,mmse_lsa,1.8350,1.2191,1.5416,1.9943,2.5903,10.885,split=val_remix n=328 failed=0 snr=11.021 stoi=0.8557 clipped=0 src=pred | dsp-v3 main.py outputs val_remix
