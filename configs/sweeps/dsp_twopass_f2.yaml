@@ -1,0 +1,21 @@
+# F2 dual-resolution blend (n_fft 512 + 1024, hop n_fft/4) on top of dsp_edge (better than every F1 point:
+# F1 best dsp_twopass_f1_008 1.8985 < dsp_edge 1.9077, logs/sweep_dsp_twopass_f1.csv). Train-400 subset.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  dual_res_w: [0.5, 0.7, 0.85]
+reference:
+  - configs/dsp_edge.yaml

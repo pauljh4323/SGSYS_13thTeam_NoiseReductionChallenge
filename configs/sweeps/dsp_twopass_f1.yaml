@@ -1,0 +1,24 @@
+# F1 two-pass time-varying noise re-estimation on top of dsp_edge (dsp-v4). Train-400 subset.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  two_pass: true
+  tp_bins: 3
+grid:
+  tp_frames: [8, 16, 32]
+  tp_mix: [0.5, 1.0]
+  tp_floor: [0.5, 1.0]
+reference:
+  - configs/dsp_edge.yaml

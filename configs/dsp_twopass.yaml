@@ -1,0 +1,20 @@
+# NOT PROMOTED. Best structural point of exp/dsp-twopass on the 400-file train subset:
+# F2 dual-resolution blend dsp_twopass_f2_002 (w 0.85) PESQ 1.9073 < dsp_edge 1.9077 (gate +0.005 not met).
+# F1 two-pass re-estimation best dsp_twopass_f1_008 (tp_frames 32, tp_mix 0.5, tp_floor 0.5) 1.8985.
+# Sweeps: configs/sweeps/dsp_twopass_f{1,2}.yaml (logs/sweep_dsp_twopass_f{1,2}.csv). Overall best remains dsp_edge.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  dual_res_w: 0.85
