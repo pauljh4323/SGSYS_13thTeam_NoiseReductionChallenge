@@ -1,0 +1,20 @@
+# dsp-retune Stage D1 on dsp-v2 (dsp_tune_c: MMSE-LSA n_fft 1024 / hop 256, noise_bias 1.25,
+# noise_fraction 0.10, HRNR, 100 Hz high-pass): decision-directed smoothing alpha x xi_min_db. 3 x 3 = 9 points.
+# Run on the 400-file stratified train subset (seed 0): --split train --subset 400.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  gmin_db: -25
+  xi_mode: hrnr
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  alpha: [0.94, 0.96, 0.98]
+  xi_min_db: [-20, -15, -10]
+reference:
+  - configs/dsp_tune_c.yaml
