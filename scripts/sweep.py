@@ -4,6 +4,8 @@ Grid YAML: method, base_params (dict), grid (dict of lists) or grid_groups (list
 expanded separately and concatenated), reference (list of config paths).
 Writes logs/sweep_<name>.csv sorted by PESQ; prints the top 5 + reference rows. Each finished
 point is appended to that CSV immediately; a restart skips points already present (same key).
+--per-file also appends each point's per-file rows (name, segment_id, target_snr_db,
+noise_difficulty, pesq, snr_db) to logs/sweep_<name>_perfile.csv.
 Does NOT append to results/experiments.csv.
 """
 from __future__ import annotations
@@ -41,6 +43,8 @@ def main(argv=None) -> int:
     ap.add_argument("--subset", type=int, default=32)
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--data-root", default=None)
+    ap.add_argument("--per-file", action="store_true",
+                    help="also append per-file rows to logs/sweep_<name>_perfile.csv")
     args = ap.parse_args(argv)
 
     grid_path = Path(args.grid)
@@ -62,6 +66,7 @@ def main(argv=None) -> int:
     logs = REPO_ROOT / "logs"
     logs.mkdir(exist_ok=True)
     out_csv = logs / f"sweep_{name}.csv"
+    perfile_csv = logs / f"sweep_{name}_perfile.csv"
     # Resume: each finished point is appended to out_csv at once; on restart, points whose
     # (method, params, split, n) key is already in the CSV are skipped.
     done = pd.read_csv(out_csv) if out_csv.exists() else pd.DataFrame()
@@ -94,6 +99,10 @@ def main(argv=None) -> int:
                    "n": len(g), "key": point_key(c)}
             done = pd.concat([done, pd.DataFrame([row])], ignore_index=True)
             done.to_csv(out_csv, index=False)
+            if args.per_file:
+                pf = g[["segment_id", "target_snr_db", "noise_difficulty", "pesq", "snr_db"]]
+                pf.insert(0, "name", c["name"])
+                pf.to_csv(perfile_csv, mode="a", header=not perfile_csv.exists(), index=False)
             print(f"  done {c['name']}: pesq {row['pesq']:.4f}", flush=True)
     finally:
         if pool:

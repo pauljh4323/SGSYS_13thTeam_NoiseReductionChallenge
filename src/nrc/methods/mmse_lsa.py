@@ -16,6 +16,9 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
   xi_mode "hrnr"         TSNR + harmonic regeneration: half-wave rectified time-domain TSNR output,
                          re-STFT, xi = (rho |G_tsnr Y|^2 + (1-rho) |S_harmo|^2) / lambda_d.
                          Non-causal over the file (offline processing).
+  adapt                  rule-based input-adaptive parameters: snr_hat_db (estimate_input_snr_db, noisy
+                         input only, scale-invariant) linearly interpolates xi_min_db, hrnr_rho and
+                         noise_bias over adapt_anchors_db (np.interp, clamped outside the anchor range).
   highpass_hz            > 0: Butterworth high-pass (designed order 4) applied forward-backward
                          (sosfiltfilt, zero-phase, effective magnitude order 8) to the output.
 """
@@ -122,6 +125,37 @@ def cepstral_xi(gamma, noise, xi_min, sr=16000, alpha_env=0.5, alpha_high=0.97,
     return np.maximum(psd / noise, xi_min)
 
 
+def estimate_input_snr_db(power, noise):
+    """snr_hat = 10 log10(max(mean |Y|^2 - mean lambda_d, eps) / mean lambda_d) over all bins/frames.
+
+    noise is the noise PSD estimate BEFORE noise_bias. Both terms scale with the input level squared,
+    so the estimate is scale-invariant.
+    """
+    pn = float(np.mean(noise))
+    return 10.0 * np.log10(max(float(np.mean(power)) - pn, _EPS) / max(pn, _EPS))
+
+
+ADAPT_KEYS = ("xi_min_db", "hrnr_rho", "noise_bias")
+
+
+def adapt_params(snr_hat_db, anchors, values):
+    """{name: np.interp(snr_hat_db, anchors, values[name])} for the adaptive parameters."""
+    return {k: float(np.interp(snr_hat_db, anchors, v)) for k, v in values.items()}
+
+
+def validate_adapt(anchors, values):
+    a = np.asarray(anchors if anchors is not None else [], dtype=float)
+    if a.ndim != 1 or len(a) < 1 or np.any(np.diff(a) <= 0):
+        raise ValueError("adapt_anchors_db must be a non-empty, strictly increasing list.")
+    for k, v in values.items():
+        if v is None or len(v) != len(a):
+            raise ValueError(f"adapt_{k} must have one value per anchor ({len(a)}).")
+    if any(x <= 0 for x in values["noise_bias"]):
+        raise ValueError("adapt_noise_bias values must be > 0.")
+    if any(not 0 <= x <= 1 for x in values["hrnr_rho"]):
+        raise ValueError("adapt_hrnr_rho values must be in [0, 1].")
+
+
 def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
              mcra_window, delta, q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0,
              xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000):
@@ -152,8 +186,14 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             noise_fraction=0.20, alpha=0.98, xi_min_db=-25.0, gmin_db=-25.0,
             alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, mcra_window=96, delta=5.0,
             q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0, xi_mode="dd",
-            xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0):
+            xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0, adapt=False,
+            adapt_anchors_db=None, adapt_xi_min_db=None, adapt_hrnr_rho=None,
+            adapt_noise_bias=None):
     x = as_waveform(noisy)
+    if adapt:
+        adapt_values = {"xi_min_db": adapt_xi_min_db, "hrnr_rho": adapt_hrnr_rho,
+                        "noise_bias": adapt_noise_bias}
+        validate_adapt(adapt_anchors_db, adapt_values)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
     validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
@@ -168,6 +208,10 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
         noise = np.repeat(quantile_noise(power, q, bias, smooth_frames)[:, None], z.shape[1], axis=1)
     else:
         noise = mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
+    if adapt:  # per-file parameters from the input SNR estimate (noise before noise_bias)
+        snr_hat = estimate_input_snr_db(power, noise)
+        chosen = adapt_params(snr_hat, adapt_anchors_db, adapt_values)
+        xi_min_db, hrnr_rho, noise_bias = (chosen[k] for k in ADAPT_KEYS)
     if noise_bias != 1.0:
         noise = noise * noise_bias
     noise = np.maximum(noise, _EPS)

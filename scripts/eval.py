@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from pathlib import Path
 import time
@@ -41,7 +42,7 @@ _METHOD_CACHE = {}
 
 
 def _get_method(name, params):
-    key = (name, tuple(sorted(params.items())))
+    key = (name, json.dumps(params, sort_keys=True, default=str))  # params may hold lists
     if key not in _METHOD_CACHE:
         _METHOD_CACHE[key] = get_method(name, **params)
     return _METHOD_CACHE[key]

@@ -1,0 +1,23 @@
+# dsp-adaptive S1: fixed-parameter grid on the 400-file train subset with per-file results (--per-file),
+# used by scripts/build_adaptive.py to pick per-snr_hat-group values. Base = dsp_edge (dsp-v4).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  xi_min_db: [-30, -25, -20, -15]
+  hrnr_rho: [0.3, 0.5, 0.7]
+  noise_bias: [1.0, 1.25, 1.5]
+reference:
+  - configs/dsp_edge.yaml
