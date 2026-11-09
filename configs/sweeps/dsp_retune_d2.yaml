@@ -1,0 +1,21 @@
+# dsp-retune Stage D2 at the D1 best (dsp_retune_d1_000: alpha 0.94, xi_min_db -20, both on grid edges)
+# on dsp-v2 (n_fft 1024 / hop 256, noise_fraction 0.10, HRNR, 100 Hz HP): noise_bias x hrnr_rho. 4 x 3 = 12 points.
+# Run on the 400-file stratified train subset (seed 0): --split train --subset 400.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  alpha: 0.94
+  xi_min_db: -20
+  gmin_db: -25
+  xi_mode: hrnr
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  noise_bias: [1.0, 1.25, 1.5, 1.75]
+  hrnr_rho: [0.3, 0.5, 0.7]
+reference:
+  - configs/dsp_tune_c.yaml
