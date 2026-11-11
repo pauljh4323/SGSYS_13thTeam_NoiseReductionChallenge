@@ -11,14 +11,15 @@ Single-channel speech enhancement scored by wideband PESQ (PESQ-WB, 16 kHz); SNR
 
 | round | date | tag | commit | method | val PESQ | val SNR (dB) |
 |---|---|---|---|---|---|---|
-| 1 (first) |  | dsp-v5 | fb1d2dc | MMSE-LSA + HRNR (n_fft 1024, hrnr_rho 0.3) | 1.9570 | 12.69 |
+| 1 (first) |  | dsp-v6 | d9d1be6 | MMSE-LSA + HRNR + two-band noise bias (1.25 / 1.5 split at 1 kHz) | 1.9637 | 12.70 |
+| - (superseded, never submitted) | - | dsp-v5 | fb1d2dc | MMSE-LSA + HRNR, hrnr_rho 0.3 (`configs/dsp_g.yaml`) | 1.9570 | 12.69 |
 | - (superseded, never submitted) | - | dsp-v4 | db1085e | MMSE-LSA + HRNR, grid-edge alpha / xi_min / gmin (`configs/dsp_edge.yaml`) | 1.9497 | 12.72 |
 | - (superseded, never submitted) | - | dsp-v3 | 7080f9b | MMSE-LSA + HRNR + 100 Hz high-pass, re-tuned alpha / xi_min (`configs/dsp_retune.yaml`) | 1.9352 | 12.71 |
 | - (superseded, never submitted) | - | dsp-v2 | e68a073 | MMSE-LSA + HRNR + 100 Hz high-pass (`configs/dsp_tune_c.yaml`) | 1.8746 | 12.64 |
 | - (superseded, never submitted) | - | dsp-v1 | af75105 | MMSE-LSA (`configs/mmse_lsa_top1.yaml`) | 1.7505 | 13.56 |
 
 Validation = official validation split (164 files), scored on the 16-bit WAVs written by `main.py`
-(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v5`
+(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v6`
 points to the commit on `main` with identical `main.py`, `src/` and `configs/`. Round history: [docs/submissions.md](docs/submissions.md).
 
 ## Method (submitted)
@@ -28,7 +29,9 @@ regeneration (HRNR, Plapous, Marro & Scalart, 2006), `src/nrc/methods/mmse_lsa.p
 
 1. STFT: 1024-point Hann window, hop 256 (64 ms / 16 ms at 16 kHz).
 2. Noise PSD: mean power of the 10 % lowest-energy frames of the file (`noise_fraction: 0.10`),
-   smoothed over 3 frequency bins, multiplied by a noise bias of 1.25 (`noise_bias: 1.25`).
+   smoothed over 3 frequency bins, multiplied by a frequency-dependent noise bias: 1.25 below and 1.5 above
+   1 kHz with a 200 Hz raised-cosine cross-fade (`noise_bias_low: 1.25`, `noise_bias_high: 1.5`; two-band
+   over-estimation after Kamath & Loizou, 2002).
 3. A posteriori SNR gamma = |Y|^2 / noise PSD; first-step a priori SNR by decision-directed smoothing
    (Ephraim & Malah, 1984; `alpha: 0.94`), floored at `xi_min_db: -25`.
 4. HRNR (`xi_mode: hrnr`): TSNR second step xi = |G_dd Y|^2 / noise; the TSNR estimate is resynthesized,
@@ -40,8 +43,9 @@ regeneration (HRNR, Plapous, Marro & Scalart, 2006), `src/nrc/methods/mmse_lsa.p
 
 Parameters were chosen by grid-search stages on a 400-file stratified train subset only
 (`configs/sweeps/dsp_tune_{a,b,c}.yaml`, then the joint re-tune `configs/sweeps/dsp_retune_d{1,2,3}.yaml` and the grid-edge extension
-`configs/sweeps/dsp_edge_e{1,2}.yaml`, and the paired stages `configs/sweeps/dsp_g_g{1..6}.yaml`, `scripts/sweep.py`); see `configs/dsp_g.yaml`.
-Validation PESQ 1.9570 / SNR 12.69 dB (val_remix 1.8500 / 11.02 dB; dsp-v4 1.9497 / 12.72 dB, dsp-v3 1.9352 / 12.71 dB, dsp-v2 1.8746 / 12.64 dB, dsp-v1 1.7505 / 13.56 dB, course Wiener baseline 1.5987 / 13.12 dB,
+`configs/sweeps/dsp_edge_e{1,2}.yaml`, and the paired stages `configs/sweeps/dsp_g_g{1..6}.yaml`, `configs/sweeps/dsp_h_h{1,2,3}.yaml`, `scripts/sweep.py`);
+see `configs/dsp_h.yaml`. Tried and not adopted: beta-order MMSE gain (You, Koh & Rahardja, 2005) and a pause expander.
+Validation PESQ 1.9637 / SNR 12.70 dB (val_remix 1.8524 / 11.04 dB; dsp-v5 1.9570 / 12.69 dB, dsp-v4 1.9497 / 12.72 dB, dsp-v3 1.9352 / 12.71 dB, dsp-v2 1.8746 / 12.64 dB, dsp-v1 1.7505 / 13.56 dB, course Wiener baseline 1.5987 / 13.12 dB,
 unprocessed noisy input 1.3947 / 9.63 dB). Relative to dsp-v1 the PESQ gain costs about 0.85 dB of validation SNR overall: SNR improves at
 0/5 dB input SNR and drops at 10/15 dB (high-pass and noise over-estimation remove some speech energy).
 References: [docs/references.md](docs/references.md).
