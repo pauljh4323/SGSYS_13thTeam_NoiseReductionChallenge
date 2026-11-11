@@ -1,0 +1,21 @@
+# dsp-g Stage G2 at the G1 result (kept dsp-v4: highpass 150 d=+0.0078+-0.0039, z 1.97 < 2): STFT hop_div x window.
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and d >= 2*SE). hop = n_fft/hop_div.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  hop_div: [4, 8]
+  window: [hann, hamming, blackman]
+stage_reference: configs/dsp_edge.yaml

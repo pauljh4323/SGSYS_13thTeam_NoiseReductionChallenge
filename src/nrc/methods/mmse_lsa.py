@@ -18,11 +18,20 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
                          Non-causal over the file (offline processing).
   highpass_hz            > 0: Butterworth high-pass (designed order 4) applied forward-backward
                          (sosfiltfilt, zero-phase, effective magnitude order 8) to the output.
+  hop_div                if set, hop = n_fft // hop_div (overrides hop); window may be any scipy
+                         window satisfying NOLA (hann, hamming, blackman swept).
+  noise_select_bands     "initial" estimator only: split 100 Hz..8 kHz into B log-spaced bands (bins
+                         below 100 Hz join the lowest band) and pick the lowest-energy noise_fraction
+                         of frames separately per band. B=1 = the single-band selection.
+  noise_freq_smooth_bins "initial" estimator only: smooth the stationary noise PSD over +-N bins
+  noise_freq_smooth_mode ("mean" or "median") before noise_bias. N=0 = off.
+  hrnr_nonlinearity      HRNR rectifier: "halfwave" max(s, 0) (default) or "fullwave" |s|.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy import signal
+from scipy.ndimage import median_filter, uniform_filter1d
 from scipy.special import exp1
 
 from ..io import as_waveform
@@ -33,6 +42,48 @@ _EPS = 1e-18
 _V_MIN, _V_MAX = 1e-8, 500.0  # exp1 finite and exp(0.5*exp1(v)) bounded in this range
 _EULER = 0.5772156649015329
 XI_MODES = ("dd", "tsnr", "hrnr")
+HRNR_NONLINEARITIES = ("halfwave", "fullwave")
+SMOOTH_MODES = ("mean", "median")
+_BAND_LO_HZ = 100.0
+
+
+def banded_initial_noise(z, times, length, sr, n_fft, noise_fraction, n_bands):
+    """Lowest-energy-frame noise PSD with the frame selection done separately per band.
+
+    Same as wiener.estimate_noise_power (complete frames only, mean of the selected frames, then a
+    3-bin moving average) except that frame energy and selection are per band: B log-spaced bands
+    with edges geomspace(100, sr/2, B+1); bins below 100 Hz belong to the lowest band.
+    """
+    if n_bands == 1:
+        return estimate_noise_power(z, times, length, sr, n_fft, noise_fraction)
+    power = np.abs(z) ** 2
+    centers = np.rint(times * sr).astype(int)
+    full = np.flatnonzero((centers >= n_fft // 2) & (centers + n_fft // 2 <= length))
+    if not len(full):
+        full = np.arange(power.shape[1])
+    count = max(1, int(np.ceil(noise_fraction * len(full))))
+    freqs = np.arange(power.shape[0]) * sr / n_fft
+    edges = np.geomspace(_BAND_LO_HZ, sr / 2, n_bands + 1)
+    band = np.clip(np.searchsorted(edges, freqs, side="right") - 1, 0, n_bands - 1)
+    estimate = np.empty(power.shape[0])
+    for b in range(n_bands):
+        rows = np.flatnonzero(band == b)
+        if not len(rows):
+            continue
+        energy = power[np.ix_(rows, full)].mean(axis=0)
+        selected = full[np.argsort(energy, kind="stable")[:count]]
+        estimate[rows] = power[np.ix_(rows, selected)].mean(axis=1)
+    return np.maximum(uniform_filter1d(estimate, size=3, mode="nearest"), 1e-18)
+
+
+def smooth_noise_freq(noise, n_bins, mode="mean"):
+    """+-n_bins smoothing of a (bins,) PSD across frequency (edges: nearest)."""
+    n = int(n_bins)
+    if n <= 0:
+        return noise
+    if mode == "median":
+        return median_filter(noise, size=2 * n + 1, mode="nearest")
+    return uniform_filter1d(noise, size=2 * n + 1, mode="nearest")
 
 
 def lsa_gain(xi, gamma):
@@ -124,8 +175,20 @@ def cepstral_xi(gamma, noise, xi_min, sr=16000, alpha_env=0.5, alpha_high=0.97,
 
 def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
              mcra_window, delta, q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0,
-             xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000):
+             xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000, noise_select_bands=1,
+             noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
+             hrnr_nonlinearity="halfwave"):
     check_nola(n_fft, hop, window)
+    if int(noise_select_bands) != noise_select_bands or noise_select_bands < 1:
+        raise ValueError("noise_select_bands must be an integer >= 1.")
+    if int(noise_freq_smooth_bins) != noise_freq_smooth_bins or noise_freq_smooth_bins < 0:
+        raise ValueError("noise_freq_smooth_bins must be an integer >= 0.")
+    if noise_freq_smooth_mode not in SMOOTH_MODES:
+        raise ValueError(f"noise_freq_smooth_mode must be one of {SMOOTH_MODES}.")
+    if hrnr_nonlinearity not in HRNR_NONLINEARITIES:
+        raise ValueError(f"hrnr_nonlinearity must be one of {HRNR_NONLINEARITIES}.")
+    if noise_est != "initial" and (noise_select_bands != 1 or noise_freq_smooth_bins):
+        raise ValueError("noise_select_bands / noise_freq_smooth_bins need noise_est 'initial'.")
     if noise_bias <= 0:
         raise ValueError("noise_bias must be > 0.")
     if xi_mode not in XI_MODES:
@@ -152,18 +215,27 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             noise_fraction=0.20, alpha=0.98, xi_min_db=-25.0, gmin_db=-25.0,
             alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, mcra_window=96, delta=5.0,
             q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0, xi_mode="dd",
-            xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0):
+            xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0, hop_div=None,
+            noise_select_bands=1, noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
+            hrnr_nonlinearity="halfwave"):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
+    if hop_div is not None:
+        if int(hop_div) != hop_div or hop_div < 1 or n_fft % int(hop_div):
+            raise ValueError("hop_div must be a positive integer dividing n_fft.")
+        hop = n_fft // int(hop_div)
     validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
              mcra_window, delta, q, bias, smooth_frames, noise_bias, xi_mode, hrnr_rho,
-             highpass_hz, sr)
+             highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
+             hrnr_nonlinearity)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
     if noise_est == "initial":
-        noise = np.repeat(estimate_noise_power(z, times, len(x), sr, n_fft, noise_fraction)[:, None],
-                          z.shape[1], axis=1)
+        est = banded_initial_noise(z, times, len(x), sr, n_fft, noise_fraction,
+                                   int(noise_select_bands))
+        est = smooth_noise_freq(est, noise_freq_smooth_bins, noise_freq_smooth_mode)
+        noise = np.repeat(est[:, None], z.shape[1], axis=1)
     elif noise_est == "quantile":
         noise = np.repeat(quantile_noise(power, q, bias, smooth_frames)[:, None], z.shape[1], axis=1)
     else:
@@ -176,7 +248,8 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
     gamma = np.minimum(power / noise, 1e8)
     if xi_mode != "dd" or xi_cepstral_smoothing:
         y = _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode,
-                              bool(xi_cepstral_smoothing), hrnr_rho, len(x), sr, n_fft, hop, window)
+                              bool(xi_cepstral_smoothing), hrnr_rho, len(x), sr, n_fft, hop, window,
+                              hrnr_nonlinearity)
     else:
         y = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window)
     return _highpass(y, highpass_hz, sr)
@@ -209,7 +282,7 @@ def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, wi
 
 
 def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, rho, length, sr,
-                      n_fft, hop, window):
+                      n_fft, hop, window, nonlinearity="halfwave"):
     """First-step xi (DD or cepstral), then optional TSNR / HRNR second step."""
     xi_cs = cepstral_xi(gamma, noise, xi_min, sr) if cepstral else None
     g_final = np.empty(z.shape)
@@ -231,7 +304,8 @@ def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, r
         prev_amp2 = g * g * gm * noise[:, t]  # |S_hat|^2 of the final estimate (DD recursion)
     if xi_mode == "hrnr":
         s_tsnr = istft(g_final * z, length, sr, n_fft, hop, window)
-        _, _, z_h = stft(np.maximum(s_tsnr, 0.0), sr, n_fft, hop, window)
+        rect = np.abs(s_tsnr) if nonlinearity == "fullwave" else np.maximum(s_tsnr, 0.0)
+        _, _, z_h = stft(rect, sr, n_fft, hop, window)
         z_h = z_h[:, :z.shape[1]]
         xi_h = (rho * g_final ** 2 * np.abs(z) ** 2 + (1 - rho) * np.abs(z_h) ** 2) / noise
         g_final = np.clip(lsa_gain(np.maximum(xi_h, xi_min), gamma), gmin, 1.0)

@@ -1,0 +1,21 @@
+# dsp-g Stage G3 at the G2 result (kept dsp-v4; best non-ref hop_div 4 blackman d=-0.0003): stationary noise PSD frequency smoothing.
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and d >= 2*SE). +-N bins, before noise_bias.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  noise_freq_smooth_bins: [0, 1, 2, 4]
+  noise_freq_smooth_mode: [mean, median]
+stage_reference: configs/dsp_edge.yaml

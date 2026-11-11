@@ -1,0 +1,20 @@
+# dsp-g Stage G1 at dsp-v4 (dsp_edge): output high-pass cutoff. Train-400 subset (seed 0), paired keep rule
+# vs the stage reference (d >= 0.002 and d >= 2*SE). Run: --split train --subset 400 --jobs 4.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  highpass_hz: [100, 120, 150, 200]
+stage_reference: configs/dsp_edge.yaml

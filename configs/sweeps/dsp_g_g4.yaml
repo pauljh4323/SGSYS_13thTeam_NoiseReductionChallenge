@@ -1,0 +1,20 @@
+# dsp-g Stage G4 at the G3 result (kept dsp-v4; any noise PSD freq smoothing hurt, best N=1 median d=-0.0045): per-band frame selection.
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and d >= 2*SE). B log bands 100 Hz-8 kHz.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.5
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  noise_select_bands: [1, 2, 4, 8]
+stage_reference: configs/dsp_edge.yaml

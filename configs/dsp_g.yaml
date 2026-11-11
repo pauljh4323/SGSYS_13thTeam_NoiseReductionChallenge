@@ -1,0 +1,19 @@
+# dsp-g finalist (staged paired sweeps G1-G6 on the 400-file train subset, seed 0; keep rule d >= 0.002 and >= 2*SE).
+# = dsp-v4 (dsp_edge) with hrnr_rho 0.5 -> 0.3 (G5, d=+0.0032 +- 0.0011, z 2.87). Kept: G1 highpass 100 (150: +0.0078 +- 0.0039,
+# z 1.97), G2 hop 256 hann, G3 no noise PSD freq smoothing, G4 single-band selection, G6 noise_bias 1.25 / fraction 0.10.
+# Logs: logs/sweep_dsp_g_g{1..6}_paired.txt.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
