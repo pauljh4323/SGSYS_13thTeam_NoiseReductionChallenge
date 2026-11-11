@@ -1,0 +1,24 @@
+# dsp-k finalist (staged paired sweeps K1-K3 on the 400-file train subset, seed 0; keep rule d >= 0.002 and >= 2*SE).
+# = dsp-v6 (dsp_h) with noise_est spp_mean (SPP-weighted whole-file mean noise PSD, 3 iterations, xi_H1 10 dB;
+# K1 d=+0.0370 +- 0.0071, z 5.20; both values at grid edges, not extended). Kept: K2 tv_noise (all 9 points lost,
+# best W=32 tv_bias 1.0 d=-0.2148 +- 0.0129), K3 two-band bias 1.25/1.5 (best 1.0/1.5 d=+0.0022 +- 0.0020, z 1.09).
+# Logs: logs/sweep_dsp_k_k{1,2,3}_paired.txt, logs/oracle_lsd_dsp_k_k1_train_sub400.txt.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5

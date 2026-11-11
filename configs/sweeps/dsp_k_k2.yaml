@@ -1,0 +1,30 @@
+# dsp-k Stage K2 at the K1 result (spp_mean 3 iters / 10 dB): upward-only time-varying correction
+# lambda = max(lambda_stat, tv_bias * centred min over +-W frames of the zero-phase smoothed |Y|^2), tv_alpha 0.8.
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and >= 2*SE).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  tv_noise: true
+  tv_alpha: 0.8
+grid:
+  tv_window_frames: [8, 16, 32]
+  tv_bias: [1.0, 1.5, 2.0]
+reference:
+  - configs/dsp_h.yaml
+stage_reference: configs/dsp_k_k1.yaml

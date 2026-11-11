@@ -1,0 +1,22 @@
+# dsp-k Stage K1 adopted (train-400 seed 0, paired vs dsp_h d=+0.0370 +- 0.0071, z 5.20; runner-up 2/10 dB
+# d=+0.0359 +- 0.0061; spp_iters 3 and spp_xi_h1_db 10 both at grid edges, not extended).
+# = dsp-v6 (dsp_h) with noise_est spp_mean. Logs: logs/sweep_dsp_k_k1_paired.txt.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
