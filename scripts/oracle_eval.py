@@ -15,6 +15,11 @@ Variants (dsp-v6 = configs/dsp_h.yaml settings everywhere except the oracle part
   O5_b1   O2_b1 gain with the clean STFT phase
   O5_b2   O2_b2 gain with the clean STFT phase
 All outputs are quantized to 16-bit PCM before scoring (pesq 0.0.4 'wb', course SNR).
+
+--lsd-grid <sweep yaml>: instead of the variants, per file, compare the stationary noise PSD (before any
+noise_bias / two-band bias) of --config and of every grid point of the sweep yaml with the oracle mean noise
+PSD mean_l |N(k,l)|^2: LSD = RMS over bins 100 Hz-8 kHz of 10 log10(est/oracle) (dB), signed bias = mean of
+the same (dB; < 0 = under-estimation). Output logs/oracle_lsd_<tag>.{csv,txt}. No PESQ.
 """
 from __future__ import annotations
 
@@ -22,6 +27,7 @@ import argparse
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -116,6 +122,70 @@ def run_file(task):
     return rec
 
 
+_LSD_KEYS = ("noise_est", "noise_fraction", "q", "bias", "smooth_frames", "noise_select_bands",
+             "noise_freq_smooth_bins", "noise_freq_smooth_mode", "spp_iters", "spp_xi_h1_db")
+
+
+def lsd_file(task):
+    """Per-file LSD / signed bias (dB) of each estimator's stationary pre-bias PSD vs the oracle mean."""
+    root, row, base, variants = task
+    noisy, clean = read_row(root, row, "noisy"), read_row(root, row, "clean")
+    n_fft, hop, win = base["n_fft"], base["hop"], base["window"]
+    _, times, z = stft(noisy, 16000, n_fft, hop, win)
+    _, _, n = stft(noisy - clean, 16000, n_fft, hop, win)
+    power = np.abs(z) ** 2
+    oracle = np.maximum((np.abs(n) ** 2).mean(axis=1), ml._EPS)
+    freqs = np.arange(z.shape[0]) * 16000 / n_fft
+    band = (freqs >= 100.0) & (freqs <= 8000.0)
+    rec = {c: row[c] for c in META}
+    for name, p in variants:
+        kw = {k: p[k] for k in _LSD_KEYS if k in p}
+        est = np.maximum(ml.stationary_noise_psd(z, power, times, len(noisy), 16000, n_fft, **kw), ml._EPS)
+        e = 10.0 * np.log10(est[band] / oracle[band])
+        rec[f"lsd_{name}"] = float(np.sqrt(np.mean(e ** 2)))
+        rec[f"bias_{name}"] = float(np.mean(e))
+    return rec
+
+
+def run_lsd(a, cfg, root, man):
+    import yaml
+    from sweep import grid_points
+    spec = yaml.safe_load((REPO_ROOT / a.lsd_grid).read_text(encoding="utf-8"))
+    variants = [(cfg["name"], dict(cfg["params"]))]
+    for pt in grid_points(spec):
+        diff = {k: v for k, v in pt.items() if k not in spec.get("base_params", {})}
+        variants.append(("|".join(f"{k}={v}" for k, v in diff.items()), pt))
+    tasks = [(root, r.to_dict(), cfg["params"], variants) for _, r in man.iterrows()]
+    t0 = time.perf_counter()
+    if a.jobs > 1:
+        with ProcessPoolExecutor(max_workers=a.jobs) as pool:
+            rows = list(pool.map(lsd_file, tasks, chunksize=4))
+    else:
+        rows = [lsd_file(t) for t in tasks]
+    d = pd.DataFrame(rows)
+    names = [v[0] for v in variants]
+    t = pd.DataFrame({"LSD dB": [d[f"lsd_{k}"].mean() for k in names],
+                      "signed bias dB": [d[f"bias_{k}"].mean() for k in names]}, index=names)
+    lines = [t.to_string(float_format=lambda v: f"{v:+.3f}")]
+    for by in ("noise_difficulty",):
+        g = d.groupby(by)
+        tt = pd.DataFrame({k: g[f"lsd_{k}"].mean() for k in names}).T
+        lines.append(f"\n[LSD dB by {by}]\n" + tt.to_string(float_format=lambda v: f"{v:.3f}"))
+        tt = pd.DataFrame({k: g[f"bias_{k}"].mean() for k in names}).T
+        lines.append(f"\n[signed bias dB by {by}]\n" + tt.to_string(float_format=lambda v: f"{v:+.3f}"))
+    tag = f"{a.split}" + (f"_sub{a.subset}" if a.subset else "")
+    head = (f"oracle_eval --lsd-grid {a.lsd_grid} base {cfg['name']} | {tag} n={len(d)} | hash {git_hash()} | "
+            f"{time.perf_counter() - t0:.0f}s | band 100 Hz-8 kHz, pre-bias PSD vs oracle mean |N|^2")
+    text = head + "\n" + "\n".join(lines)
+    logs = REPO_ROOT / "logs"
+    logs.mkdir(exist_ok=True)
+    stem = f"oracle_lsd_{Path(a.lsd_grid).stem}_{tag}"
+    d.to_csv(logs / f"{stem}.csv", index=False)
+    (logs / f"{stem}.txt").write_text(text + "\n", encoding="utf-8")
+    print(text)
+    return 0
+
+
 def tables(d):
     lines = []
     for by in (None, "target_snr_db", "noise_difficulty"):
@@ -155,12 +225,16 @@ def main(argv=None):
     ap.add_argument("--subset", type=int, default=None)
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--lsd-grid", default=None,
+                    help="sweep yaml: PSD log-spectral distance diagnostic instead of the O-variants")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
     assert cfg["method"] == "mmse_lsa" and cfg["params"]["xi_mode"] == "hrnr"
     root = resolve_data_root(a.data_root)
     man = stratified_subset(load_manifest(root, a.split), a.subset)
     root = split_root(root, a.split)
+    if a.lsd_grid:
+        return run_lsd(a, cfg, root, man)
     tasks = [(root, r.to_dict(), cfg) for _, r in man.iterrows()]
     t0 = time.perf_counter()
     if a.jobs > 1:

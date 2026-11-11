@@ -39,12 +39,26 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
   noise_bias_low, noise_bias_high
                          two-band noise over-estimation (after Kamath & Loizou 2002): bias below/above
                          1 kHz with a raised-cosine cross-fade over 900-1100 Hz; None = noise_bias.
+  noise_est "spp_mean"   speech-presence-weighted whole-file mean noise PSD. lambda_0 = the "initial"
+                         estimate (incl. noise_select_bands / freq smoothing, before any bias); then
+                         spp_iters times: gamma = |Y|^2/lambda_i, a posteriori SPP with fixed prior 0.5 and
+                         fixed a priori SNR xi_H1 = 10^(spp_xi_h1_db/10) (Gerkmann & Hendriks 2012)
+                         P1 = 1 / (1 + (1+xi_H1) exp(-gamma xi_H1/(1+xi_H1))), and
+                         lambda_{i+1}(k) = sum_l (1-P1)|Y|^2 / sum_l (1-P1) (per bin; lambda_i kept where
+                         sum_l (1-P1) < 1e-3). The whole-file iterative use is our own variant (the paper is
+                         a recursive frame-wise tracker). Non-causal (offline, file-by-file).
+  tv_noise, tv_alpha, tv_window_frames, tv_bias
+                         upward-only time-varying correction of a stationary estimate (own design after
+                         minimum statistics, Martin 2001): P = average of forward and backward one-pole
+                         smoothing of |Y|^2 over time (tv_alpha), M = centred minimum of P over
+                         +-tv_window_frames frames, lambda(k,l) = max(lambda_stat(k), tv_bias M(k,l)),
+                         then the noise bias. Needs a stationary estimator (not "mcra"). Off by default.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy import signal
-from scipy.ndimage import median_filter, uniform_filter1d
+from scipy.ndimage import median_filter, minimum_filter1d, uniform_filter1d
 from scipy.special import exp1, gammaln, hyp1f1
 
 from ..io import as_waveform
@@ -204,6 +218,51 @@ def quantile_noise(power, q=0.2, bias=1.0, smooth_frames=0):
     return bias * np.quantile(p, q, axis=1)
 
 
+NOISE_ESTS = ("initial", "mcra", "quantile", "spp_mean")
+STATIONARY_ESTS = ("initial", "quantile", "spp_mean")
+_SPP_DEN_MIN = 1e-3
+
+
+def spp_mean_noise(power, lambda0, iters=2, xi_h1_db=15.0):
+    """Speech-presence-weighted whole-file mean noise PSD (bins,), started from lambda0 (bins,)."""
+    xi = 10.0 ** (xi_h1_db / 10.0)
+    lam = np.maximum(np.asarray(lambda0, dtype=float), _EPS)
+    for _ in range(int(iters)):
+        gamma = power / lam[:, None]
+        p1 = 1.0 / (1.0 + (1.0 + xi) * np.exp(-gamma * xi / (1.0 + xi)))
+        w = 1.0 - p1
+        den = w.sum(axis=1)
+        num = (w * power).sum(axis=1)
+        ok = den >= _SPP_DEN_MIN
+        lam = np.maximum(np.where(ok, num / np.where(ok, den, 1.0), lam), _EPS)
+    return lam
+
+
+def tv_noise_floor(power, stat, alpha=0.8, window_frames=16, bias=1.0):
+    """Upward-only time-varying noise PSD (bins, frames): max(stat, bias * local min of smoothed |Y|^2)."""
+    fwd = signal.lfilter([1.0 - alpha], [1.0, -alpha], power, axis=1,
+                         zi=(alpha * power[:, :1]))[0]
+    bwd = signal.lfilter([1.0 - alpha], [1.0, -alpha], power[:, ::-1], axis=1,
+                         zi=(alpha * power[:, -1:]))[0][:, ::-1]
+    p = 0.5 * (fwd + bwd)
+    m = minimum_filter1d(p, size=2 * int(window_frames) + 1, axis=1, mode="nearest")
+    return np.maximum(stat[:, None], bias * m)
+
+
+def stationary_noise_psd(z, power, times, length, sr, n_fft, noise_est="initial",
+                         noise_fraction=0.20, q=0.2, bias=1.0, smooth_frames=0,
+                         noise_select_bands=1, noise_freq_smooth_bins=0,
+                         noise_freq_smooth_mode="mean", spp_iters=2, spp_xi_h1_db=15.0):
+    """Stationary noise PSD (bins,) before noise_bias / two-band bias (quantile includes its own bias)."""
+    if noise_est == "quantile":
+        return quantile_noise(power, q, bias, smooth_frames)
+    est = banded_initial_noise(z, times, length, sr, n_fft, noise_fraction, int(noise_select_bands))
+    est = smooth_noise_freq(est, noise_freq_smooth_bins, noise_freq_smooth_mode)
+    if noise_est == "spp_mean":
+        est = spp_mean_noise(power, est, spp_iters, spp_xi_h1_db)
+    return est
+
+
 def cepstral_xi(gamma, noise, xi_min, sr=16000, alpha_env=0.5, alpha_high=0.97,
                 alpha_pitch=0.4, env_ms=0.3, f0_min=70.0, f0_max=500.0):
     """Selective cepstro-temporal smoothing of the ML speech PSD (Breithaupt et al. 2008).
@@ -243,8 +302,23 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
              xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000, noise_select_bands=1,
              noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
              hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
-             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None):
+             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
+             spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
+             tv_bias=1.0):
     check_nola(n_fft, hop, window)
+    if int(spp_iters) != spp_iters or spp_iters < 1:
+        raise ValueError("spp_iters must be an integer >= 1.")
+    if not np.isfinite(spp_xi_h1_db):
+        raise ValueError("spp_xi_h1_db must be finite.")
+    if tv_noise:
+        if noise_est not in STATIONARY_ESTS:
+            raise ValueError(f"tv_noise needs a stationary noise_est {STATIONARY_ESTS}.")
+        if not 0 <= tv_alpha < 1:
+            raise ValueError("tv_alpha must be in [0, 1).")
+        if int(tv_window_frames) != tv_window_frames or tv_window_frames < 0:
+            raise ValueError("tv_window_frames must be an integer >= 0.")
+        if tv_bias <= 0:
+            raise ValueError("tv_bias must be > 0.")
     if gain_mode not in GAIN_MODES:
         raise ValueError(f"gain_mode must be one of {GAIN_MODES}.")
     if gain_mode == "beta" and not beta > -2:
@@ -262,8 +336,10 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
         raise ValueError(f"noise_freq_smooth_mode must be one of {SMOOTH_MODES}.")
     if hrnr_nonlinearity not in HRNR_NONLINEARITIES:
         raise ValueError(f"hrnr_nonlinearity must be one of {HRNR_NONLINEARITIES}.")
-    if noise_est != "initial" and (noise_select_bands != 1 or noise_freq_smooth_bins):
-        raise ValueError("noise_select_bands / noise_freq_smooth_bins need noise_est 'initial'.")
+    if (noise_est not in ("initial", "spp_mean")
+            and (noise_select_bands != 1 or noise_freq_smooth_bins)):
+        raise ValueError("noise_select_bands / noise_freq_smooth_bins need noise_est "
+                         "'initial' or 'spp_mean'.")
     if noise_bias <= 0:
         raise ValueError("noise_bias must be > 0.")
     if xi_mode not in XI_MODES:
@@ -272,8 +348,8 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
         raise ValueError("hrnr_rho must be in [0, 1].")
     if not (highpass_hz == 0 or 0 < highpass_hz < sr / 2):
         raise ValueError("highpass_hz must be 0 (off) or in (0, sr/2).")
-    if noise_est not in ("initial", "mcra", "quantile"):
-        raise ValueError("noise_est must be 'initial', 'mcra' or 'quantile'.")
+    if noise_est not in NOISE_ESTS:
+        raise ValueError(f"noise_est must be one of {NOISE_ESTS}.")
     if not 0 <= q <= 1 or bias <= 0 or smooth_frames < 0:
         raise ValueError("quantile needs q in [0, 1], bias > 0, smooth_frames >= 0.")
     if not 0 < noise_fraction <= 1:
@@ -293,7 +369,9 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0, hop_div=None,
             noise_select_bands=1, noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
             hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
-            pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None):
+            pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
+            spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
+            tv_bias=1.0):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
@@ -305,16 +383,18 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
              mcra_window, delta, q, bias, smooth_frames, noise_bias, xi_mode, hrnr_rho,
              highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
              hrnr_nonlinearity, gain_mode, beta, pause_thr_db, pause_att_db, pause_release_frames,
-             noise_bias_low, noise_bias_high)
+             noise_bias_low, noise_bias_high, spp_iters, spp_xi_h1_db, tv_noise, tv_alpha,
+             tv_window_frames, tv_bias)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
-    if noise_est == "initial":
-        est = banded_initial_noise(z, times, len(x), sr, n_fft, noise_fraction,
-                                   int(noise_select_bands))
-        est = smooth_noise_freq(est, noise_freq_smooth_bins, noise_freq_smooth_mode)
-        noise = np.repeat(est[:, None], z.shape[1], axis=1)
-    elif noise_est == "quantile":
-        noise = np.repeat(quantile_noise(power, q, bias, smooth_frames)[:, None], z.shape[1], axis=1)
+    if noise_est in STATIONARY_ESTS:
+        est = stationary_noise_psd(z, power, times, len(x), sr, n_fft, noise_est, noise_fraction, q,
+                                   bias, smooth_frames, noise_select_bands, noise_freq_smooth_bins,
+                                   noise_freq_smooth_mode, spp_iters, spp_xi_h1_db)
+        if tv_noise:
+            noise = tv_noise_floor(power, est, tv_alpha, tv_window_frames, tv_bias)
+        else:
+            noise = np.repeat(est[:, None], z.shape[1], axis=1)
     else:
         noise = mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
     if noise_bias_low is not None or noise_bias_high is not None:

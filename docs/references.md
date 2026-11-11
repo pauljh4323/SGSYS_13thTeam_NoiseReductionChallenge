@@ -47,6 +47,13 @@ exists and that the bibliographic data (title, authors, year, DOI) are correct. 
 | A multi-band spectral subtraction method for enhancing speech corrupted by colored noise (Proc. IEEE ICASSP 2002) | S. Kamath, P. Loizou | 2002 | https://doi.org/10.1109/ICASSP.2002.5745591 (DOI from memory) | idea of frequency-dependent noise over-estimation (`noise_bias_low` / `noise_bias_high`, 1 kHz split) | pending (team must confirm) |
 | Pause expander (`pause_thr_db`, `pause_att_db`, `pause_release_frames`) | own design (this repository) | 2026 | - | frame-level extra attenuation when the 300-4000 Hz mean a posteriori SNR is low | n/a (own design) |
 
+## dsp-k extensions (`src/nrc/methods/mmse_lsa.py`, branch exp/dsp-k)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Unbiased MMSE-based noise power estimation with low complexity and low tracking delay (IEEE Trans. Audio, Speech, and Language Processing 20(4), 1383-1393) | T. Gerkmann, R. C. Hendriks | 2012 | https://doi.org/10.1109/TASL.2011.2180896 (DOI from memory) | a posteriori speech presence probability with fixed prior 0.5 and fixed a priori SNR xi_H1 (`noise_est: spp_mean`, `spp_xi_h1_db`); the whole-file iterative SPP-weighted mean is our own variant, not the paper's recursive tracker | pending (team must confirm) |
+| Noise power spectral density estimation based on optimal smoothing and minimum statistics (IEEE Trans. Speech and Audio Processing 9(5), 504-512) | R. Martin | 2001 | https://doi.org/10.1109/89.928915 (DOI from memory) | idea of a noise floor from the minimum of the smoothed periodogram over a window (`tv_noise`); the zero-phase smoothing, centred window and upward-only max with the stationary PSD are our own design (no bias compensation from the paper) | pending (team must confirm) |
+
 ## Software
 
 | title | authors | year | DOI / link | used for | verification |
