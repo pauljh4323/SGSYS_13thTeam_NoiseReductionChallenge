@@ -1,24 +1,9 @@
-# Submission config (Challenge 1, traditional DSP) = configs/dsp_k.yaml verbatim:
-# dsp-k finalist (K1, branch exp/dsp-k): dsp-v6 (MMSE-LSA/HRNR, n_fft 1024, alpha 0.94, xi_min_db -25, gmin_db -30,
-# 100 Hz zero-phase high-pass, two-band noise bias 1.25/1.5) with the noise PSD from noise_est spp_mean (speech-presence-
-# weighted whole-file mean started from the lowest-10%-frame estimate, 3 iterations, xi_H1 10 dB). Full-train paired
-# d +0.0302 +- 0.0039 (z 7.70), val PESQ 1.9884 (dsp-v6 1.9637), val_remix 1.8942 (1.8524); revised promotion rule. Tag dsp-v7.
-method: mmse_lsa
+# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v5b_off.yaml verbatim:
+# gru_v5b (BiGRU magnitude mask, 2.37M params, trained from scratch on the train split only; dl-main),
+# inference with level norm off. dl-main: val PESQ 2.6962 (0/5/10/15 dB 1.953/2.410/2.702/3.083), val_remix 2.5170.
+# Round-1 submission (dsp-v7, mmse_lsa) stays on main.
+method: gru_mask
 params:
-  n_fft: 1024
-  hop: 256
-  window: hann
-  noise_est: spp_mean
-  noise_fraction: 0.10
-  spp_iters: 3
-  spp_xi_h1_db: 10
-  noise_bias: 1.25
-  alpha: 0.94
-  xi_min_db: -25
-  gmin_db: -30
-  xi_mode: hrnr
-  hrnr_rho: 0.3
-  xi_cepstral_smoothing: false
-  highpass_hz: 100
-  noise_bias_low: 1.25
-  noise_bias_high: 1.5
+  weights: weights/gru_v5b.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false

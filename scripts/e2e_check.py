@@ -10,8 +10,11 @@
     requirements.txt, run the clone's main.py -> outputs/e2e/output_venv/; venv deleted afterwards.
 Asserts all output sets are bit-identical and match the inputs (names/count/length/sr/subtype),
 then checks a 44.1 kHz stereo file (in a subfolder, .WAV) and a 1.7 s file.
-Challenge 1 compliance: the submission method must be in CLASSICAL_METHODS, and main.py run in a
-subprocess must not import torch.
+Compliance depends on ROUND (override with --round):
+  ROUND 1: the submission method must be in CLASSICAL_METHODS, and main.py run in a subprocess must
+           not import torch.
+  ROUND 2: the submission method must be in CLASSICAL_METHODS | ROUND2_METHODS (torch allowed).
+(d) also reports the fresh-venv pip install time and venv size.
 """
 from __future__ import annotations
 
@@ -22,6 +25,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +41,9 @@ E2E = REPO_ROOT / "outputs" / "e2e"
 VENV = REPO_ROOT / "outputs" / "venv_ci"
 # Challenge 1 = traditional DSP only. Add new classical methods here; never a learned model.
 CLASSICAL_METHODS = {"noisy", "wiener", "mmse_lsa"}
+# Challenge 2 = deep learning; learned methods allowed only when ROUND == 2.
+ROUND2_METHODS = {"gru_mask"}
+ROUND = 2  # main: 1 (classical only + torch-free check); r2-prep: 2
 FAILS: list[str] = []
 
 
@@ -118,14 +125,18 @@ def main(argv=None) -> int:
     parser.add_argument("--data-root", default=None)
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--skip-eval", action="store_true")
+    parser.add_argument("--round", type=int, choices=(1, 2), default=ROUND,
+                        help=f"challenge round for the compliance checks (default {ROUND})")
     args = parser.parse_args(argv)
     root = resolve_data_root(args.data_root)
     manifest = load_manifest(root, "validation").sort_values("segment_id")
 
+    allowed = CLASSICAL_METHODS if args.round == 1 else CLASSICAL_METHODS | ROUND2_METHODS
+    print(f"ROUND {args.round}: allowed methods {sorted(allowed)}", flush=True)
     sub_cfg = yaml.safe_load((REPO_ROOT / "configs" / "submission.yaml").read_text(encoding="utf-8"))
-    check(sub_cfg.get("method") in CLASSICAL_METHODS,
-          f"(compliance) submission method {sub_cfg.get('method')!r} in CLASSICAL_METHODS "
-          f"{sorted(CLASSICAL_METHODS)}")
+    check(sub_cfg.get("method") in allowed,
+          f"(compliance) round {args.round}: submission method {sub_cfg.get('method')!r} in "
+          f"{sorted(allowed)}")
 
     # (a) local repo
     inp, out_a = E2E / "input", E2E / "output"
@@ -163,8 +174,11 @@ def main(argv=None) -> int:
     try:
         run([sys.executable, "-m", "venv", VENV], cwd=REPO_ROOT)
         py = VENV / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        t0 = time.perf_counter()
         run([py, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
              "-r", clone / "requirements.txt"], cwd=clone)
+        size_mb = sum(p.stat().st_size for p in VENV.rglob("*") if p.is_file()) / 2 ** 20
+        print(f"venv: pip install {time.perf_counter() - t0:.0f} s, size {size_mb:.0f} MB", flush=True)
         frozen = run([py, "-m", "pip", "freeze"], cwd=clone).split()
         print("venv packages: " + " ".join(frozen))
         check(run_main(clone / "main.py", inp, out_d, python=py) == 0,
@@ -204,14 +218,17 @@ def main(argv=None) -> int:
         check(not same, f"(extra) {rel.as_posix()} enhanced (not passthrough): "
                         f"{info.samplerate} Hz, {info.channels} ch, {info.frames} frames")
 
-    # compliance: main.py in a subprocess must not import torch
-    out_t = E2E / "output_torchfree"
-    rmtree(out_t)
-    stdout = run([sys.executable, "-c", TORCH_PROBE, REPO_ROOT / "main.py", x_in.resolve(),
-                  out_t.resolve()], cwd=REPO_ROOT)
-    flag = [ln for ln in stdout.splitlines() if ln.startswith("TORCH_LOADED=")]
-    check(flag == ["TORCH_LOADED=False"], f"(compliance) main.py subprocess: 'torch' not in sys.modules "
-                                          f"({flag[-1] if flag else 'no probe output'})")
+    # compliance (round 1 only): main.py in a subprocess must not import torch
+    if args.round == 1:
+        out_t = E2E / "output_torchfree"
+        rmtree(out_t)
+        stdout = run([sys.executable, "-c", TORCH_PROBE, REPO_ROOT / "main.py", x_in.resolve(),
+                      out_t.resolve()], cwd=REPO_ROOT)
+        flag = [ln for ln in stdout.splitlines() if ln.startswith("TORCH_LOADED=")]
+        check(flag == ["TORCH_LOADED=False"], f"(compliance) main.py subprocess: 'torch' not in "
+                                              f"sys.modules ({flag[-1] if flag else 'no probe output'})")
+    else:
+        print("SKIP (compliance) torch-free probe: round 2 allows torch", flush=True)
 
     print(f"\nE2E {'PASSED' if not FAILS else 'FAILED'}: {len(FAILS)} failing check(s)")
     return 0 if not FAILS else 1
