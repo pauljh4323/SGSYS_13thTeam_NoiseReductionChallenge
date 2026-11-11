@@ -1,0 +1,17 @@
+# dsp-g after Stage G5 (stage reference for G6): dsp_edge with hrnr_rho 0.5 -> 0.3 (G5 dsp_g_g5_000,
+# train-400 paired d=+0.0032 +- 0.0011, z 2.87; logs/sweep_dsp_g_g5_paired.txt). G1-G4 kept dsp-v4 values.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100

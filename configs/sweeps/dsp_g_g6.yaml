@@ -1,0 +1,21 @@
+# dsp-g Stage G6 at the G5 result (dsp_g_stage5: hrnr_rho 0.3): noise_bias x noise_fraction (noise estimate re-check).
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and d >= 2*SE). 9 points.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid:
+  noise_bias: [1.0, 1.25, 1.5]
+  noise_fraction: [0.05, 0.10, 0.15]
+stage_reference: configs/dsp_g_stage5.yaml
