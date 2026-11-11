@@ -1,7 +1,9 @@
-# Submission config (Challenge 1, traditional DSP) = configs/dsp_edge.yaml verbatim:
-# dsp-edge finalist (E2 best dsp_edge_e2_001, branch exp/dsp-edge): dsp-v3 (MMSE-LSA, n_fft 1024,
-# noise_bias 1.25, noise_fraction 0.10, HRNR a priori SNR, alpha 0.94, 100 Hz zero-phase high-pass) with
-# xi_min_db -25 and gmin_db -30. Val PESQ 1.9497 (dsp-v3 1.9352). Tag dsp-v4.
+# Submission config (Challenge 1, traditional DSP) = configs/dsp_g.yaml verbatim:
+# dsp-g finalist (G5, branch exp/dsp-g): dsp-v4 (MMSE-LSA, n_fft 1024, noise_bias 1.25, noise_fraction 0.10,
+# HRNR a priori SNR, alpha 0.94, xi_min_db -25, gmin_db -30, 100 Hz zero-phase high-pass) with hrnr_rho 0.5 -> 0.3.
+# Full-train paired d +0.0032 +- 0.0009 (z 3.67), val PESQ 1.9570 (dsp-v4 1.9497), val_remix 1.8500 (1.8449).
+# Promoted under the revised significance-based rule of 2026-11-11 (d >= 0.003 and z >= 3 on full train, replacing
+# the fixed +0.005 margin; see docs/exp_dsp_g.md). Tag dsp-v5.
 method: mmse_lsa
 params:
   n_fft: 1024
@@ -14,6 +16,6 @@ params:
   xi_min_db: -25
   gmin_db: -30
   xi_mode: hrnr
-  hrnr_rho: 0.5
+  hrnr_rho: 0.3
   xi_cepstral_smoothing: false
   highpass_hz: 100
