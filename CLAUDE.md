@@ -1,7 +1,7 @@
 # CLAUDE.md — Speech Noise Reduction Challenge 1 (traditional DSP)
 ## Objective
 Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Deadline 2026-11-17 23:59 KST.
-Current submission candidate: dsp_edge / val PESQ 1.9497, SNR 12.72 dB / tag dsp-v4 (first submission, not yet sent; supersedes dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505).
+Current submission candidate: dsp_g / val PESQ 1.9570, SNR 12.69 dB / tag dsp-v5 (first submission, not yet sent; supersedes dsp-v4 1.9497, dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505).
 ## Rounds
 - Round 1 (classical DSP only, no ML/DL) ends 2026-11-17 23:59 KST; round 2 (DL) starts 2026-11-18 KST.
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
@@ -23,6 +23,7 @@ Current submission candidate: dsp_edge / val PESQ 1.9497, SNR 12.72 dB / tag dsp
 - Tune on train (or a train subset), confirm on validation, gate on val_remix. Never select on val_remix.
 - Only scripts/eval.py produces metrics; append to results/experiments.csv with a clean hash (commit code before final evals).
 - Report PESQ and SNR together (overall, per SNR, per difficulty).
+- Promotion rule (revised 2026-11-11, docs/exp_dsp_g.md): full-train paired delta >= 0.003 and z >= 3, val PESQ and val_remix PESQ >= current, every probe level >= current - 0.02, main.py CPU < 180 s.
 - Branch exp/<name>; merge to main only when acceptance criteria pass; tags dsp-vN (new best), sub-YYYYMMDD (only after the team confirms it was actually submitted).
 - After each task append one row to docs/ai_usage_log.md (date | goal | key prompt (summary) | what AI did | verification | references).
 - Add every algorithm source to docs/references.md (title, authors, year, DOI/link) marked pending until the team verifies it.

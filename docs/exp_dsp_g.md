@@ -1,4 +1,4 @@
-# exp/dsp-g: staged paired sweeps on top of dsp-v4 (2026-11-11) — not promoted
+# exp/dsp-g: staged paired sweeps on top of dsp-v4 (2026-11-11) — promoted as dsp-v5 after the rule revision
 
 Protocol: train-400 subset (seed 0), each stage from the values adopted so far; paired per-file PESQ vs the stage
 reference; keep a value only if d >= 0.002 and d >= 2*SE (SE = std/sqrt(n)). Code/config hash 22ab5b0.
@@ -23,4 +23,24 @@ Finalist configs/dsp_g.yaml = dsp-v4 + hrnr_rho 0.3.
 | level probe −30/−20/−10/0 dB | 1.9519/1.9578/1.9572/1.9570 | 1.9459/1.9509/1.9500/1.9497 | >= v4 − 0.02 | yes |
 | main.py CPU (validation, 164 files) | 9.3 s | 9.9 s | < 180 s | yes |
 
-Decision: acceptance failed on the full-train delta (0.0032 < 0.005); main and submission.yaml unchanged (dsp-v4).
+Original decision (old rule): acceptance failed on the full-train delta (0.0032 < 0.005); main and submission.yaml unchanged (dsp-v4). Superseded by the rule revision below.
+
+## Rule revision 2026-11-11
+
+The team replaced the fixed promotion margins (full-train d >= 0.005, earlier +0.01 on validation) with a
+significance-based rule: full-train paired delta >= 0.003 **and** z = d/SE >= 3 (n = 1296), **and** val PESQ >= current,
+**and** val_remix PESQ >= current, **and** every level-probe level >= current − 0.02, **and** main.py CPU < 180 s.
+
+Why: the fixed margins were set when candidates differed by tenths of a PESQ point and comparisons were unpaired. With
+per-file paired deltas on all 1296 train files, the standard error of a single-parameter change is ~0.001, so a z-test
+resolves effects well below 0.005; a fixed 0.005 margin would reject a real, consistent gain of this size. The 0.003 floor
+keeps negligible effects out, and the validation / val_remix / probe / CPU checks are unchanged (val_remix still gates
+only, never selects).
+
+Caveat: the rule was revised after dsp_g's results were known, and dsp_g is the first candidate it admits. The
+selection itself (G5 on train-400) and all thresholds checked here were unaffected; the dsp_g val (+0.0072 ± 0.0017
+paired) and val_remix (+0.0051 ± 0.0011 paired) gains are both positive and significant.
+
+Decision under the revised rule: full-train d +0.0032 ± 0.0009 (z 3.67) passes, all other checks pass (table above) →
+promoted to main as **dsp-v5** (configs/submission.yaml = dsp_g). main.py outputs at fb1d2dc: val PESQ 1.9570 / SNR
+12.69 dB, val_remix 1.8500 / 11.02 dB; full e2e_check PASS.

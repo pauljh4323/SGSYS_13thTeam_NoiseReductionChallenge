@@ -62,3 +62,5 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-11,22ab5b0,dsp_g,mmse_lsa,1.9088,1.3799,1.6382,1.8649,2.2658,11.133,split=train n=1296 failed=0 snr=11.471 stoi=0.8713 clipped=2 src=mem16
 2026-11-11,22ab5b0,dsp_g,mmse_lsa,1.9570,1.2900,1.6939,1.9385,2.3323,12.781,split=validation n=164 failed=0 snr=12.689 stoi=0.8921 clipped=0 src=mem16
 2026-11-11,22ab5b0,dsp_g,mmse_lsa,1.8500,1.2299,1.5700,2.0046,2.6015,10.908,split=val_remix n=328 failed=0 snr=11.020 stoi=0.8574 clipped=0 src=mem16
+2026-11-11,fb1d2dc,submission,mmse_lsa,1.9570,1.2900,1.6939,1.9385,2.3323,12.781,split=validation n=164 failed=0 snr=12.689 stoi=0.8921 clipped=0 src=pred | e2e main.py outputs
+2026-11-11,fb1d2dc,submission,mmse_lsa,1.8500,1.2299,1.5700,2.0046,2.6015,10.908,split=val_remix n=328 failed=0 snr=11.020 stoi=0.8574 clipped=0 src=pred | dsp-v5 main.py outputs val_remix

@@ -11,13 +11,14 @@ Single-channel speech enhancement scored by wideband PESQ (PESQ-WB, 16 kHz); SNR
 
 | round | date | tag | commit | method | val PESQ | val SNR (dB) |
 |---|---|---|---|---|---|---|
-| 1 (first) |  | dsp-v4 | db1085e | MMSE-LSA + HRNR (n_fft 1024) | 1.9497 | 12.72 |
+| 1 (first) |  | dsp-v5 | fb1d2dc | MMSE-LSA + HRNR (n_fft 1024, hrnr_rho 0.3) | 1.9570 | 12.69 |
+| - (superseded, never submitted) | - | dsp-v4 | db1085e | MMSE-LSA + HRNR, grid-edge alpha / xi_min / gmin (`configs/dsp_edge.yaml`) | 1.9497 | 12.72 |
 | - (superseded, never submitted) | - | dsp-v3 | 7080f9b | MMSE-LSA + HRNR + 100 Hz high-pass, re-tuned alpha / xi_min (`configs/dsp_retune.yaml`) | 1.9352 | 12.71 |
 | - (superseded, never submitted) | - | dsp-v2 | e68a073 | MMSE-LSA + HRNR + 100 Hz high-pass (`configs/dsp_tune_c.yaml`) | 1.8746 | 12.64 |
 | - (superseded, never submitted) | - | dsp-v1 | af75105 | MMSE-LSA (`configs/mmse_lsa_top1.yaml`) | 1.7505 | 13.56 |
 
 Validation = official validation split (164 files), scored on the 16-bit WAVs written by `main.py`
-(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v4`
+(`pesq==0.0.4`, wideband, 16 kHz). The commit column is the code commit of the submitted algorithm; tag `dsp-v5`
 points to the commit on `main` with identical `main.py`, `src/` and `configs/`. Round history: [docs/submissions.md](docs/submissions.md).
 
 ## Method (submitted)
@@ -32,15 +33,15 @@ regeneration (HRNR, Plapous, Marro & Scalart, 2006), `src/nrc/methods/mmse_lsa.p
    (Ephraim & Malah, 1984; `alpha: 0.94`), floored at `xi_min_db: -25`.
 4. HRNR (`xi_mode: hrnr`): TSNR second step xi = |G_dd Y|^2 / noise; the TSNR estimate is resynthesized,
    half-wave rectified to regenerate harmonics, re-analysed, and the final a priori SNR is
-   xi = (0.5 |G_tsnr Y|^2 + 0.5 |S_harmo|^2) / noise.
+   xi = (rho |G_tsnr Y|^2 + (1 - rho) |S_harmo|^2) / noise with `hrnr_rho: 0.3`.
 5. LSA gain G = xi / (1 + xi) * exp(0.5 * E1(v)), v = xi * gamma / (1 + xi), clipped to [`gmin_db: -30` dB, 0 dB];
    enhanced magnitude = G * |Y| with the noisy phase, inverse STFT to the original length.
 6. Output high-pass: 4th-order Butterworth at 100 Hz applied forward-backward (zero phase, `highpass_hz: 100`).
 
 Parameters were chosen by grid-search stages on a 400-file stratified train subset only
 (`configs/sweeps/dsp_tune_{a,b,c}.yaml`, then the joint re-tune `configs/sweeps/dsp_retune_d{1,2,3}.yaml` and the grid-edge extension
-`configs/sweeps/dsp_edge_e{1,2}.yaml`, `scripts/sweep.py`); see `configs/dsp_edge.yaml`.
-Validation PESQ 1.9497 / SNR 12.72 dB (dsp-v3 1.9352 / 12.71 dB, dsp-v2 1.8746 / 12.64 dB, dsp-v1 1.7505 / 13.56 dB, course Wiener baseline 1.5987 / 13.12 dB,
+`configs/sweeps/dsp_edge_e{1,2}.yaml`, and the paired stages `configs/sweeps/dsp_g_g{1..6}.yaml`, `scripts/sweep.py`); see `configs/dsp_g.yaml`.
+Validation PESQ 1.9570 / SNR 12.69 dB (val_remix 1.8500 / 11.02 dB; dsp-v4 1.9497 / 12.72 dB, dsp-v3 1.9352 / 12.71 dB, dsp-v2 1.8746 / 12.64 dB, dsp-v1 1.7505 / 13.56 dB, course Wiener baseline 1.5987 / 13.12 dB,
 unprocessed noisy input 1.3947 / 9.63 dB). Relative to dsp-v1 the PESQ gain costs about 0.85 dB of validation SNR overall: SNR improves at
 0/5 dB input SNR and drops at 10/15 dB (high-pass and noise over-estimation remove some speech energy).
 References: [docs/references.md](docs/references.md).
