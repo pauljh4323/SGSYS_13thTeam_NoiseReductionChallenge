@@ -1,0 +1,26 @@
+# dsp-l finalist (staged paired sweeps L1-L3 on the 400-file train subset, seed 0; keep rule d >= 0.002 and >= 2*SE).
+# = dsp-v7 (dsp_k) with the two-band noise bias re-tuned to low 1.0 / high 1.75
+# (L3 d=+0.0074 +- 0.0023, z 3.17; both values at grid edges, not extended; runner-up 1.25/1.75 +0.0058 +- 0.0011).
+# Kept: L1 spp_iters / spp_xi_h1_db 3 / 10 dB (8 other points all lost, -0.0040 to -0.0191),
+# L2 spp_prior 0.5 (0.3 -0.0029 +- 0.0028, 0.7 -0.0267 +- 0.0040).
+# Logs: logs/sweep_dsp_l_l{1,2,3}_paired.txt, logs/oracle_lsd_dsp_l_l{1,2}_train_sub400.txt.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  spp_prior: 0.5
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.0
+  noise_bias_high: 1.75
