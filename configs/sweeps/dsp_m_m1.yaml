@@ -1,0 +1,25 @@
+# dsp-m Stage M1 at dsp-v7 (dsp_k): P1 STFT-consistency phase refinement (Griffin & Lim 1984 iterations, noisy phase
+# kept in bins with gain >= phase_gain_thr). Train-400 subset (seed 0); paired keep rule vs dsp_k (d >= 0.002 and >= 2*SE).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+grid:
+  phase_consistency_iters: [1, 3]
+  phase_gain_thr: [0.3, 0.6, 1.0]
+stage_reference: configs/dsp_k.yaml

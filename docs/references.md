@@ -54,6 +54,15 @@ exists and that the bibliographic data (title, authors, year, DOI) are correct. 
 | Unbiased MMSE-based noise power estimation with low complexity and low tracking delay (IEEE Trans. Audio, Speech, and Language Processing 20(4), 1383-1393) | T. Gerkmann, R. C. Hendriks | 2012 | https://doi.org/10.1109/TASL.2011.2180896 (DOI from memory) | a posteriori speech presence probability with fixed prior 0.5 and fixed a priori SNR xi_H1 (`noise_est: spp_mean`, `spp_xi_h1_db`); the whole-file iterative SPP-weighted mean is our own variant, not the paper's recursive tracker | pending (team must confirm) |
 | Noise power spectral density estimation based on optimal smoothing and minimum statistics (IEEE Trans. Speech and Audio Processing 9(5), 504-512) | R. Martin | 2001 | https://doi.org/10.1109/89.928915 (DOI from memory) | idea of a noise floor from the minimum of the smoothed periodogram over a window (`tv_noise`); the zero-phase smoothing, centred window and upward-only max with the stationary PSD are our own design (no bias compensation from the paper) | pending (team must confirm) |
 
+## dsp-m phase options (`src/nrc/phase.py`, `src/nrc/methods/mmse_lsa.py`, branch exp/dsp-m)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Signal estimation from modified short-time Fourier transform (IEEE Trans. Acoustics, Speech, and Signal Processing 32(2), 236-243) | D. W. Griffin, J. S. Lim | 1984 | https://doi.org/10.1109/TASSP.1984.1164317 (DOI from memory) | `phase_consistency_iters`: iterations X <- A exp(j angle(STFT(ISTFT(X)))) | pending (team must confirm) |
+| Consistent Wiener filtering for audio source separation (IEEE Signal Processing Letters 20(3), 217-220) | J. Le Roux, E. Vincent | 2013 | https://doi.org/10.1109/LSP.2012.2225617 (DOI from memory) | idea of enforcing STFT consistency on a masked spectrogram; our version keeps the noisy phase in high-gain bins (`phase_gain_thr`) and only iterates the phase (not the paper's consistency-penalised Wiener estimate) | pending (team must confirm) |
+| STFT phase reconstruction in voiced speech for an improved single-channel speech enhancement (IEEE/ACM Trans. Audio, Speech, and Language Processing 22(12), 1931-1940) | M. Krawczyk, T. Gerkmann | 2014 | https://doi.org/10.1109/TASLP.2014.2354236 (DOI from memory) | `phase_harmonic`: phase propagation along time at harmonic frequencies, window phase offset in neighbouring bins; re-anchoring in high-gain bins, the gain-threshold blend and the f0 jump reset are our own choices | pending (team must confirm) |
+| YIN, a fundamental frequency estimator for speech and music (J. Acoust. Soc. Am. 111(4), 1917-1930) | A. de Cheveigne, H. Kawahara | 2002 | https://doi.org/10.1121/1.1458024 (DOI from memory) | `yin_f0` (difference function, cumulative-mean normalisation, absolute threshold, parabolic interpolation); the time re-alignment of each estimate to the frame centre is our own addition | pending (team must confirm) |
+
 ## Software
 
 | title | authors | year | DOI / link | used for | verification |

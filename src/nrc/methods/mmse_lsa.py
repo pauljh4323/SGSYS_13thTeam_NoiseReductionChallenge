@@ -53,6 +53,15 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
                          smoothing of |Y|^2 over time (tv_alpha), M = centred minimum of P over
                          +-tv_window_frames frames, lambda(k,l) = max(lambda_stat(k), tv_bias M(k,l)),
                          then the noise bias. Needs a stationary estimator (not "mcra"). Off by default.
+  phase_consistency_iters, phase_gain_thr
+                         P1 (dsp-m): K iterations X <- A exp(j angle(STFT(ISTFT(X)))) with A the enhanced
+                         magnitude (Griffin & Lim 1984; consistent Wiener filtering, Le Roux & Vincent 2013);
+                         bins with gain >= phase_gain_thr keep their initial (noisy) phase. K=0 = off.
+  phase_harmonic, phase_beta, phase_bins, phase_reanchor, f0_min, f0_max, yin_threshold,
+  harmonic_max_hz        P2 (dsp-m): harmonic phase reconstruction along time (Krawczyk & Gerkmann 2014)
+                         from a YIN f0 (de Cheveigne & Kawahara 2002) of the phase-off output (incl. the
+                         high-pass); see nrc/phase.py. Applied before P1 (P1 starts from its phase).
+                         Both act after the magnitude gain and before the high-pass; off = bit-identical.
 """
 from __future__ import annotations
 
@@ -62,6 +71,7 @@ from scipy.ndimage import median_filter, minimum_filter1d, uniform_filter1d
 from scipy.special import exp1, gammaln, hyp1f1
 
 from ..io import as_waveform
+from ..phase import consistency_phase, harmonic_phase, yin_f0
 from ..stft import check_nola, istft, stft
 from .wiener import estimate_noise_power
 
@@ -304,8 +314,25 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
              hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
              pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
              spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-             tv_bias=1.0):
+             tv_bias=1.0, phase_consistency_iters=0, phase_gain_thr=1.0, phase_harmonic=False,
+             phase_beta=1.0, phase_bins=1, phase_reanchor=True, f0_min=70.0, f0_max=400.0,
+             yin_threshold=0.15, harmonic_max_hz=4000.0):
     check_nola(n_fft, hop, window)
+    if int(phase_consistency_iters) != phase_consistency_iters or phase_consistency_iters < 0:
+        raise ValueError("phase_consistency_iters must be an integer >= 0.")
+    if not phase_gain_thr > 0:
+        raise ValueError("phase_gain_thr must be > 0.")
+    if phase_harmonic:
+        if not 0 <= phase_beta <= 1:
+            raise ValueError("phase_beta must be in [0, 1].")
+        if int(phase_bins) != phase_bins or phase_bins < 0:
+            raise ValueError("phase_bins must be an integer >= 0.")
+        if not 0 < f0_min < f0_max < sr / 4:
+            raise ValueError("need 0 < f0_min < f0_max < sr/4.")
+        if not 0 < yin_threshold < 1:
+            raise ValueError("yin_threshold must be in (0, 1).")
+        if not 0 < harmonic_max_hz <= sr / 2:
+            raise ValueError("harmonic_max_hz must be in (0, sr/2].")
     if int(spp_iters) != spp_iters or spp_iters < 1:
         raise ValueError("spp_iters must be an integer >= 1.")
     if not np.isfinite(spp_xi_h1_db):
@@ -371,7 +398,9 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
             spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-            tv_bias=1.0):
+            tv_bias=1.0, phase_consistency_iters=0, phase_gain_thr=1.0, phase_harmonic=False,
+            phase_beta=1.0, phase_bins=1, phase_reanchor=True, f0_min=70.0, f0_max=400.0,
+            yin_threshold=0.15, harmonic_max_hz=4000.0):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
@@ -384,7 +413,8 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
              highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
              hrnr_nonlinearity, gain_mode, beta, pause_thr_db, pause_att_db, pause_release_frames,
              noise_bias_low, noise_bias_high, spp_iters, spp_xi_h1_db, tv_noise, tv_alpha,
-             tv_window_frames, tv_bias)
+             tv_window_frames, tv_bias, phase_consistency_iters, phase_gain_thr, phase_harmonic,
+             phase_beta, phase_bins, phase_reanchor, f0_min, f0_max, yin_threshold, harmonic_max_hz)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
     if noise_est in STATIONARY_ESTS:
@@ -415,13 +445,27 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
     pause = (pause_attenuation(gamma, sr, n_fft, pause_thr_db, pause_att_db, pause_release_frames)
              if pause_att_db > 0 else None)
     if xi_mode != "dd" or xi_cepstral_smoothing:
-        y = _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode,
+        s_hat, g = _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode,
                               bool(xi_cepstral_smoothing), hrnr_rho, len(x), sr, n_fft, hop, window,
                               hrnr_nonlinearity, gain_fn, pause)
     else:
-        y = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window,
+        s_hat, g = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window,
                         gain_fn, pause)
-    return _highpass(y, highpass_hz, sr)
+    y = _highpass(istft(s_hat, len(x), sr, n_fft, hop, window), highpass_hz, sr)
+    if not phase_consistency_iters and not phase_harmonic:
+        return y
+    phi_noisy = np.angle(z)
+    phase = phi_noisy
+    if phase_harmonic:
+        f0 = yin_f0(y, z.shape[1], sr, hop, f0_min, f0_max, yin_threshold)
+        phase = harmonic_phase(phi_noisy, g, f0, sr, n_fft, hop, phase_gain_thr, phase_beta,
+                               int(phase_bins), harmonic_max_hz, bool(phase_reanchor), f0_min)
+    amp = np.abs(s_hat)
+    if phase_consistency_iters:
+        phase = consistency_phase(amp, phase, g >= phase_gain_thr, int(phase_consistency_iters),
+                                  sr, n_fft, hop, window)
+    return _highpass(istft(amp * np.exp(1j * phase), len(x), sr, n_fft, hop, window),
+                     highpass_hz, sr)
 
 
 def _highpass(y, highpass_hz, sr):
@@ -435,7 +479,7 @@ def _highpass(y, highpass_hz, sr):
 
 def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, window,
                 gain_fn=lsa_gain, pause=None):
-    """Plain decision-directed LSA (the dsp-v1 path, unchanged)."""
+    """Plain decision-directed LSA (the dsp-v1 path): returns (enhanced STFT, gain)."""
     enhanced = np.empty_like(z)
     g_all = np.empty(z.shape)
     prev_amp2 = np.zeros(z.shape[0])
@@ -451,13 +495,14 @@ def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, wi
         enhanced[:, t] = g * z[:, t]
         prev_amp2 = np.abs(enhanced[:, t]) ** 2
     if pause is not None:  # output gain only; the DD recursion above is unchanged
-        enhanced = np.maximum(g_all * pause[None, :], gmin) * z
-    return istft(enhanced, length, sr, n_fft, hop, window)
+        g_all = np.maximum(g_all * pause[None, :], gmin)
+        enhanced = g_all * z
+    return enhanced, g_all
 
 
 def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, rho, length, sr,
                       n_fft, hop, window, nonlinearity="halfwave", gain_fn=lsa_gain, pause=None):
-    """First-step xi (DD or cepstral), then optional TSNR / HRNR second step."""
+    """First-step xi (DD or cepstral), then optional TSNR / HRNR second step: (STFT, gain)."""
     xi_cs = cepstral_xi(gamma, noise, xi_min, sr) if cepstral else None
     g_final = np.empty(z.shape)
     prev_amp2 = np.zeros(z.shape[0])
@@ -485,4 +530,4 @@ def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, r
         g_final = np.clip(gain_fn(np.maximum(xi_h, xi_min), gamma), gmin, 1.0)
     if pause is not None:
         g_final = np.maximum(g_final * pause[None, :], gmin)
-    return istft(g_final * z, length, sr, n_fft, hop, window)
+    return g_final * z, g_final
