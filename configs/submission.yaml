@@ -1,15 +1,17 @@
-# Submission config (Challenge 1, traditional DSP) = configs/dsp_h.yaml verbatim:
-# dsp-h finalist (H3, branch exp/dsp-h): dsp-v5 (MMSE-LSA, n_fft 1024, noise_fraction 0.10, HRNR a priori SNR with
-# hrnr_rho 0.3, alpha 0.94, xi_min_db -25, gmin_db -30, 100 Hz zero-phase high-pass) with two-band noise over-estimation
-# noise_bias_low 1.25 / noise_bias_high 1.5 (split 1 kHz, 200 Hz cross-fade). Full-train paired d +0.0049 +- 0.0011
-# (z 4.45), val PESQ 1.9637 (dsp-v5 1.9570), val_remix 1.8524 (1.8500); revised promotion rule. Tag dsp-v6.
+# Submission config (Challenge 1, traditional DSP) = configs/dsp_k.yaml verbatim:
+# dsp-k finalist (K1, branch exp/dsp-k): dsp-v6 (MMSE-LSA/HRNR, n_fft 1024, alpha 0.94, xi_min_db -25, gmin_db -30,
+# 100 Hz zero-phase high-pass, two-band noise bias 1.25/1.5) with the noise PSD from noise_est spp_mean (speech-presence-
+# weighted whole-file mean started from the lowest-10%-frame estimate, 3 iterations, xi_H1 10 dB). Full-train paired
+# d +0.0302 +- 0.0039 (z 7.70), val PESQ 1.9884 (dsp-v6 1.9637), val_remix 1.8942 (1.8524); revised promotion rule. Tag dsp-v7.
 method: mmse_lsa
 params:
   n_fft: 1024
   hop: 256
   window: hann
-  noise_est: initial
+  noise_est: spp_mean
   noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
   noise_bias: 1.25
   alpha: 0.94
   xi_min_db: -25
