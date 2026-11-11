@@ -1,0 +1,22 @@
+# dsp-h finalist (staged paired sweeps H1-H3 on the 400-file train subset, seed 0; keep rule d >= 0.002 and >= 2*SE).
+# = dsp-v5 (dsp_g) with two-band noise over-estimation noise_bias_low 1.25 / noise_bias_high 1.5 (split 1 kHz,
+# 200 Hz cross-fade; H3 d=+0.0032 +- 0.0015, z 2.14; noise_bias_high 1.5 at the grid edge, not extended).
+# Kept: H1 LSA gain (beta 0.5 d=-0.0124), H2 pause expander off (best 6/4/4 d=+0.0040 +- 0.0020, z 1.98).
+# Logs: logs/sweep_dsp_h_h{1,2,3}_paired.txt.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
