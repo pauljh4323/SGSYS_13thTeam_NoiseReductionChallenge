@@ -26,13 +26,26 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
   noise_freq_smooth_bins "initial" estimator only: smooth the stationary noise PSD over +-N bins
   noise_freq_smooth_mode ("mean" or "median") before noise_bias. N=0 = off.
   hrnr_nonlinearity      HRNR rectifier: "halfwave" max(s, 0) (default) or "fullwave" |s|.
+  gain_mode "beta", beta beta-order MMSE amplitude estimator (You, Koh, Rahardja 2005) for every gain
+                         computation: G = sqrt(v)/gamma [Gamma(beta/2+1) 1F1(-beta/2; 1; -v)]^(1/beta).
+                         beta = 1 is MMSE-STSA, beta -> 0 the LSA (used for |beta| < 1e-6). The formula
+                         needs Gamma(beta/2 + 1) defined, i.e. beta > -2 (enforced here; the paper's
+                         recommended range is not verified, see docs/references.md).
+  pause_thr_db, pause_att_db, pause_release_frames
+                         pause expander (own design): per frame, mean a posteriori SNR over 300-4000 Hz
+                         (dB); below pause_thr_db the target extra attenuation is pause_att_db, else 0;
+                         attack 1 frame, one-pole release exp(-1/pause_release_frames); multiplied into
+                         the output gain, floored at gmin. pause_att_db 0 = off.
+  noise_bias_low, noise_bias_high
+                         two-band noise over-estimation (after Kamath & Loizou 2002): bias below/above
+                         1 kHz with a raised-cosine cross-fade over 900-1100 Hz; None = noise_bias.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy import signal
 from scipy.ndimage import median_filter, uniform_filter1d
-from scipy.special import exp1
+from scipy.special import exp1, gammaln, hyp1f1
 
 from ..io import as_waveform
 from ..stft import check_nola, istft, stft
@@ -45,6 +58,10 @@ XI_MODES = ("dd", "tsnr", "hrnr")
 HRNR_NONLINEARITIES = ("halfwave", "fullwave")
 SMOOTH_MODES = ("mean", "median")
 _BAND_LO_HZ = 100.0
+GAIN_MODES = ("lsa", "beta")
+_BETA_V_MAX = 200.0  # above: Wiener limit xi/(1+xi) (first asymptotic correction beta^2/(4v) < 1e-3)
+_PAUSE_BAND_HZ = (300.0, 4000.0)
+_SPLIT_HZ, _FADE_HZ = 1000.0, 200.0
 
 
 def banded_initial_noise(z, times, length, sr, n_fft, noise_fraction, n_bands):
@@ -90,6 +107,54 @@ def lsa_gain(xi, gamma):
     """G = xi/(1+xi) * exp(0.5 * E1(v)), v = xi*gamma/(1+xi)."""
     v = np.clip(xi * gamma / (1.0 + xi), _V_MIN, _V_MAX)
     return xi / (1.0 + xi) * np.exp(0.5 * exp1(v))
+
+
+def beta_gain(xi, gamma, beta):
+    """beta-order MMSE amplitude gain (You, Koh, Rahardja 2005); LSA for |beta| < 1e-6.
+
+    G = sqrt(v)/gamma * [Gamma(beta/2+1) * 1F1(-beta/2; 1; -v)]^(1/beta), v = xi*gamma/(1+xi),
+    evaluated in the log domain. Where v > _BETA_V_MAX or 1F1 is not finite/positive the large-v
+    limit xi/(1+xi) is used. Returned gain is finite (callers clip to [gmin, 1]).
+    """
+    if abs(beta) < 1e-6:
+        return lsa_gain(xi, gamma)
+    wiener = xi / (1.0 + xi)
+    v = np.clip(xi * gamma / (1.0 + xi), _V_MIN, _V_MAX)
+    small = v <= _BETA_V_MAX
+    g = wiener.copy()
+    if np.any(small):
+        vs = v[small]
+        with np.errstate(all="ignore"):
+            m = hyp1f1(-beta / 2.0, 1.0, -vs)
+            ok = np.isfinite(m) & (m > 0)
+            log_g = (0.5 * np.log(vs) - np.log(np.maximum(gamma[small], _EPS))
+                     + (gammaln(beta / 2.0 + 1.0) + np.log(np.where(ok, m, 1.0))) / beta)
+            gs = np.exp(np.minimum(log_g, 50.0))
+        g[small] = np.where(ok & np.isfinite(gs), gs, wiener[small])
+    return np.nan_to_num(g, nan=0.0, posinf=1.0, neginf=0.0)
+
+
+def pause_attenuation(gamma, sr, n_fft, thr_db, att_db, release_frames):
+    """Per-frame extra gain factor (frames,) of the pause expander (1.0 where inactive)."""
+    freqs = np.arange(gamma.shape[0]) * sr / n_fft
+    band = (freqs >= _PAUSE_BAND_HZ[0]) & (freqs <= _PAUSE_BAND_HZ[1])
+    snr_db = 10.0 * np.log10(np.maximum(gamma[band].mean(axis=0), _EPS))
+    target = np.where(snr_db < thr_db, float(att_db), 0.0)
+    a = np.exp(-1.0 / release_frames)
+    att = np.empty_like(target)
+    prev = 0.0
+    for t, tg in enumerate(target):
+        prev = tg if tg >= prev else a * prev + (1.0 - a) * tg  # attack 1 frame, one-pole release
+        att[t] = prev
+    return 10.0 ** (-att / 20.0)
+
+
+def two_band_bias(n_bins, sr, n_fft, low, high):
+    """Per-bin noise bias: low below / high above 1 kHz, raised-cosine cross-fade over 900-1100 Hz."""
+    freqs = np.arange(n_bins) * sr / n_fft
+    x = np.clip((freqs - (_SPLIT_HZ - _FADE_HZ / 2)) / _FADE_HZ, 0.0, 1.0)
+    w = 0.5 - 0.5 * np.cos(np.pi * x)
+    return low * (1.0 - w) + high * w
 
 
 def mcra_noise(power, alpha_d=0.95, alpha_p=0.2, alpha_s=0.8, window=96, delta=5.0):
@@ -177,8 +242,18 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
              mcra_window, delta, q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0,
              xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000, noise_select_bands=1,
              noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
-             hrnr_nonlinearity="halfwave"):
+             hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
+             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None):
     check_nola(n_fft, hop, window)
+    if gain_mode not in GAIN_MODES:
+        raise ValueError(f"gain_mode must be one of {GAIN_MODES}.")
+    if gain_mode == "beta" and not beta > -2:
+        raise ValueError("beta must be > -2 (Gamma(beta/2 + 1) undefined otherwise).")
+    if pause_att_db < 0 or pause_release_frames <= 0:
+        raise ValueError("pause_att_db must be >= 0 and pause_release_frames > 0.")
+    for name, v in (("noise_bias_low", noise_bias_low), ("noise_bias_high", noise_bias_high)):
+        if v is not None and v <= 0:
+            raise ValueError(f"{name} must be > 0.")
     if int(noise_select_bands) != noise_select_bands or noise_select_bands < 1:
         raise ValueError("noise_select_bands must be an integer >= 1.")
     if int(noise_freq_smooth_bins) != noise_freq_smooth_bins or noise_freq_smooth_bins < 0:
@@ -217,7 +292,8 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0, xi_mode="dd",
             xi_cepstral_smoothing=False, hrnr_rho=0.5, highpass_hz=0.0, hop_div=None,
             noise_select_bands=1, noise_freq_smooth_bins=0, noise_freq_smooth_mode="mean",
-            hrnr_nonlinearity="halfwave"):
+            hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
+            pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
@@ -228,7 +304,8 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
     validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
              mcra_window, delta, q, bias, smooth_frames, noise_bias, xi_mode, hrnr_rho,
              highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
-             hrnr_nonlinearity)
+             hrnr_nonlinearity, gain_mode, beta, pause_thr_db, pause_att_db, pause_release_frames,
+             noise_bias_low, noise_bias_high)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
     if noise_est == "initial":
@@ -240,18 +317,30 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
         noise = np.repeat(quantile_noise(power, q, bias, smooth_frames)[:, None], z.shape[1], axis=1)
     else:
         noise = mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
-    if noise_bias != 1.0:
+    if noise_bias_low is not None or noise_bias_high is not None:
+        lo = noise_bias if noise_bias_low is None else noise_bias_low
+        hi = noise_bias if noise_bias_high is None else noise_bias_high
+        noise = noise * two_band_bias(noise.shape[0], sr, n_fft, lo, hi)[:, None]
+    elif noise_bias != 1.0:
         noise = noise * noise_bias
     noise = np.maximum(noise, _EPS)
     xi_min = 10.0 ** (xi_min_db / 10.0)
     gmin = 10.0 ** (gmin_db / 20.0)
     gamma = np.minimum(power / noise, 1e8)
+    if gain_mode == "lsa":
+        gain_fn = lsa_gain
+    else:
+        def gain_fn(xi_, g_):
+            return beta_gain(xi_, g_, float(beta))
+    pause = (pause_attenuation(gamma, sr, n_fft, pause_thr_db, pause_att_db, pause_release_frames)
+             if pause_att_db > 0 else None)
     if xi_mode != "dd" or xi_cepstral_smoothing:
         y = _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode,
                               bool(xi_cepstral_smoothing), hrnr_rho, len(x), sr, n_fft, hop, window,
-                              hrnr_nonlinearity)
+                              hrnr_nonlinearity, gain_fn, pause)
     else:
-        y = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window)
+        y = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window,
+                        gain_fn, pause)
     return _highpass(y, highpass_hz, sr)
 
 
@@ -264,9 +353,11 @@ def _highpass(y, highpass_hz, sr):
     return signal.sosfiltfilt(sos, y)
 
 
-def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, window):
+def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, window,
+                gain_fn=lsa_gain, pause=None):
     """Plain decision-directed LSA (the dsp-v1 path, unchanged)."""
     enhanced = np.empty_like(z)
+    g_all = np.empty(z.shape)
     prev_amp2 = np.zeros(z.shape[0])
     for t in range(z.shape[1]):
         inst = np.maximum(gamma[:, t] - 1.0, 0.0)
@@ -275,14 +366,17 @@ def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, wi
         else:
             xi = alpha * prev_amp2 / noise[:, t] + (1 - alpha) * inst
         xi = np.maximum(xi, xi_min)
-        g = np.clip(lsa_gain(xi, gamma[:, t]), gmin, 1.0)
+        g = np.clip(gain_fn(xi, gamma[:, t]), gmin, 1.0)
+        g_all[:, t] = g
         enhanced[:, t] = g * z[:, t]
         prev_amp2 = np.abs(enhanced[:, t]) ** 2
+    if pause is not None:  # output gain only; the DD recursion above is unchanged
+        enhanced = np.maximum(g_all * pause[None, :], gmin) * z
     return istft(enhanced, length, sr, n_fft, hop, window)
 
 
 def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, rho, length, sr,
-                      n_fft, hop, window, nonlinearity="halfwave"):
+                      n_fft, hop, window, nonlinearity="halfwave", gain_fn=lsa_gain, pause=None):
     """First-step xi (DD or cepstral), then optional TSNR / HRNR second step."""
     xi_cs = cepstral_xi(gamma, noise, xi_min, sr) if cepstral else None
     g_final = np.empty(z.shape)
@@ -296,10 +390,10 @@ def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, r
             xi1 = (alpha + (1 - alpha) * inst if t == 0
                    else alpha * prev_amp2 / noise[:, t] + (1 - alpha) * inst)
             xi1 = np.maximum(xi1, xi_min)
-        g = np.clip(lsa_gain(xi1, gm), gmin, 1.0)
+        g = np.clip(gain_fn(xi1, gm), gmin, 1.0)
         if xi_mode != "dd":  # TSNR second step: xi2 = |G1 Y|^2 / lambda_d = G1^2 gamma
             xi2 = np.maximum(g * g * gm, xi_min)
-            g = np.clip(lsa_gain(xi2, gm), gmin, 1.0)
+            g = np.clip(gain_fn(xi2, gm), gmin, 1.0)
         g_final[:, t] = g
         prev_amp2 = g * g * gm * noise[:, t]  # |S_hat|^2 of the final estimate (DD recursion)
     if xi_mode == "hrnr":
@@ -308,5 +402,7 @@ def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, r
         _, _, z_h = stft(rect, sr, n_fft, hop, window)
         z_h = z_h[:, :z.shape[1]]
         xi_h = (rho * g_final ** 2 * np.abs(z) ** 2 + (1 - rho) * np.abs(z_h) ** 2) / noise
-        g_final = np.clip(lsa_gain(np.maximum(xi_h, xi_min), gamma), gmin, 1.0)
+        g_final = np.clip(gain_fn(np.maximum(xi_h, xi_min), gamma), gmin, 1.0)
+    if pause is not None:
+        g_final = np.maximum(g_final * pause[None, :], gmin)
     return istft(g_final * z, length, sr, n_fft, hop, window)
