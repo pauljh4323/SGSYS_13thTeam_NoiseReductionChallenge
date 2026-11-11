@@ -11,6 +11,7 @@ Current submission candidate: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7
 - Clean audio for evaluation only. Output keeps sample rate, channel count, sample count, filename. No absolute paths.
 - requirements.txt = pinned, pip-installable, main.py deps only. Dev tools in requirements-dev.txt.
 - main = classical submission only; DL work lives on branch dl-main (never merge it into main).
+- README.md must be written in Korean (commands, paths, identifiers, numbers unchanged).
 ## Environment
 - Python via `conda run -n nrc python ...`. Conda at D:/miniconda3. Repo path has spaces: quote paths.
 - Data root data/noise_reduction_challenge (--data-root / $NRC_DATA_ROOT). Secondary held-out set: data/val_remix (make_val_remix.py).

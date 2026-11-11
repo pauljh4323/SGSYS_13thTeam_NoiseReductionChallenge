@@ -2,6 +2,11 @@
 
 Round 1 deadline: 2026-11-17 23:59 KST (at least one submission needed to be ranked). Round 2 (DL) starts 2026-11-18.
 
+## Rule change 2026-11-12
+
+Rule change 2026-11-12: README must be in Korean. README.md was rewritten in Korean at dsp-v7 (commands, paths,
+identifiers and numbers unchanged).
+
 ## Rule change 2026-11-09
 
 The TA notice for **Challenge 1 ("내 목소리를 구해줘!") allows traditional signal processing only**: no machine learning or

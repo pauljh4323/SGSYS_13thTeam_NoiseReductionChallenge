@@ -59,4 +59,5 @@ exists and that the bibliographic data (title, authors, year, DOI) are correct. 
 | title | authors | year | DOI / link | used for | verification |
 |---|---|---|---|---|---|
 | SciPy 1.0: fundamental algorithms for scientific computing in Python (Nature Methods 17) | P. Virtanen et al. | 2020 | https://doi.org/10.1038/s41592-019-0686-2 | STFT/ISTFT (`scipy.signal`), exponential integral E1 (`scipy.special.exp1`) | pending (team must confirm) |
+| ITU-T Recommendation P.862.2: Wideband extension to Recommendation P.862 for the assessment of wideband telephone networks and speech codecs (PESQ wideband extension) | ITU-T | [ ] | https://www.itu.int/rec/T-REC-P.862.2 (from memory — verify) | definition of the evaluation metric PESQ-WB (evaluation only, not used in processing) | from memory — verify; pending (team must confirm) |
 | python-pesq 0.0.4 (ITU-T P.862.2 wideband PESQ wrapper) | L. Miao (ludlows) | 2022 | https://github.com/ludlows/PESQ | evaluation metric only | pending (team must confirm) |

@@ -93,8 +93,11 @@ noisy 값은 `main.py` 출력 평가에서 enhanced − delta로 계산한 값 (
 | dsp-v2 | 6.71 | 11.03 | 12.76 | 15.20 |
 | dsp-v3 | 6.84 | 11.17 | 12.80 | 15.23 |
 | dsp-v4 | 6.87 | 11.19 | 12.81 | 15.23 |
-| dsp-v5, dsp-v6 | — (문서에 미기록) | — | — | — |
+| dsp-v5 | 6.83 | 11.15 | 12.79 | 15.20 |
+| dsp-v6 | 6.85 | 11.15 | 12.83 | 15.19 |
 | **dsp-v7** | 6.86 | 11.45 | 12.90 | 15.32 |
+
+dsp-v5 / dsp-v6 값 출처: `outputs/dsp_g/eval_validation.csv`, `outputs/dsp_h/eval_validation.csv` (`docs/submissions.md` 값과 일치).
 
 **잡음 난이도별 (validation, dsp-v7)**
 
@@ -241,7 +244,7 @@ M3 (phase_reanchor on/off)는 M2에서 채택된 값이 없어 실행하지 않�
 각 목표 SNR에서 고정 규칙(정렬 순서상 첫 번째 hard 파일, 없으면 첫 번째 파일; 0 dB·5 dB에는 hard 파일이 없음)으로 고른
 validation 파일 (위: clean, 가운데: noisy, 아래: 처리 결과). 생성: `scripts/plot_spectrograms.py --config configs/dsp_k.yaml`
 (Wiener: `--config configs/wiener_baseline.yaml`). 청취용 wav: `outputs/listen/` (저장소에 포함하지 않음).
-파일별 PESQ: `outputs/submission/eval_validation_pred.csv` (dsp-v7 `main.py` 출력)에서 [ ] (팀 기입).
+파일별 PESQ (noisy → dsp-v7): `outputs/dsp_k/eval_validation.csv` (noisy = enhanced − delta); `outputs/submission/eval_validation_pred.csv` (`main.py` 16-bit 출력)와 4개 파일 모두 일치.
 
 | 파일 | 잡음 | SNR |
 |---|---|---|
@@ -254,11 +257,15 @@ validation 파일 (위: clean, 가운데: noisy, 아래: 처리 결과). 생성:
 
 dsp-v7: ![0 dB dsp-v7](../figures/dsp_k_speaker007_utt01_seg0006.png)
 
+파일별 PESQ: 1.0551 → 1.2314
+
 Wiener: ![0 dB Wiener](../figures/wiener_baseline_speaker007_utt01_seg0006.png)
 
 **5 dB — alarm_siren (easy)**
 
 dsp-v7: ![5 dB dsp-v7](../figures/dsp_k_speaker007_utt01_seg0001.png)
+
+파일별 PESQ: 1.2788 → 2.9766
 
 Wiener: ![5 dB Wiener](../figures/wiener_baseline_speaker007_utt01_seg0001.png)
 
@@ -266,11 +273,15 @@ Wiener: ![5 dB Wiener](../figures/wiener_baseline_speaker007_utt01_seg0001.png)
 
 dsp-v7: ![10 dB dsp-v7](../figures/dsp_k_speaker007_utt01_seg0012.png)
 
+파일별 PESQ: 1.3643 → 1.4154
+
 Wiener: ![10 dB Wiener](../figures/wiener_baseline_speaker007_utt01_seg0012.png)
 
 **15 dB — click (hard)**
 
 dsp-v7: ![15 dB dsp-v7](../figures/dsp_k_speaker007_utt01_seg0005.png)
+
+파일별 PESQ: 2.1288 → 2.0309 (이 파일은 처리 후 PESQ가 낮아짐)
 
 Wiener: ![15 dB Wiener](../figures/wiener_baseline_speaker007_utt01_seg0005.png)
 
