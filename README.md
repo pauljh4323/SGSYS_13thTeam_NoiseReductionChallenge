@@ -11,7 +11,7 @@ Single-channel speech enhancement scored by wideband PESQ (PESQ-WB, 16 kHz); SNR
 
 | round | date | tag | commit | method | val PESQ | val SNR (dB) |
 |---|---|---|---|---|---|---|
-| 1 (first) |  | dsp-v7 | cdd4f07 | MMSE-LSA + HRNR + SPP-weighted whole-file noise PSD + two-band noise bias | 1.9884 | 12.84 |
+| 1 (first) | [date] | dsp-v7 | cdd4f07 | MMSE-LSA + HRNR + SPP-weighted noise PSD | 1.9884 | 12.84 |
 | - (superseded, never submitted) | - | dsp-v6 | d9d1be6 | MMSE-LSA + HRNR + two-band noise bias (1.25 / 1.5 split at 1 kHz) (`configs/dsp_h.yaml`) | 1.9637 | 12.70 |
 | - (superseded, never submitted) | - | dsp-v5 | fb1d2dc | MMSE-LSA + HRNR, hrnr_rho 0.3 (`configs/dsp_g.yaml`) | 1.9570 | 12.69 |
 | - (superseded, never submitted) | - | dsp-v4 | db1085e | MMSE-LSA + HRNR, grid-edge alpha / xi_min / gmin (`configs/dsp_edge.yaml`) | 1.9497 | 12.72 |
