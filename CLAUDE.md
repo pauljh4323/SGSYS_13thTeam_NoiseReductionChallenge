@@ -2,6 +2,10 @@
 ## Objective
 Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Deadline 2026-11-17 23:59 KST.
 Current submission candidate: dsp_edge / val PESQ 1.9497, SNR 12.72 dB / tag dsp-v4 (first submission, not yet sent; supersedes dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505).
+## Rounds
+- Round 1 (classical DSP only, no ML/DL) ends 2026-11-17 23:59 KST; round 2 (DL) starts 2026-11-18 KST.
+- main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
+- Standings live only in docs/leaderboard.md (newest snapshot first); never copy leaderboard numbers elsewhere.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.
 - Clean audio for evaluation only. Output keeps sample rate, channel count, sample count, filename. No absolute paths.
