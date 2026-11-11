@@ -1,0 +1,22 @@
+# dsp-h Stage H1 on dsp-v5 (dsp_g): beta-order MMSE gain (You, Koh, Rahardja 2005) in every gain step.
+# beta 0 (LSA) = stage reference configs/dsp_g.yaml; beta 1 = MMSE-STSA. Valid: beta > -2.
+# Train-400 subset (seed 0); paired keep rule vs the stage reference (d >= 0.002 and d >= 2*SE).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: initial
+  noise_fraction: 0.10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  gain_mode: beta
+grid:
+  beta: [-0.5, 0.5, 1.0]
+stage_reference: configs/dsp_g.yaml
