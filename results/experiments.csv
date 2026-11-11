@@ -74,3 +74,5 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-11,c330f12,dsp_k,mmse_lsa,1.8942,1.2795,1.6071,2.0643,2.6297,11.128,split=val_remix n=328 failed=0 snr=11.202 stoi=0.8636 clipped=0 src=mem16
 2026-11-11,cdd4f07,submission,mmse_lsa,1.9884,1.3311,1.7486,1.9591,2.3559,12.933,split=validation n=164 failed=0 snr=12.838 stoi=0.8967 clipped=0 src=pred | e2e main.py outputs
 2026-11-11,cdd4f07,submission,mmse_lsa,1.8942,1.2795,1.6071,2.0643,2.6297,11.128,split=val_remix n=328 failed=0 snr=11.202 stoi=0.8636 clipped=0 src=pred | dsp-v7 main.py outputs val_remix
+2026-11-12,32a68f8,submission,gru_mask,2.6962,1.9531,2.4100,2.7022,3.0834,16.844,split=validation n=164 failed=0 snr=16.812 stoi=0.9406 clipped=0 src=pred | e2e main.py outputs
+2026-11-12,32a68f8,submission,gru_mask,2.5170,1.8249,2.3175,2.7226,3.2060,15.441,split=val_remix n=328 failed=0 snr=15.450 stoi=0.9200 clipped=0 src=pred | r2-prep gru_v5b_off main.py outputs val_remix

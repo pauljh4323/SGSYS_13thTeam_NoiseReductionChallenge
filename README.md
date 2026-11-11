@@ -73,6 +73,7 @@ pip install -r requirements.txt
 ```
 
 `requirements.txt`에는 `main.py` 실행에 필요한 고정 버전 의존성만 있습니다 (numpy, scipy, soundfile, pyyaml).
+`r2-prep` 브랜치에서는 2차 챌린지용 `torch==2.14.1` (CPU)이 추가되어 있습니다 (아래 "2차 챌린지 (준비 중)" 참고).
 
 conda를 쓰는 경우 (전체 개발 환경, 평가 도구 포함):
 
@@ -137,6 +138,67 @@ python main.py
 | val_remix | 328 | 1.3620 | 1.8942 | +0.5322 | 7.50 | 11.20 | +3.70 |
 
 비교 (validation PESQ / SNR): 처리 전 입력 1.3947 / 9.63 dB, 과목 Wiener 베이스라인 1.5987 / 13.12 dB.
+
+## 2차 챌린지 (준비 중)
+
+2차 챌린지(딥러닝, 2026-11-18 시작)용 제출본을 `r2-prep` 브랜치(태그 `r2-ready`)에 미리 준비해 두었습니다.
+2차 규칙은 아직 공지되지 않았으며, 공지 후 확인할 항목은 [docs/round2_plan.md](docs/round2_plan.md)에 있습니다.
+위의 1차 챌린지 내용(`dsp-v7`)은 `main` 브랜치 기준이며, 1차 종료 전까지 `main`은 변경하지 않습니다.
+
+### 방법 요약
+
+- 모델: `gru_v5b` — 양방향 GRU(BiGRU) 기반 크기(magnitude) 마스크 추정기, 파라미터 2,373,651개 (2.37M), 가중치 `weights/gru_v5b.pt` (9.5 MB).
+- 처리 과정: 잡음 음성 → STFT (n_fft 512, hop 128, periodic Hann) → log1p 크기 + 주파수 bin별 정규화 →
+  Conv2d 2층 (주파수 방향 stride 2) → BiGRU 2층 (방향당 hidden 256) → Linear + sigmoid 마스크 →
+  마스크 × 잡음 STFT (잡음 위상 사용) → ISTFT (입력과 같은 길이).
+- 학습: train split만 사용해 처음부터 학습 (사전학습 모델·외부 데이터 없음). 손실 = 압축 크기 손실 + 다중 해상도 STFT 손실 + SI-SDR. 학습 코드는 `dl-main` 브랜치에 있으며 `r2-prep`에는 추론 코드만 있습니다.
+- 구현: `src/nrc/models/gru_mask.py`, `src/nrc/methods/gru_mask.py`. 설정: `configs/submission.yaml` (= `configs/dl/gru_v5b_off.yaml`, 입력 레벨 정규화 끔).
+
+### 설치 방법
+
+Python 3.12, pip만으로 설치합니다. torch는 CPU 빌드를 먼저 설치합니다:
+
+```bash
+git checkout r2-prep
+python -m venv .venv
+.venv/Scripts/activate        # Windows; Linux/macOS는 `source .venv/bin/activate`
+pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+```
+
+`requirements.txt`에도 `--extra-index-url https://download.pytorch.org/whl/cpu`와 `torch==2.14.1`이 들어 있어
+`pip install -r requirements.txt`만 실행해도 됩니다. 새 venv 설치 측정값: 약 193 s, 약 801 MB (Windows, 2026-11-12).
+
+### 실행 방법
+
+1차와 같습니다: `input/`에 WAV 파일을 넣고 `python main.py`를 실행하면 `output/`에 같은 파일명으로 저장됩니다.
+GPU 없이 CPU만 사용합니다. validation 164개 파일 처리 시간 18.5–32.1 s (2026-11-12 측정, `scripts/e2e_check.py`).
+
+### Validation 결과
+
+`main.py` 출력 (16-bit WAV), PESQ-WB `pesq==0.0.4` 16 kHz, SNR = 과목 정의. 코드 커밋 32a68f8.
+
+| 세트 | n | PESQ noisy | PESQ gru_v5b | ΔPESQ | SNR noisy (dB) | SNR gru_v5b (dB) | ΔSNR (dB) |
+|---|---|---|---|---|---|---|---|
+| validation | 164 | 1.3947 | 2.6962 | +1.3015 | 9.63 | 16.81 | +7.18 |
+| val_remix | 328 | 1.3620 | 2.5170 | +1.1551 | 7.50 | 15.45 | +7.95 |
+
+**목표 SNR별 (validation)**
+
+| 목표 SNR | n | PESQ noisy | PESQ gru_v5b | ΔPESQ | SNR noisy (dB) | SNR gru_v5b (dB) | ΔSNR (dB) |
+|---|---|---|---|---|---|---|---|
+| 0 dB | 15 | 1.0796 | 1.9531 | +0.8735 | 0.00 | 10.51 | +10.51 |
+| 5 dB | 38 | 1.2181 | 2.4100 | +1.1919 | 5.00 | 14.12 | +9.12 |
+| 10 dB | 55 | 1.3575 | 2.7022 | +1.3447 | 10.00 | 16.94 | +6.94 |
+| 15 dB | 56 | 1.6354 | 3.0834 | +1.4480 | 15.00 | 20.20 | +5.20 |
+
+**잡음 난이도별 (validation)**
+
+| 난이도 | n | PESQ noisy | PESQ gru_v5b | ΔPESQ | SNR noisy (dB) | SNR gru_v5b (dB) | ΔSNR (dB) |
+|---|---|---|---|---|---|---|---|
+| easy | 99 | 1.3112 | 2.6302 | +1.3190 | 8.23 | 15.67 | +7.44 |
+| moderate | 41 | 1.5161 | 2.7075 | +1.1914 | 10.85 | 17.80 | +6.95 |
+| hard | 24 | 1.5317 | 2.9487 | +1.4170 | 13.33 | 19.84 | +6.51 |
 
 ## 저장소 구조
 

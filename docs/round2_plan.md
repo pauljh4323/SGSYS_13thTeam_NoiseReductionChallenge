@@ -19,6 +19,22 @@ Plan only; no round-2 code lives on `main` until round 1 is closed. Round 2 star
 How it was validated: validation split for selection, held-out val_remix gate, input-level probe (robustness to input
 gain), and the end-to-end check (main.py outputs re-scored, local + fresh clone bit-identical, sr/channels/length kept).
 
+## Status 2026-11-12: port done on branch r2-prep (tag r2-ready)
+
+Done ahead of the round-1 close on a separate branch `r2-prep` (from main at dsp-v7, 65891f1; main and dl-main untouched):
+- Inference-only port from dl-main (verbatim): `src/nrc/models/`, `src/nrc/methods/gru_mask.py` (registered),
+  `configs/dl/gru_v5b_off.yaml`, `weights/gru_v5b.pt` (blob 87799003). Training code stays on dl-main.
+- `configs/submission.yaml` = gru_v5b_off; `requirements.txt` + `torch==2.14.1` (CPU extra index).
+- `scripts/e2e_check.py`: `ROUND` setting (`--round` override): 1 = classical allow-list + torch-free probe, 2 = classical + gru_mask.
+- Code commit 32a68f8: selfcheck OK; e2e PASSED with ROUND 2 (local, fresh clone, other cwd, fresh pip venv with torch CPU:
+  pip install ~193 s, ~801 MB; all bit-identical). main.py val PESQ 2.6962 / SNR 16.81 dB, val_remix 2.5170 / 15.45 dB
+  (identical to dl-main); main.py 164 files 18.5-32.1 s CPU.
+- README section "2차 챌린지 (준비 중)" on r2-prep.
+
+Still depends on the round-2 notice: every open question below; whether r2-prep is submitted as is or rebased as
+`r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
+and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
+
 ## Open questions (confirm from the round-2 notice)
 
 - Are pretrained models allowed?

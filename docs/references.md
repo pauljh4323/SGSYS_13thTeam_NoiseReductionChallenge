@@ -54,6 +54,19 @@ exists and that the bibliographic data (title, authors, year, DOI) are correct. 
 | Unbiased MMSE-based noise power estimation with low complexity and low tracking delay (IEEE Trans. Audio, Speech, and Language Processing 20(4), 1383-1393) | T. Gerkmann, R. C. Hendriks | 2012 | https://doi.org/10.1109/TASL.2011.2180896 (DOI from memory) | a posteriori speech presence probability with fixed prior 0.5 and fixed a priori SNR xi_H1 (`noise_est: spp_mean`, `spp_xi_h1_db`); the whole-file iterative SPP-weighted mean is our own variant, not the paper's recursive tracker | pending (team must confirm) |
 | Noise power spectral density estimation based on optimal smoothing and minimum statistics (IEEE Trans. Speech and Audio Processing 9(5), 504-512) | R. Martin | 2001 | https://doi.org/10.1109/89.928915 (DOI from memory) | idea of a noise floor from the minimum of the smoothed periodogram over a window (`tv_noise`); the zero-phase smoothing, centred window and upward-only max with the stationary PSD are our own design (no bias compensation from the paper) | pending (team must confirm) |
 
+## Round 2: BiGRU magnitude mask (`src/nrc/models/gru_mask.py`, `src/nrc/methods/gru_mask.py`, branch r2-prep / dl-main)
+
+Added 2026-11-12 from memory (dl-main had no references.md) — every field must be verified.
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Learning phrase representations using RNN encoder-decoder for statistical machine translation (EMNLP) | K. Cho, B. van Merriënboer, C. Gulcehre, D. Bahdanau, F. Bougares, H. Schwenk, Y. Bengio | 2014 | https://doi.org/10.3115/v1/D14-1179 | GRU cell | pending (team must confirm) |
+| Bidirectional recurrent neural networks (IEEE Trans. Signal Processing 45(11)) | M. Schuster, K. K. Paliwal | 1997 | https://doi.org/10.1109/78.650093 | bidirectional recurrence | pending (team must confirm) |
+| On training targets for supervised speech separation (IEEE/ACM TASLP 22(12)) | Y. Wang, A. Narayanan, D. Wang | 2014 | https://doi.org/10.1109/TASLP.2014.2352935 | time-frequency magnitude mask on the noisy STFT | pending (team must confirm) |
+| SDR — half-baked or well done? (ICASSP) | J. Le Roux, S. Wisdom, H. Erdogan, J. R. Hershey | 2019 | https://doi.org/10.1109/ICASSP.2019.8683855 | SI-SDR training loss term | pending (team must confirm) |
+| Parallel WaveGAN: a fast waveform generation model based on generative adversarial networks with multi-resolution spectrogram (ICASSP) | R. Yamamoto, E. Song, J.-M. Kim | 2020 | https://doi.org/10.1109/ICASSP40776.2020.9053795 | multi-resolution STFT loss term | pending (team must confirm) |
+| PyTorch: an imperative style, high-performance deep learning library (NeurIPS) | A. Paszke et al. | 2019 | https://arxiv.org/abs/1912.01703 | STFT/ISTFT, GRU, inference runtime (`torch==2.14.1`) | pending (team must confirm) |
+
 ## Software
 
 | title | authors | year | DOI / link | used for | verification |
