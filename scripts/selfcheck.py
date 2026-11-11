@@ -7,6 +7,7 @@ import numpy as np
 
 import _common  # noqa: F401  (sys.path setup)
 from nrc.methods import get_method
+from nrc.methods import mmse_lsa as ml
 from nrc.stft import istft, stft
 
 
@@ -60,6 +61,35 @@ def main() -> int:
                     m.size == n and bool(np.isfinite(m).all()))
                 if kind == "zeros":
                     checks[f"mmse_lsa[{label}] zeros len {n}: output all zero"] = not np.any(m)
+        # dsp-k options: spp_mean / tv_noise length, finite, all-zeros; defaults bit-identical;
+        # finite PSD; lambda_tv >= lambda_stat.
+        v6 = dict(v5, noise_bias_low=1.25, noise_bias_high=1.5)
+        b6 = get_method("mmse_lsa", **v6)(x, 16000)
+        e6 = get_method("mmse_lsa", **v6, spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False,
+                        tv_alpha=0.8, tv_window_frames=16, tv_bias=1.0)(x, 16000)
+        checks[f"mmse_lsa[dsp-v6] len {n}: explicit dsp-k defaults bit-identical"] = bool(
+            np.array_equal(b6, e6))
+        for label, opt in (("spp_mean 3/10", dict(noise_est="spp_mean", spp_iters=3, spp_xi_h1_db=10)),
+                           ("spp_mean+tv 16/1.5", dict(noise_est="spp_mean", tv_noise=True,
+                                                       tv_window_frames=16, tv_bias=1.5)),
+                           ("initial+tv 8/1", dict(tv_noise=True, tv_window_frames=8))):
+            f = get_method("mmse_lsa", **v6, **opt)
+            for kind, sig in (("noise", x), ("zeros", np.zeros(n))):
+                m = f(sig, 16000)
+                checks[f"mmse_lsa[{label}] {kind} len {n}: length, finite"] = (
+                    m.size == n and bool(np.isfinite(m).all()))
+                if kind == "zeros":
+                    checks[f"mmse_lsa[{label}] zeros len {n}: output all zero"] = not np.any(m)
+        for kind, sig in (("noise", x), ("zeros", np.zeros(n))):
+            _, t_, z_ = stft(sig, 16000, 1024, 256)
+            p_ = np.abs(z_) ** 2
+            stat = ml.stationary_noise_psd(z_, p_, t_, n, 16000, 1024, "spp_mean", 0.10,
+                                           spp_iters=3, spp_xi_h1_db=10)
+            tv = ml.tv_noise_floor(p_, stat, 0.8, 16, 1.5)
+            checks[f"spp_mean PSD {kind} len {n}: finite, > 0"] = bool(
+                np.isfinite(stat).all() and (stat > 0).all())
+            checks[f"tv_noise {kind} len {n}: finite, lambda_tv >= lambda_stat"] = bool(
+                np.isfinite(tv).all() and (tv >= stat[:, None]).all())
         for label, passed in checks.items():
             print(("PASS " if passed else "FAIL ") + label)
             ok &= passed
