@@ -123,7 +123,8 @@ def run_file(task):
 
 
 _LSD_KEYS = ("noise_est", "noise_fraction", "q", "bias", "smooth_frames", "noise_select_bands",
-             "noise_freq_smooth_bins", "noise_freq_smooth_mode", "spp_iters", "spp_xi_h1_db")
+             "noise_freq_smooth_bins", "noise_freq_smooth_mode", "spp_iters", "spp_xi_h1_db",
+             "spp_prior")
 
 
 def lsd_file(task):
