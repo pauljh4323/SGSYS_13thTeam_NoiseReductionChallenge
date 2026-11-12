@@ -3,7 +3,8 @@ numpy==2.5.4
 scipy==1.18.1
 soundfile==0.14.0
 pyyaml==6.0.3
-# Round 2 (DL, gru_mask): CPU-only torch, pinned to the nrc env. The extra index supplies the CPU
-# build on Linux; the Windows/macOS wheels on PyPI are CPU builds already.
+# Round 2 (DL, gru_mask): CPU-only torch, pinned to the nrc env (2.14.1+cpu) without the local label.
+# torch==2.14.1 also matches the +cpu build, which pip takes from the CPU index on Windows/Linux;
+# on macOS that index has no +cpu wheel, so pip falls back to the PyPI wheel.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.14.1

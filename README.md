@@ -156,18 +156,19 @@ python main.py
 
 ### 설치 방법
 
-Python 3.12, pip만으로 설치합니다. torch는 CPU 빌드를 먼저 설치합니다:
+Python 3.12, pip만으로 설치합니다 (모든 OS 공통):
 
 ```bash
 git checkout r2-prep
 python -m venv .venv
 .venv/Scripts/activate        # Windows; Linux/macOS는 `source .venv/bin/activate`
-pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
 
-`requirements.txt`에도 `--extra-index-url https://download.pytorch.org/whl/cpu`와 `torch==2.14.1`이 들어 있어
-`pip install -r requirements.txt`만 실행해도 됩니다. 새 venv 설치 측정값: 약 193 s, 약 801 MB (Windows, 2026-11-12).
+`requirements.txt`에는 `--extra-index-url https://download.pytorch.org/whl/cpu`와 로컬 레이블 없는 `torch==2.14.1`이 들어 있습니다.
+이 지정자는 `2.14.1+cpu` 빌드에도 일치하므로 Windows/Linux에서는 CPU 인덱스의 `2.14.1+cpu`가 설치되고,
+macOS에서는 해당 인덱스에 `+cpu` 휠이 없어 PyPI의 `2.14.1` 휠로 대체됩니다.
+새 venv 설치 측정값: Windows에서 `torch.__version__` = `2.14.1+cpu`, 약 801 MB, pip install 193–313 s (네트워크에 따라 다름, 2026-11-12), 출력은 nrc 환경과 비트 단위로 동일.
 
 ### 실행 방법
 
