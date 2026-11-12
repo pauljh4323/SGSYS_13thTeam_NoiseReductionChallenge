@@ -1,0 +1,7 @@
+# gru_soup_c: uniform weight average (model soup, scripts/soup.py) of gru_v3b, gru_v4b, gru_v5a, gru_v5b
+# (gru v3b->v5b fine-tuning lineage, dl-main weights; GroupNorm, no BN recalibration); level norm off.
+method: gru_mask
+params:
+  weights: weights/gru_soup_c.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false
