@@ -66,6 +66,7 @@ Added 2026-11-12 from memory (dl-main had no references.md) — every field must
 | SDR — half-baked or well done? (ICASSP) | J. Le Roux, S. Wisdom, H. Erdogan, J. R. Hershey | 2019 | https://doi.org/10.1109/ICASSP.2019.8683855 | SI-SDR training loss term | pending (team must confirm) |
 | Parallel WaveGAN: a fast waveform generation model based on generative adversarial networks with multi-resolution spectrogram (ICASSP) | R. Yamamoto, E. Song, J.-M. Kim | 2020 | https://doi.org/10.1109/ICASSP40776.2020.9053795 | multi-resolution STFT loss term | pending (team must confirm) |
 | PyTorch: an imperative style, high-performance deep learning library (NeurIPS) | A. Paszke et al. | 2019 | https://arxiv.org/abs/1912.01703 | STFT/ISTFT, GRU, inference runtime (`torch==2.14.1`) | pending (team must confirm) |
+| Model soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time (ICML, PMLR 162) | M. Wortsman, G. Ilharco, S. Y. Gadre, R. Roelofs, R. Gontijo-Lopes, A. S. Morcos, H. Namkoong, A. Farhadi, Y. Carmon, S. Kornblith, L. Schmidt | 2022 | https://arxiv.org/abs/2203.05482 (from memory — verify) | uniform weight averaging of the gru v3b..v5b checkpoints (`scripts/soup.py`, branch exp/r2-soup; not adopted) | pending (team must confirm) |
 
 ## Software
 
