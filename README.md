@@ -46,4 +46,4 @@ python main.py
 
 ## 참고
 
-- AI 참고 문헌: [docs/references.md](docs/references.md)
+- 참고 문헌: [docs/references.md](docs/references.md)
