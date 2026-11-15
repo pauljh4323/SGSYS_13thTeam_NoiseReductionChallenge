@@ -49,3 +49,5 @@ python main.py
 ## 참고
 
 - 참고 문헌: [docs/references.md](docs/references.md)
+
+- 위 문헌란은 가장 최신 방법에서 사용하지 않는 이전에 탐구한 방식이나 기본적인 개념에 대한 레퍼런스도 모두 (자동)기록되어있음, 개요는 AI활용내역서 참고 
