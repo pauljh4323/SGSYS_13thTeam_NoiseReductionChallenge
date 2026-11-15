@@ -4,6 +4,8 @@
 
 제출 버전: `dsp-v7`
 
+Validation 결과: PESQ 1.9884
+
 ## 설치 방법
 
 Python 3.12, pip만으로 설치할 수 있습니다 (conda 불필요):
