@@ -4,7 +4,7 @@
 
 제출 버전: `dsp-v7`
 
-Validation 결과: PESQ 1.9884
+Validation `결과: PESQ 1.9884`
 
 ## 설치 방법
 
