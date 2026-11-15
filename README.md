@@ -37,7 +37,7 @@ python main.py
 - 다채널 입력은 모노로 평균해 처리한 뒤 결과를 모든 채널에 씁니다.
 - 16 kHz가 아닌 입력은 16 kHz로 리샘플링해 처리한 뒤 원래 샘플링 주파수로 되돌립니다.
 - 처리할 수 없는 파일은 원본을 그대로 복사합니다.
-- CPU만 사용하며 오프라인으로 동작합니다. validation 164개 파일 처리에 CPU 13.7 s 걸렸습니다 (2026-11-11 측정, [docs/submissions.md](docs/submissions.md)).
+- CPU만 사용하며 오프라인으로 동작합니다. 
 - 경로를 직접 지정할 수 있습니다: `python main.py --input <noisy dir> --output <out dir>`. 설정 파일은 저장소 폴더 기준으로
   찾으므로 어느 작업 폴더에서 실행해도 되며 절대 경로를 쓰지 않습니다.
 
