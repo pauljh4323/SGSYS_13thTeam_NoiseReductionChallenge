@@ -41,11 +41,6 @@ python main.py
 - 경로를 직접 지정할 수 있습니다: `python main.py --input <noisy dir> --output <out dir>`. 설정 파일은 저장소 폴더 기준으로
   찾으므로 어느 작업 폴더에서 실행해도 되며 절대 경로를 쓰지 않습니다.
 
-## Validation 결과
-
-공식 validation 세트 (164개 파일, 화자 5명), `main.py` 출력 (16-bit WAV), PESQ-WB `pesq==0.0.4` 16 kHz, SNR = 과목 정의.
-전체 표와 생성 방법: [docs/validation_results.md](docs/validation_results.md).
-
 
 ## 참고
 
