@@ -76,6 +76,13 @@ until a team member opens the link and confirms it.
 | STFT phase reconstruction in voiced speech for an improved single-channel speech enhancement (IEEE/ACM Trans. Audio, Speech, and Language Processing 22(12), 1931-1940) | M. Krawczyk, T. Gerkmann | 2014 | https://doi.org/10.1109/TASLP.2014.2354236 | `phase_harmonic`: phase propagation along time at harmonic frequencies, window phase offset in neighbouring bins; re-anchoring in high-gain bins, the gain-threshold blend and the f0 jump reset are our own choices | pending (team must confirm) |
 | YIN, a fundamental frequency estimator for speech and music (J. Acoust. Soc. Am. 111(4), 1917-1930) | A. de Cheveigne, H. Kawahara | 2002 | https://doi.org/10.1121/1.1458024 | `yin_f0` (difference function, cumulative-mean normalisation, absolute threshold, parabolic interpolation); the time re-alignment of each estimate to the frame centre is our own addition | pending (team must confirm) |
 
+## dsp-o extensions (`src/nrc/methods/mmse_lsa.py`, branch exp/dsp-o)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Speech analysis/synthesis based on a sinusoidal representation (IEEE Trans. ASSP 34(4), 744-754) | R. J. McAulay, T. F. Quatieri | 1986 | https://doi.org/10.1109/TASSP.1986.1164910 | idea of linking per-frame spectral peaks into frequency tracks (nearest peak within a bin tolerance, track birth/death) for `noise_tonal`; the prominence test against a 9-bin median, the one-frame gap fill and the speech-absence classification of tracks as noise are our own design | pending (team must confirm) |
+| Unbiased MMSE-based noise power estimation with low complexity and low tracking delay (IEEE Trans. Audio, Speech, and Language Processing 20(4), 1383-1393) | T. Gerkmann, R. C. Hendriks | 2012 | https://doi.org/10.1109/TASL.2011.2180896 | SPP-gated recursive noise tracker with the stagnation guard (`noise_tv_spp`); our variant runs the causal recursion forward and backward over the file and averages both, starts from the spp_mean stationary estimate and combines with it (max or mix) | pending (team must confirm) |
+
 ## Software and evaluation metric
 
 | title | authors | year | DOI / link | used for | verification |
