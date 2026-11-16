@@ -1,0 +1,25 @@
+# dsp-o finalist (staged paired sweeps O1-O3 on the FULL train set, 1296 files; keep rule d >= 0.002 and >= 2*SE).
+# = dsp-v7 (dsp_k) with the two-band noise bias re-tuned to 1.0 below / 2.0 above 1 kHz
+# (O3 + edge extensions O3b/O3c: d=+0.0079 +- 0.0016, z 4.98; runner-up 1.0/1.75 d=+0.0072 +- 0.0013; low 1.0 and
+# high 2.0 interior after extensions). Not adopted: O1 noise_tonal (mechanism check on train alarm_siren +
+# phone_dialing all negative, best d=-0.0110 +- 0.0070; grid skipped), O2 noise_tv_spp (all 12 points lost, best
+# alpha 0.9 max d=-0.0009 +- 0.0014). Logs: logs/sweep_dsp_o_{o1_mech,o2,o3,o3b,o3c}_paired.txt, docs/exp_dsp_o.md.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.0
+  noise_bias_high: 2.0
