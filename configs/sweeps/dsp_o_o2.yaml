@@ -1,0 +1,31 @@
+# dsp-o Stage O2 on dsp-v7 (dsp_k; O1 noise_tonal not adopted: mechanism check on train alarm_siren +
+# phone_dialing all negative, logs/sweep_dsp_o_o1_mech_paired.txt). Bidirectional SPP-gated noise tracker
+# (noise_tv_spp, Gerkmann & Hendriks 2012 variant) combined with the spp_mean stationary floor.
+# Full train (1296 files); paired keep rule vs the stage reference (d >= 0.002 and >= 2*SE).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  noise_tv_spp: true
+grid_groups:
+  - tv_spp_alpha: [0.8, 0.9, 0.95, 0.98]
+    tv_spp_mode: [max]
+  - tv_spp_alpha: [0.8, 0.9, 0.95, 0.98]
+    tv_spp_mode: [mix]
+    tv_spp_w: [0.5, 1.0]
+stage_reference: configs/dsp_k.yaml
