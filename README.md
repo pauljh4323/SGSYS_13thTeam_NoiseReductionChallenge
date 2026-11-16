@@ -2,12 +2,12 @@
 
 단일 채널 음성의 잡음을 전통적 신호 처리만으로 제거하는 알고리즘입니다. 
 
-제출 버전: `dsp-v7`
+제출 버전: 태그 `sub-20261116` (commit `30e8ed3`, 코드는 `dsp-v7`과 동일)
 
 Validation `결과: PESQ 1.9884`
 
 - 챌린지 회차: 1차 챌린지 (전통적 신호 처리만 사용)
-- 제출 태그 / 커밋: `sub-20261116` / `dsp-v7` (알고리즘 코드 커밋 `cdd4f07`)
+- 제출 태그 / 커밋: 태그 `sub-20261116` (commit `30e8ed3`, 코드는 `dsp-v7`과 동일)
 - 제출 버전의 validation 결과 (공식 validation 164개 파일, PESQ-WB `pesq==0.0.4` 16 kHz): PESQ 1.9884, SNR 12.84 dB
 - 전체 validation 결과 (목표 SNR별, 난이도별): [docs/validation_results.md](docs/validation_results.md)
 
@@ -15,7 +15,7 @@ Validation `결과: PESQ 1.9884`
 
 | 라운드 | 제출일 | 태그 | validation PESQ | 리더보드 PESQ |
 |---|---|---|---|---|
-| 1차 (전통적 신호 처리) | 2026-11-16 | `dsp-v7` (`sub-20261116`) | 1.9884 | 2.0334 |
+| 1차 (전통적 신호 처리) | 2026-11-16 | 태그 `sub-20261116` (commit `30e8ed3`, 코드는 `dsp-v7`과 동일) | 1.9884 | 2.0334 |
 | 2차 (딥러닝) | - | - | - | - |
 
 ## 설치 방법

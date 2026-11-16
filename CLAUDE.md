@@ -11,7 +11,7 @@ Current submission: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7, submitte
 - Round 2 is deep-learning speech enhancement (decided; TA notice pending). Ready state = tag r2-ready on branch r2-prep.
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
 - Leaderboard: https://docs.google.com/spreadsheets/d/1Jebd63s24CKjO6MOe14fef9j_coWdc87011rAgsibtI/edit?gid=1596638433#gid=1596638433
-- Standings live only in docs/leaderboard.md (newest snapshot first); never copy other teams' standings elsewhere.
+- Live standings and snapshots only in docs/leaderboard.md (newest snapshot first); the fixed leaderboard score of a past submission may also appear in the README submissions table. Never copy other teams' standings elsewhere.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.
 - Clean audio for evaluation only. Output keeps sample rate, channel count, sample count, filename. No absolute paths.

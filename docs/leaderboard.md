@@ -19,7 +19,7 @@ Metric: PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test set.
 
 | item | value |
 |---|---|
-| submitted (round 1) | dsp-v7 (configs/dsp_k.yaml via configs/submission.yaml), posted 2026-11-16, tag sub-20261116 |
+| submitted (round 1) | tag sub-20261116 (commit 30e8ed3, code identical to dsp-v7; configs/dsp_k.yaml via configs/submission.yaml), posted 2026-11-16 |
 | leaderboard PESQ | 2.0334 (sheet value 2.03343789695953) |
 | val PESQ / SNR | 1.9884 / 12.84 dB |
 | val_remix PESQ / SNR | 1.8942 / 11.20 dB |
@@ -80,7 +80,7 @@ Our own submissions (fill in after each confirmed submission):
 
 | version | date | val PESQ | leaderboard PESQ | difference (LB - val) |
 |---|---|---|---|---|
-| dsp-v7 | 2026-11-16 | 1.9884 | 2.0334 | +0.045 |
+| tag sub-20261116 (commit 30e8ed3, code identical to dsp-v7) | 2026-11-16 | 1.9884 | 2.0334 | +0.045 |
 
 The TA Wiener baseline showed no such offset (our val 1.5987 vs leaderboard 1.5980, -0.0007), so the +0.045 for dsp-v7
 is method-dependent: the hidden test is not uniformly easier than validation. Treat validation as a ranking proxy, not
