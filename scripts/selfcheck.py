@@ -95,7 +95,8 @@ def main() -> int:
         v7 = dict(v6, noise_est="spp_mean", spp_iters=3, spp_xi_h1_db=10)
         b7 = get_method("mmse_lsa", **v7)(x, 16000)
         e7 = get_method("mmse_lsa", **v7, noise_tv_spp=False, tv_spp_alpha=0.5, tv_spp_mode="mix",
-                        tv_spp_w=0.3, noise_tonal=False, tonal_prom_db=3.0, tonal_beta=2.0)(x, 16000)
+                        tv_spp_w=0.3, noise_tonal=False, tonal_prom_db=3.0, tonal_beta=2.0,
+                        tonal_min_absent_frames=2, tonal_min_absent_span=0.9)(x, 16000)
         checks[f"mmse_lsa[dsp-v7] len {n}: explicit dsp-o defaults bit-identical"] = bool(
             np.array_equal(b7, e7))
         tone = x + 0.3 * np.sin(2 * np.pi * 1000.0 * np.arange(n) / 16000)
