@@ -90,6 +90,31 @@ def main() -> int:
                 np.isfinite(stat).all() and (stat > 0).all())
             checks[f"tv_noise {kind} len {n}: finite, lambda_tv >= lambda_stat"] = bool(
                 np.isfinite(tv).all() and (tv >= stat[:, None]).all())
+        # dsp-p options: dd_direction / xi_nlm / gain_smooth length, finite, all-zeros; defaults
+        # bit-identical to dsp-v7 (dsp_k params).
+        v7 = dict(v6, noise_est="spp_mean", spp_iters=3, spp_xi_h1_db=10)
+        b7 = get_method("mmse_lsa", **v7)(x, 16000)
+        e7 = get_method("mmse_lsa", **v7, dd_direction="forward", xi_nlm=False, nlm_patch_t=3,
+                        nlm_patch_f=3, nlm_search_t=4, nlm_search_f=2, nlm_h=1.0, nlm_mix=0.5,
+                        gain_smooth=False, gs_thr_db=0.0, gs_bins=1, gs_frames=1)(x, 16000)
+        checks[f"mmse_lsa[dsp-v7] len {n}: explicit dsp-p defaults bit-identical"] = bool(
+            np.array_equal(b7, e7))
+        for label, opt in (("dd backward", dict(dd_direction="backward")),
+                           ("dd avg", dict(dd_direction="avg")),
+                           ("dd geo", dict(dd_direction="geo")),
+                           ("xi_nlm 5x3 8/4 h1", dict(xi_nlm=True, nlm_patch_t=5, nlm_search_t=8,
+                                                      nlm_search_f=4)),
+                           ("gain_smooth 5/2/1", dict(gain_smooth=True, gs_thr_db=5, gs_bins=2,
+                                                      gs_frames=1)),
+                           ("geo+nlm+gs", dict(dd_direction="geo", xi_nlm=True, nlm_mix=1.0,
+                                               gain_smooth=True))):
+            f = get_method("mmse_lsa", **v7, **opt)
+            for kind, sig in (("noise", x), ("zeros", np.zeros(n))):
+                m = f(sig, 16000)
+                checks[f"mmse_lsa[{label}] {kind} len {n}: length, finite"] = (
+                    m.size == n and bool(np.isfinite(m).all()))
+                if kind == "zeros":
+                    checks[f"mmse_lsa[{label}] zeros len {n}: output all zero"] = not np.any(m)
         for label, passed in checks.items():
             print(("PASS " if passed else "FAIL ") + label)
             ok &= passed
