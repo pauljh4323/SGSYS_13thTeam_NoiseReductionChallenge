@@ -10,6 +10,7 @@ With stage_reference: every point also gets the paired comparison against that c
 files (d_mean, d_se = std/sqrt(n), d_z = d_mean/d_se, keep = d_mean >= 0.002 and >= 2*SE); the
 stage adopts the keep=True grid point with the largest d_mean (else keeps the reference) and the
 runner-up's d_mean +- SE is reported. The verdict is also written to logs/sweep_<name>_paired.txt.
+--cats restricts the files to those noise categories (the key then includes them).
 Does NOT append to results/experiments.csv.
 """
 from __future__ import annotations
@@ -48,6 +49,8 @@ def main(argv=None) -> int:
     ap.add_argument("--subset", type=int, default=32)
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--data-root", default=None)
+    ap.add_argument("--cats", nargs="*", default=None,
+                    help="only files whose noise_category is in this list (before --subset)")
     args = ap.parse_args(argv)
 
     grid_path = Path(args.grid)
@@ -68,7 +71,10 @@ def main(argv=None) -> int:
     import pesq  # noqa: F401
 
     root = resolve_data_root(args.data_root)
-    manifest = stratified_subset(load_manifest(root, args.split), args.subset)
+    manifest = load_manifest(root, args.split)
+    if args.cats:
+        manifest = manifest[manifest.noise_category.isin(args.cats)]
+    manifest = stratified_subset(manifest, args.subset)
     rows_meta = [r.to_dict() for _, r in manifest.iterrows()]
     logs = REPO_ROOT / "logs"
     logs.mkdir(exist_ok=True)
@@ -83,8 +89,10 @@ def main(argv=None) -> int:
     done_keys = (set(done["key"]) & set(perfile["key"])) if "key" in done.columns else set()
 
     def point_key(c):
-        return json.dumps({"method": c["method"], "params": c["params"], "split": args.split,
-                           "n": len(rows_meta)}, sort_keys=True, default=str)
+        k = {"method": c["method"], "params": c["params"], "split": args.split, "n": len(rows_meta)}
+        if args.cats:
+            k["cats"] = sorted(args.cats)
+        return json.dumps(k, sort_keys=True, default=str)
 
     todo, seen = [], set(done_keys)
     for c in cfgs:  # also drops grid points identical to the stage reference (same key)

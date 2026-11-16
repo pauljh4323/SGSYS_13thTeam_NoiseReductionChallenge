@@ -1,0 +1,32 @@
+# dsp-o O1 mechanism check (before the full O1 grid): noise_tonal with the tightened classification
+# (tonal_min_absent_frames 8, tonal_min_absent_span 0.3) and absent-frame tone power, on train files of
+# noise_category alarm_siren + phone_dialing only (sweep.py --cats), paired vs dsp-v7 (dsp_k).
+# Run: sweep.py --grid configs/sweeps/dsp_o_o1_mech.yaml --split train --subset 1296 --cats alarm_siren phone_dialing
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  noise_tonal: true
+  tonal_link_bins: 2
+  tonal_min_frames: 12
+  tonal_min_absent_frac: 0.7
+  tonal_bins: 1
+grid:
+  tonal_prom_db: [10, 14]
+  tonal_beta: [1.0, 1.5]
+stage_reference: configs/dsp_k.yaml
