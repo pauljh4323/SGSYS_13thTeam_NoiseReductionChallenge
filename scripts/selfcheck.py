@@ -90,6 +90,42 @@ def main() -> int:
                 np.isfinite(stat).all() and (stat > 0).all())
             checks[f"tv_noise {kind} len {n}: finite, lambda_tv >= lambda_stat"] = bool(
                 np.isfinite(tv).all() and (tv >= stat[:, None]).all())
+        # dsp-o options: noise_tv_spp / noise_tonal length, finite, all-zeros; defaults bit-identical;
+        # pre-bias lambda finite and >= 0; tonal raises lambda on a steady tone; tv_spp "max" >= stat.
+        v7 = dict(v6, noise_est="spp_mean", spp_iters=3, spp_xi_h1_db=10)
+        b7 = get_method("mmse_lsa", **v7)(x, 16000)
+        e7 = get_method("mmse_lsa", **v7, noise_tv_spp=False, tv_spp_alpha=0.5, tv_spp_mode="mix",
+                        tv_spp_w=0.3, noise_tonal=False, tonal_prom_db=3.0, tonal_beta=2.0)(x, 16000)
+        checks[f"mmse_lsa[dsp-v7] len {n}: explicit dsp-o defaults bit-identical"] = bool(
+            np.array_equal(b7, e7))
+        tone = x + 0.3 * np.sin(2 * np.pi * 1000.0 * np.arange(n) / 16000)
+        dsp_o = (("tv_spp max .9", dict(noise_tv_spp=True, tv_spp_alpha=0.9)),
+                 ("tv_spp mix .5", dict(noise_tv_spp=True, tv_spp_mode="mix", tv_spp_w=0.5)),
+                 ("tonal 10/.7/1/1", dict(noise_tonal=True)),
+                 ("tonal+tv_spp", dict(noise_tonal=True, noise_tv_spp=True, tonal_bins=2)))
+        for label, opt in dsp_o:
+            f = get_method("mmse_lsa", **v7, **opt)
+            for kind, sig in (("noise", x), ("tone", tone), ("zeros", np.zeros(n))):
+                m = f(sig, 16000)
+                checks[f"mmse_lsa[{label}] {kind} len {n}: length, finite"] = (
+                    m.size == n and bool(np.isfinite(m).all()))
+                if kind == "zeros":
+                    checks[f"mmse_lsa[{label}] zeros len {n}: output all zero"] = not np.any(m)
+                _, t_, z_ = stft(sig, 16000, 1024, 256)
+                p_ = np.abs(z_) ** 2
+                kw = {k: v for k, v in {**v7, **opt}.items() if k not in ("n_fft", "hop", "window")}
+                lam = ml.noise_psd(z_, p_, t_, n, 16000, 1024, **kw)
+                checks[f"noise_psd[{label}] {kind} len {n}: lambda finite, >= 0"] = bool(
+                    np.isfinite(lam).all() and (lam >= 0).all())
+        _, t_, z_ = stft(tone, 16000, 1024, 256)
+        p_ = np.abs(z_) ** 2
+        kw = {k: v for k, v in v7.items() if k not in ("n_fft", "hop", "window")}
+        stat = ml.noise_psd(z_, p_, t_, n, 16000, 1024, **kw)
+        ton = ml.noise_psd(z_, p_, t_, n, 16000, 1024, **kw, noise_tonal=True)
+        tvm = ml.noise_psd(z_, p_, t_, n, 16000, 1024, **kw, noise_tv_spp=True)
+        checks[f"tonal len {n}: lambda >= stat and raised at 1 kHz"] = bool(
+            (ton >= stat).all() and (ton[64] > stat[64]).mean() > 0.5)
+        checks[f"tv_spp max len {n}: lambda >= stat"] = bool((tvm >= stat).all())
         for label, passed in checks.items():
             print(("PASS " if passed else "FAIL ") + label)
             ok &= passed

@@ -20,6 +20,12 @@ All outputs are quantized to 16-bit PCM before scoring (pesq 0.0.4 'wb', course 
 noise_bias / two-band bias) of --config and of every grid point of the sweep yaml with the oracle mean noise
 PSD mean_l |N(k,l)|^2: LSD = RMS over bins 100 Hz-8 kHz of 10 log10(est/oracle) (dB), signed bias = mean of
 the same (dB; < 0 = under-estimation). Output logs/oracle_lsd_<tag>.{csv,txt}. No PESQ.
+
+--tv-lsd-grid <sweep yaml>: same idea for the full time-varying noise PSD (bins, frames) before any bias
+(mmse_lsa.noise_psd: stationary estimate, tv_spp tracker, tonal floor) of --config and every grid point, against
+the oracle time-varying PSD of O2 (|N(k,l)|^2 averaged over +-2 frames). LSD = RMS over bins 100 Hz-8 kHz and all
+frames of 10 log10(est/oracle) (dB), signed bias = mean. Tables overall, by difficulty and for the transient /
+tonal categories in TV_CATS. Output logs/oracle_tvlsd_<tag>.{csv,txt}. No PESQ.
 """
 from __future__ import annotations
 
@@ -186,6 +192,71 @@ def run_lsd(a, cfg, root, man):
     return 0
 
 
+TV_CATS = ("alarm_siren", "phone_dialing", "bell", "click", "clap", "footsteps")
+_STFT_KEYS = ("n_fft", "hop", "window")
+
+
+def tv_lsd_file(task):
+    """Per-file LSD / signed bias (dB) of each estimator's pre-bias (bins, frames) PSD vs the O2 oracle."""
+    root, row, base, variants = task
+    noisy, clean = read_row(root, row, "noisy"), read_row(root, row, "clean")
+    n_fft, hop, win = base["n_fft"], base["hop"], base["window"]
+    _, times, z = stft(noisy, 16000, n_fft, hop, win)
+    _, _, n = stft(noisy - clean, 16000, n_fft, hop, win)
+    power = np.abs(z) ** 2
+    oracle = np.maximum(uniform_filter1d(np.abs(n) ** 2, size=5, axis=1, mode="nearest"), ml._EPS)
+    freqs = np.arange(z.shape[0]) * 16000 / n_fft
+    band = (freqs >= 100.0) & (freqs <= 8000.0)
+    rec = {c: row[c] for c in META}
+    for name, p in variants:
+        kw = {k: v for k, v in p.items() if k not in _STFT_KEYS}
+        est = np.maximum(ml.noise_psd(z, power, times, len(noisy), 16000, n_fft, **kw), ml._EPS)
+        e = 10.0 * np.log10(est[band] / oracle[band])
+        rec[f"lsd_{name}"] = float(np.sqrt(np.mean(e ** 2)))
+        rec[f"bias_{name}"] = float(np.mean(e))
+    return rec
+
+
+def run_tv_lsd(a, cfg, root, man):
+    import yaml
+    from sweep import grid_points
+    spec = yaml.safe_load((REPO_ROOT / a.tv_lsd_grid).read_text(encoding="utf-8"))
+    variants = [(cfg["name"], dict(cfg["params"]))]
+    for pt in grid_points(spec):
+        diff = {k: v for k, v in pt.items() if spec.get("base_params", {}).get(k, object()) != v}
+        variants.append(("|".join(f"{k}={v}" for k, v in diff.items()) or "base", pt))
+    tasks = [(root, r.to_dict(), cfg["params"], variants) for _, r in man.iterrows()]
+    t0 = time.perf_counter()
+    if a.jobs > 1:
+        with ProcessPoolExecutor(max_workers=a.jobs) as pool:
+            rows = list(pool.map(tv_lsd_file, tasks, chunksize=4))
+    else:
+        rows = [tv_lsd_file(t) for t in tasks]
+    d = pd.DataFrame(rows)
+    names = [v[0] for v in variants]
+    groups = {"all": d}
+    groups.update({f"diff:{k}": g for k, g in d.groupby("noise_difficulty")})
+    groups.update({f"cat:{c}": d[d.noise_category == c] for c in TV_CATS if (d.noise_category == c).any()})
+    lines = []
+    for kind in ("lsd", "bias"):
+        t = pd.DataFrame({f"{g} ({len(x)})": [x[f"{kind}_{k}"].mean() for k in names]
+                          for g, x in groups.items()}, index=[f"v{i}" for i in range(len(names))])
+        title = "LSD dB" if kind == "lsd" else "signed bias dB (< 0 = under-estimation)"
+        lines.append(f"\n[{title}]\n" + t.T.to_string(float_format=lambda v: f"{v:+.2f}"))
+    tag = f"{Path(a.tv_lsd_grid).stem}_{a.split}" + (f"_sub{a.subset}" if a.subset else "")
+    head = (f"oracle_eval --tv-lsd-grid {a.tv_lsd_grid} base {cfg['name']} | {a.split} n={len(d)} | "
+            f"hash {git_hash()} | {time.perf_counter() - t0:.0f}s | band 100 Hz-8 kHz x all frames, pre-bias "
+            f"PSD vs O2 oracle (|N|^2 over +-2 frames)\nvariants: " + "; ".join(
+                f"v{i}={k}" for i, k in enumerate(names)))
+    text = head + "\n" + "\n".join(lines)
+    logs = REPO_ROOT / "logs"
+    logs.mkdir(exist_ok=True)
+    d.to_csv(logs / f"oracle_tvlsd_{tag}.csv", index=False)
+    (logs / f"oracle_tvlsd_{tag}.txt").write_text(text + "\n", encoding="utf-8")
+    print(text)
+    return 0
+
+
 def tables(d):
     lines = []
     for by in (None, "target_snr_db", "noise_difficulty"):
@@ -227,12 +298,16 @@ def main(argv=None):
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--lsd-grid", default=None,
                     help="sweep yaml: PSD log-spectral distance diagnostic instead of the O-variants")
+    ap.add_argument("--tv-lsd-grid", default=None,
+                    help="sweep yaml: time-varying PSD LSD vs the O2 oracle instead of the O-variants")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
     assert cfg["method"] == "mmse_lsa" and cfg["params"]["xi_mode"] == "hrnr"
     root = resolve_data_root(a.data_root)
     man = stratified_subset(load_manifest(root, a.split), a.subset)
     root = split_root(root, a.split)
+    if a.tv_lsd_grid:
+        return run_tv_lsd(a, cfg, root, man)
     if a.lsd_grid:
         return run_lsd(a, cfg, root, man)
     tasks = [(root, r.to_dict(), cfg) for _, r in man.iterrows()]

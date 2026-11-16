@@ -53,6 +53,25 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
                          smoothing of |Y|^2 over time (tv_alpha), M = centred minimum of P over
                          +-tv_window_frames frames, lambda(k,l) = max(lambda_stat(k), tv_bias M(k,l)),
                          then the noise bias. Needs a stationary estimator (not "mcra"). Off by default.
+  noise_tv_spp, tv_spp_alpha, tv_spp_mode, tv_spp_w
+                         SPP-gated recursive noise tracker (Gerkmann & Hendriks 2012), run forward and
+                         backward over the file (our bidirectional, non-causal variant), both started from the
+                         stationary estimate: P = a posteriori SPP of |Y(k,l)|^2 against lambda_f(k,l-1)
+                         (prior 0.5, xi_H1 = spp_xi_h1_db), stagnation guard (P capped at 0.99 where the 0.9-
+                         smoothed P exceeds 0.99), lambda_f = a lambda_f + (1-a)[(1-P)|Y|^2 + P lambda_f];
+                         lambda_tv = mean of both passes. mode "max": max(lambda_stat, lambda_tv); "mix":
+                         w lambda_tv + (1-w) lambda_stat. Applied before the noise bias. Off by default.
+  noise_tonal, tonal_prom_db, tonal_min_absent_frac, tonal_bins, tonal_beta, tonal_link_bins,
+  tonal_min_frames       tonal-noise tracks (own design; peak linking after McAulay & Quatieri 1986): per
+                         frame, local maxima of 10 log10|Y|^2 in 100 Hz-7 kHz at least tonal_prom_db above a
+                         9-bin median across frequency; peaks linked into tracks (nearest peak within
+                         tonal_link_bins of the track's last bin, one missed frame allowed and filled at the
+                         midpoint bin). Frames are speech-absent when the mean SPP P1 (against the stationary
+                         estimate) over 300-4000 Hz is < 0.3. A track is noise if it lasts >= tonal_min_frames
+                         and is detected in >= tonal_min_absent_frac of the speech-absent frames of its span
+                         (at least one). On noise tracks lambda(k+-tonal_bins, l) = max(lambda, tonal_beta *
+                         |Y|^2 smoothed over +-1 frame), after the tracker and before the noise bias. Off by
+                         default.
 """
 from __future__ import annotations
 
@@ -249,6 +268,145 @@ def tv_noise_floor(power, stat, alpha=0.8, window_frames=16, bias=1.0):
     return np.maximum(stat[:, None], bias * m)
 
 
+TV_SPP_MODES = ("max", "mix")
+_TONAL_BAND_HZ = (100.0, 7000.0)
+_TONAL_MEDIAN_BINS = 9
+_ABSENT_P1 = 0.3
+
+
+def spp_posterior(power, lam, xi_h1_db):
+    """A posteriori SPP P1 (prior 0.5, fixed xi_H1) of power against lam (broadcastable)."""
+    xi = 10.0 ** (xi_h1_db / 10.0)
+    gamma = np.minimum(power / np.maximum(lam, _EPS), 1e8)
+    with np.errstate(over="ignore"):
+        return 1.0 / (1.0 + (1.0 + xi) * np.exp(-gamma * xi / (1.0 + xi)))
+
+
+def _spp_track(power, init, alpha, xi_h1_db):
+    """One causal pass of the SPP-gated recursive tracker over the frames of power (bins, frames)."""
+    xi = 10.0 ** (xi_h1_db / 10.0)
+    c = (1.0 + xi)
+    e = xi / (1.0 + xi)
+    out = np.empty_like(power)
+    lam = np.maximum(np.asarray(init, dtype=float).copy(), _EPS)
+    pbar = np.zeros(power.shape[0])
+    for t in range(power.shape[1]):
+        y2 = power[:, t]
+        with np.errstate(over="ignore"):
+            p = 1.0 / (1.0 + c * np.exp(-np.minimum(y2 / lam, 1e8) * e))
+        pbar = 0.9 * pbar + 0.1 * p
+        p = np.where(pbar > 0.99, np.minimum(p, 0.99), p)
+        lam = np.maximum(alpha * lam + (1.0 - alpha) * ((1.0 - p) * y2 + p * lam), _EPS)
+        out[:, t] = lam
+    return out
+
+
+def tv_spp_noise(power, stat, alpha=0.9, xi_h1_db=10.0, mode="max", w=1.0):
+    """Bidirectional SPP-gated tracker combined with the stationary estimate stat (bins,)."""
+    fwd = _spp_track(power, stat, alpha, xi_h1_db)
+    bwd = _spp_track(power[:, ::-1], stat, alpha, xi_h1_db)[:, ::-1]
+    tv = 0.5 * (fwd + bwd)
+    if mode == "max":
+        return np.maximum(stat[:, None], tv)
+    return w * tv + (1.0 - w) * stat[:, None]
+
+
+def tonal_tracks(power, sr, n_fft, prom_db, link_bins):
+    """Peak tracks: list of (frames, bins) int arrays; gap frames filled at the midpoint bin.
+
+    Also returns per track the boolean mask of frames where the peak was actually detected.
+    """
+    n_bins, n_frames = power.shape
+    logp = 10.0 * np.log10(np.maximum(power, _EPS))
+    prom = logp - median_filter(logp, size=(_TONAL_MEDIAN_BINS, 1), mode="nearest")
+    freqs = np.arange(n_bins) * sr / n_fft
+    band = (freqs >= _TONAL_BAND_HZ[0]) & (freqs <= _TONAL_BAND_HZ[1])
+    band[0] = band[-1] = False
+    is_peak = np.zeros_like(logp, dtype=bool)
+    is_peak[1:-1] = (logp[1:-1] > logp[:-2]) & (logp[1:-1] >= logp[2:])
+    is_peak &= band[:, None] & (prom >= prom_db)
+    active, done = [], []  # track = [frames list, bins list, detected list]
+    for t in range(n_frames):
+        peaks = np.flatnonzero(is_peak[:, t])
+        still = []
+        for tr in active:  # close tracks that missed more than one frame
+            (still if t - tr[0][-1] <= 2 else done).append(tr)
+        active = still
+        pairs = []
+        if active and len(peaks):
+            last = np.array([tr[1][-1] for tr in active])
+            dist = np.abs(peaks[None, :] - last[:, None])
+            ii, jj = np.nonzero(dist <= link_bins)
+            order = np.lexsort((jj, ii, dist[ii, jj]))  # by distance, then track, then peak
+            pairs = zip(ii[order].tolist(), jj[order].tolist())
+        used_t, used_p = set(), set()
+        for i, j in pairs:
+            if i in used_t or j in used_p:
+                continue
+            used_t.add(i)
+            used_p.add(j)
+            tr, b = active[i], int(peaks[j])
+            if t - tr[0][-1] == 2:  # one-frame gap
+                tr[0].append(t - 1)
+                tr[1].append(int(round(0.5 * (tr[1][-1] + b))))
+                tr[2].append(False)
+            tr[0].append(t)
+            tr[1].append(b)
+            tr[2].append(True)
+        for j, p in enumerate(peaks):
+            if j not in used_p:
+                active.append([[t], [int(p)], [True]])
+    done.extend(active)
+    return [(np.array(f), np.array(b), np.array(d)) for f, b, d in done]
+
+
+def tonal_floor(noise, power, stat, sr, n_fft, xi_h1_db, prom_db=10.0, min_absent_frac=0.7,
+                bins=1, beta=1.0, link_bins=2, min_frames=12):
+    """Raise noise (bins, frames) to beta * smoothed |Y|^2 around tonal tracks classified as noise."""
+    freqs = np.arange(power.shape[0]) * sr / n_fft
+    sband = (freqs >= _PAUSE_BAND_HZ[0]) & (freqs <= _PAUSE_BAND_HZ[1])
+    absent = spp_posterior(power[sband], stat[sband, None], xi_h1_db).mean(axis=0) < _ABSENT_P1
+    smooth = uniform_filter1d(power, size=3, axis=1, mode="nearest")
+    out = noise.copy()
+    n_bins = power.shape[0]
+    for frames, kb, det in tonal_tracks(power, sr, n_fft, prom_db, int(link_bins)):
+        if frames[-1] - frames[0] + 1 < min_frames:
+            continue
+        n_abs = int(absent[frames[0]:frames[-1] + 1].sum())
+        if n_abs < 1 or absent[frames[det]].sum() < min_absent_frac * n_abs:
+            continue
+        for off in range(-int(bins), int(bins) + 1):
+            k = np.clip(kb + off, 0, n_bins - 1)
+            out[k, frames] = np.maximum(out[k, frames], beta * smooth[k, frames])
+    return out
+
+
+def noise_psd(z, power, times, length, sr, n_fft, noise_est="initial", noise_fraction=0.20, q=0.2,
+              bias=1.0, smooth_frames=0, noise_select_bands=1, noise_freq_smooth_bins=0,
+              noise_freq_smooth_mode="mean", spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False,
+              tv_alpha=0.8, tv_window_frames=16, tv_bias=1.0, alpha_d=0.95, alpha_p=0.2, alpha_s=0.8,
+              mcra_window=96, delta=5.0, noise_tv_spp=False, tv_spp_alpha=0.9, tv_spp_mode="max",
+              tv_spp_w=1.0, noise_tonal=False, tonal_prom_db=10.0, tonal_min_absent_frac=0.7,
+              tonal_bins=1, tonal_beta=1.0, tonal_link_bins=2, tonal_min_frames=12, **_unused):
+    """Noise PSD (bins, frames) before noise_bias / two-band bias (quantile includes its own bias)."""
+    if noise_est not in STATIONARY_ESTS:
+        return mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
+    est = stationary_noise_psd(z, power, times, length, sr, n_fft, noise_est, noise_fraction, q,
+                               bias, smooth_frames, noise_select_bands, noise_freq_smooth_bins,
+                               noise_freq_smooth_mode, spp_iters, spp_xi_h1_db)
+    if tv_noise:
+        noise = tv_noise_floor(power, est, tv_alpha, tv_window_frames, tv_bias)
+    elif noise_tv_spp:
+        noise = tv_spp_noise(power, est, tv_spp_alpha, spp_xi_h1_db, tv_spp_mode, tv_spp_w)
+    else:
+        noise = np.repeat(est[:, None], z.shape[1], axis=1)
+    if noise_tonal:
+        noise = tonal_floor(noise, power, est, sr, n_fft, spp_xi_h1_db, tonal_prom_db,
+                            tonal_min_absent_frac, tonal_bins, tonal_beta, tonal_link_bins,
+                            tonal_min_frames)
+    return noise
+
+
 def stationary_noise_psd(z, power, times, length, sr, n_fft, noise_est="initial",
                          noise_fraction=0.20, q=0.2, bias=1.0, smooth_frames=0,
                          noise_select_bands=1, noise_freq_smooth_bins=0,
@@ -304,8 +462,32 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
              hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
              pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
              spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-             tv_bias=1.0):
+             tv_bias=1.0, noise_tv_spp=False, tv_spp_alpha=0.9, tv_spp_mode="max", tv_spp_w=1.0,
+             noise_tonal=False, tonal_prom_db=10.0, tonal_min_absent_frac=0.7, tonal_bins=1,
+             tonal_beta=1.0, tonal_link_bins=2, tonal_min_frames=12):
     check_nola(n_fft, hop, window)
+    if (noise_tv_spp or noise_tonal) and noise_est not in STATIONARY_ESTS:
+        raise ValueError(f"noise_tv_spp / noise_tonal need a stationary noise_est {STATIONARY_ESTS}.")
+    if noise_tv_spp:
+        if tv_noise:
+            raise ValueError("noise_tv_spp and tv_noise are mutually exclusive.")
+        if not 0 <= tv_spp_alpha < 1:
+            raise ValueError("tv_spp_alpha must be in [0, 1).")
+        if tv_spp_mode not in TV_SPP_MODES:
+            raise ValueError(f"tv_spp_mode must be one of {TV_SPP_MODES}.")
+        if not 0 <= tv_spp_w <= 1:
+            raise ValueError("tv_spp_w must be in [0, 1].")
+    if noise_tonal:
+        if not np.isfinite(tonal_prom_db) or tonal_prom_db < 0:
+            raise ValueError("tonal_prom_db must be finite and >= 0.")
+        if not 0 <= tonal_min_absent_frac <= 1:
+            raise ValueError("tonal_min_absent_frac must be in [0, 1].")
+        for name, v, lo in (("tonal_bins", tonal_bins, 0), ("tonal_link_bins", tonal_link_bins, 0),
+                            ("tonal_min_frames", tonal_min_frames, 1)):
+            if int(v) != v or v < lo:
+                raise ValueError(f"{name} must be an integer >= {lo}.")
+        if tonal_beta <= 0:
+            raise ValueError("tonal_beta must be > 0.")
     if int(spp_iters) != spp_iters or spp_iters < 1:
         raise ValueError("spp_iters must be an integer >= 1.")
     if not np.isfinite(spp_xi_h1_db):
@@ -371,7 +553,9 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
             spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-            tv_bias=1.0):
+            tv_bias=1.0, noise_tv_spp=False, tv_spp_alpha=0.9, tv_spp_mode="max", tv_spp_w=1.0,
+            noise_tonal=False, tonal_prom_db=10.0, tonal_min_absent_frac=0.7, tonal_bins=1,
+            tonal_beta=1.0, tonal_link_bins=2, tonal_min_frames=12):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
@@ -384,19 +568,18 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
              highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
              hrnr_nonlinearity, gain_mode, beta, pause_thr_db, pause_att_db, pause_release_frames,
              noise_bias_low, noise_bias_high, spp_iters, spp_xi_h1_db, tv_noise, tv_alpha,
-             tv_window_frames, tv_bias)
+             tv_window_frames, tv_bias, noise_tv_spp, tv_spp_alpha, tv_spp_mode, tv_spp_w,
+             noise_tonal, tonal_prom_db, tonal_min_absent_frac, tonal_bins, tonal_beta,
+             tonal_link_bins, tonal_min_frames)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
-    if noise_est in STATIONARY_ESTS:
-        est = stationary_noise_psd(z, power, times, len(x), sr, n_fft, noise_est, noise_fraction, q,
-                                   bias, smooth_frames, noise_select_bands, noise_freq_smooth_bins,
-                                   noise_freq_smooth_mode, spp_iters, spp_xi_h1_db)
-        if tv_noise:
-            noise = tv_noise_floor(power, est, tv_alpha, tv_window_frames, tv_bias)
-        else:
-            noise = np.repeat(est[:, None], z.shape[1], axis=1)
-    else:
-        noise = mcra_noise(power, alpha_d, alpha_p, alpha_s, int(mcra_window), delta)
+    noise = noise_psd(z, power, times, len(x), sr, n_fft, noise_est, noise_fraction, q, bias,
+                      smooth_frames, noise_select_bands, noise_freq_smooth_bins,
+                      noise_freq_smooth_mode, spp_iters, spp_xi_h1_db, tv_noise, tv_alpha,
+                      tv_window_frames, tv_bias, alpha_d, alpha_p, alpha_s, mcra_window, delta,
+                      noise_tv_spp, tv_spp_alpha, tv_spp_mode, tv_spp_w, noise_tonal,
+                      tonal_prom_db, tonal_min_absent_frac, tonal_bins, tonal_beta,
+                      tonal_link_bins, tonal_min_frames)
     if noise_bias_low is not None or noise_bias_high is not None:
         lo = noise_bias if noise_bias_low is None else noise_bias_low
         hi = noise_bias if noise_bias_high is None else noise_bias_high

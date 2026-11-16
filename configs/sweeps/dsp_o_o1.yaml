@@ -1,0 +1,31 @@
+# dsp-o Stage O1 on dsp-v7 (dsp_k): tonal-noise tracks (noise_tonal) raise lambda to tonal_beta * smoothed |Y|^2
+# around peak tracks classified as noise (tonal_link_bins 2, tonal_min_frames 12 fixed).
+# Full train (1296 files); paired keep rule vs the stage reference (d >= 0.002 and >= 2*SE).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  noise_tonal: true
+  tonal_link_bins: 2
+  tonal_min_frames: 12
+grid:
+  tonal_prom_db: [6, 10, 14]
+  tonal_min_absent_frac: [0.5, 0.7, 0.9]
+  tonal_bins: [1, 2]
+  tonal_beta: [1.0, 1.5]
+stage_reference: configs/dsp_k.yaml
