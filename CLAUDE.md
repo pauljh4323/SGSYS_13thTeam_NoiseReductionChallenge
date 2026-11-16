@@ -32,6 +32,7 @@ Current submission: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7, submitte
 - Only scripts/eval.py produces metrics; append to results/experiments.csv with a clean hash (commit code before final evals).
 - Report PESQ and SNR together (overall, per SNR, per difficulty).
 - Promotion rule (round 1): full-train paired delta >= 0.003 AND z >= 3, val PESQ >= current, val_remix PESQ >= current, each probe level >= current - 0.02. No runtime gate; report main.py time.
+- Lesson: noise_bias_high > 1.5 failed val_remix twice (dsp_l, dsp-o); cap it at 1.5 in future re-tunes.
 - Branch exp/<name>; merge to main only when acceptance criteria pass; tags dsp-vN (new best), sub-YYYYMMDD (only after the team confirms it was actually submitted).
 - After each task append one row to docs/ai_usage_log.md (date | goal | key prompt (summary) | what AI did | verification | references).
 - Published methods: add each to docs/references.md (title, authors, year, DOI/link) with a one-line description of what was used; pending until the team verifies it.
