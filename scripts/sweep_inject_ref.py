@@ -17,9 +17,11 @@ row = {"kind": "stage_reference", "name": c["name"], "method": c["method"], **{f
        "si_sdr": g.si_sdr.mean(), "stoi": g.stoi.mean(), "failed": int(g.pesq.isna().sum()),
        "clipped": int(g.n_clipped.sum()), "n": len(g), "key": key}
 logs = repo / "logs"
-done = pd.read_csv(logs / f"sweep_{name}.csv")
+out = logs / f"sweep_{name}.csv"
+done = pd.read_csv(out) if out.exists() else pd.DataFrame(columns=["key"])
 done = pd.concat([done[done.key != key], pd.DataFrame([row])], ignore_index=True)
 done.to_csv(logs / f"sweep_{name}.csv", index=False)
 pd.DataFrame({"key": key, "segment_id": g.segment_id, "pesq": g.pesq}).to_csv(
-    logs / f"sweep_{name}_perfile.csv", mode="a", header=False, index=False)
+    logs / f"sweep_{name}_perfile.csv", mode="a", index=False,
+    header=not (logs / f"sweep_{name}_perfile.csv").exists())
 print("injected", c["name"], row["pesq"], len(g), "from", csv)
