@@ -27,6 +27,7 @@ Current submission: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7, submitte
 - Sweep: `python scripts/sweep.py --grid configs/sweeps/<name>.yaml`
 - Checks: scripts/selfcheck.py, scripts/e2e_check.py; reports: scripts/report_val.py, scripts/plot_spectrograms.py
 ## Rules
+- Start every task with git fetch and git pull on the target branch (teammates may edit on GitHub); stop and report if the working tree is not clean.
 - Tune on train (all 1296 files preferred), confirm on validation, gate on val_remix. Never select on val_remix.
 - Only scripts/eval.py produces metrics; append to results/experiments.csv with a clean hash (commit code before final evals).
 - Report PESQ and SNR together (overall, per SNR, per difficulty).

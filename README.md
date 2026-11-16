@@ -6,6 +6,11 @@
 
 Validation `결과: PESQ 1.9884`
 
+- 챌린지 회차: 1차 챌린지 (전통적 신호 처리만 사용)
+- 제출 태그 / 커밋: `sub-20261116` / `dsp-v7` (알고리즘 코드 커밋 `cdd4f07`)
+- 제출 버전의 validation 결과 (공식 validation 164개 파일, PESQ-WB `pesq==0.0.4` 16 kHz): PESQ 1.9884, SNR 12.84 dB
+- 전체 validation 결과 (목표 SNR별, 난이도별): [docs/validation_results.md](docs/validation_results.md)
+
 ## 제출 내역
 
 | 라운드 | 제출일 | 태그 | validation PESQ | 리더보드 PESQ |
