@@ -1,0 +1,24 @@
+# dsp-p Stage P1b: alpha re-check for the P1 best direction (forward = dsp-v7; P1 kept the reference). Full train
+# (1296), paired keep rule vs the stage reference (dsp_k, alpha 0.94; per-file from outputs/dsp_k/eval_train.csv).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+grid:
+  alpha: [0.92, 0.96]
+stage_reference: configs/dsp_k.yaml
