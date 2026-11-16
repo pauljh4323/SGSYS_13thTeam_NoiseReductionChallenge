@@ -1,0 +1,26 @@
+# dsp-o Stage O3b (edge extension of O3, winner 1.0 / 1.75 at both edges): two-band noise bias re-tune on the O2 adopted config = dsp-v7 (dsp_k; O1 noise_tonal and O2
+# noise_tv_spp not adopted). Full train (1296); paired keep rule vs the stage reference (d >= 0.002 and >= 2*SE).
+# Stage reference per-file from outputs/dsp_k/eval_train.csv (c330f12; dsp_k code path bit-identical since).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+grid_groups:
+  - noise_bias_low: [0.75]
+    noise_bias_high: [1.75, 2.0]
+  - noise_bias_low: [1.0, 1.25]
+    noise_bias_high: [2.0]
+stage_reference: configs/dsp_k.yaml
