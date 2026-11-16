@@ -25,7 +25,8 @@ the same (dB; < 0 = under-estimation). Output logs/oracle_lsd_<tag>.{csv,txt}. N
 (mmse_lsa.noise_psd: stationary estimate, tv_spp tracker, tonal floor) of --config and every grid point, against
 the oracle time-varying PSD of O2 (|N(k,l)|^2 averaged over +-2 frames). LSD = RMS over bins 100 Hz-8 kHz and all
 frames of 10 log10(est/oracle) (dB), signed bias = mean. Tables overall, by difficulty and for the transient /
-tonal categories in TV_CATS. Output logs/oracle_tvlsd_<tag>.{csv,txt}. No PESQ.
+tonal categories in TV_CATS. --post-bias: the PSD after noise_bias / two-band bias instead (as used by the gain;
+tag suffix _postbias). Output logs/oracle_tvlsd_<tag>.{csv,txt}. No PESQ.
 """
 from __future__ import annotations
 
@@ -198,7 +199,7 @@ _STFT_KEYS = ("n_fft", "hop", "window")
 
 def tv_lsd_file(task):
     """Per-file LSD / signed bias (dB) of each estimator's pre-bias (bins, frames) PSD vs the O2 oracle."""
-    root, row, base, variants = task
+    root, row, base, variants, post_bias = task
     noisy, clean = read_row(root, row, "noisy"), read_row(root, row, "clean")
     n_fft, hop, win = base["n_fft"], base["hop"], base["window"]
     _, times, z = stft(noisy, 16000, n_fft, hop, win)
@@ -210,7 +211,16 @@ def tv_lsd_file(task):
     rec = {c: row[c] for c in META}
     for name, p in variants:
         kw = {k: v for k, v in p.items() if k not in _STFT_KEYS}
-        est = np.maximum(ml.noise_psd(z, power, times, len(noisy), 16000, n_fft, **kw), ml._EPS)
+        est = ml.noise_psd(z, power, times, len(noisy), 16000, n_fft, **kw)
+        if post_bias:  # as used by the gain: two-band bias (or noise_bias) applied
+            lo, hi = p.get("noise_bias_low"), p.get("noise_bias_high")
+            if lo is not None or hi is not None:
+                nb = p.get("noise_bias", 1.0)
+                est = est * ml.two_band_bias(est.shape[0], 16000, n_fft, nb if lo is None else lo,
+                                             nb if hi is None else hi)[:, None]
+            else:
+                est = est * p.get("noise_bias", 1.0)
+        est = np.maximum(est, ml._EPS)
         e = 10.0 * np.log10(est[band] / oracle[band])
         rec[f"lsd_{name}"] = float(np.sqrt(np.mean(e ** 2)))
         rec[f"bias_{name}"] = float(np.mean(e))
@@ -225,7 +235,7 @@ def run_tv_lsd(a, cfg, root, man):
     for pt in grid_points(spec):
         diff = {k: v for k, v in pt.items() if spec.get("base_params", {}).get(k, object()) != v}
         variants.append(("|".join(f"{k}={v}" for k, v in diff.items()) or "base", pt))
-    tasks = [(root, r.to_dict(), cfg["params"], variants) for _, r in man.iterrows()]
+    tasks = [(root, r.to_dict(), cfg["params"], variants, a.post_bias) for _, r in man.iterrows()]
     t0 = time.perf_counter()
     if a.jobs > 1:
         with ProcessPoolExecutor(max_workers=a.jobs) as pool:
@@ -243,9 +253,11 @@ def run_tv_lsd(a, cfg, root, man):
                           for g, x in groups.items()}, index=[f"v{i}" for i in range(len(names))])
         title = "LSD dB" if kind == "lsd" else "signed bias dB (< 0 = under-estimation)"
         lines.append(f"\n[{title}]\n" + t.T.to_string(float_format=lambda v: f"{v:+.2f}"))
-    tag = f"{Path(a.tv_lsd_grid).stem}_{a.split}" + (f"_sub{a.subset}" if a.subset else "")
+    tag = (f"{Path(a.tv_lsd_grid).stem}_{a.split}" + (f"_sub{a.subset}" if a.subset else "")
+           + ("_postbias" if a.post_bias else ""))
     head = (f"oracle_eval --tv-lsd-grid {a.tv_lsd_grid} base {cfg['name']} | {a.split} n={len(d)} | "
-            f"hash {git_hash()} | {time.perf_counter() - t0:.0f}s | band 100 Hz-8 kHz x all frames, pre-bias "
+            f"hash {git_hash()} | {time.perf_counter() - t0:.0f}s | band 100 Hz-8 kHz x all frames, "
+            f"{'post' if a.post_bias else 'pre'}-bias "
             f"PSD vs O2 oracle (|N|^2 over +-2 frames)\nvariants: " + "; ".join(
                 f"v{i}={k}" for i, k in enumerate(names)))
     text = head + "\n" + "\n".join(lines)
@@ -300,6 +312,8 @@ def main(argv=None):
                     help="sweep yaml: PSD log-spectral distance diagnostic instead of the O-variants")
     ap.add_argument("--tv-lsd-grid", default=None,
                     help="sweep yaml: time-varying PSD LSD vs the O2 oracle instead of the O-variants")
+    ap.add_argument("--post-bias", action="store_true",
+                    help="--tv-lsd-grid: compare the PSD after the noise bias / two-band bias (as the gain sees it)")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
     assert cfg["method"] == "mmse_lsa" and cfg["params"]["xi_mode"] == "hrnr"

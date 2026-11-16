@@ -1,0 +1,33 @@
+# dsp-o PSD diagnostic variants (oracle_eval.py --tv-lsd-grid, analysis only; base = --config dsp_k):
+# finalist two-band bias 1.0/2.0, best O1 mechanism-check tonal point (prom 14, beta 1.0, tightened rule),
+# best O2 tv-spp point (alpha 0.9, max). Not a sweep for PESQ.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+grid_groups:
+  - noise_bias_low: [1.0]
+    noise_bias_high: [2.0]
+  - noise_tonal: [true]
+    tonal_prom_db: [14]
+    tonal_beta: [1.0]
+    tonal_min_absent_frac: [0.7]
+    tonal_bins: [1]
+  - noise_tv_spp: [true]
+    tv_spp_alpha: [0.9]
+    tv_spp_mode: [max]
