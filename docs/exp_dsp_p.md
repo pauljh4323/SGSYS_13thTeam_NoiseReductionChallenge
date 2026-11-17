@@ -22,3 +22,8 @@ scripts/sweep_inject_ref.py under sweep.py's own key.
    The remaining 19 log-domain P2a points were not run; a mechanism check (patch 3x3, search 4x2, nlm_mix 0.5,
    nlm_domain {log_bc, lin} x nlm_h {2, 4, 8}) decides whether the P2a grid continues (any point d >= -0.002).
 2. Sweeps run at --jobs 2 after the P2a run at --jobs 4 was stopped under system memory pressure.
+3. P2a continued in nlm_domain log_bc only (P2m: log_bc h 8 adopted, d=+0.0053 +- 0.0009, z 6.22, at the h edge).
+   Its nlm_h values {0.5, 1, 2} were replaced by {4, 8, 16}: h 2 lost 0.054 in P2m (h 0.5 / 1 smaller still), and 16 is
+   the required edge extension. The two points identical to P2m points (3x3, 4x2, h 4 / 8) were copied, not re-run.
+4. Sweeps run as detached processes (cmd start, logs/sweep_<name>_run.txt + done marker) because background shells
+   were stopped by the host under memory pressure; a waiter checks the done marker and that the sweep process lives.
