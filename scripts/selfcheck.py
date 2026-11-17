@@ -96,7 +96,8 @@ def main() -> int:
         b7 = get_method("mmse_lsa", **v7)(x, 16000)
         e7 = get_method("mmse_lsa", **v7, dd_direction="forward", xi_nlm=False, nlm_patch_t=3,
                         nlm_patch_f=3, nlm_search_t=4, nlm_search_f=2, nlm_h=1.0, nlm_mix=0.5,
-                        gain_smooth=False, gs_thr_db=0.0, gs_bins=1, gs_frames=1)(x, 16000)
+                        gain_smooth=False, gs_thr_db=0.0, gs_bins=1, gs_frames=1,
+                        nlm_domain="log")(x, 16000)
         checks[f"mmse_lsa[dsp-v7] len {n}: explicit dsp-p defaults bit-identical"] = bool(
             np.array_equal(b7, e7))
         for label, opt in (("dd backward", dict(dd_direction="backward")),
@@ -106,6 +107,8 @@ def main() -> int:
                                                       nlm_search_f=4)),
                            ("gain_smooth 5/2/1", dict(gain_smooth=True, gs_thr_db=5, gs_bins=2,
                                                       gs_frames=1)),
+                           ("nlm log_bc h4", dict(xi_nlm=True, nlm_domain="log_bc", nlm_h=4.0)),
+                           ("nlm lin h8", dict(xi_nlm=True, nlm_domain="lin", nlm_h=8.0)),
                            ("geo+nlm+gs", dict(dd_direction="geo", xi_nlm=True, nlm_mix=1.0,
                                                gain_smooth=True))):
             f = get_method("mmse_lsa", **v7, **opt)
