@@ -27,3 +27,12 @@ scripts/sweep_inject_ref.py under sweep.py's own key.
    the required edge extension. The two points identical to P2m points (3x3, 4x2, h 4 / 8) were copied, not re-run.
 4. Sweeps run as detached processes (cmd start, logs/sweep_<name>_run.txt + done marker) because background shells
    were stopped by the host under memory pressure; a waiter checks the done marker and that the sweep process lives.
+
+## NLM: effect of the log-domain bias correction
+
+The Euler-constant correction (`nlm_domain: log_bc`) turned NLM from a loss into a gain at the same settings: plain
+log-domain NLM lost about 0.035-0.071 PESQ (P2a first 5 points, best h 2 d = -0.035), log_bc reached d = +0.0053 +- 0.0009
+(P2m, 3x3 / 4x2 / h 8, paired, z 6.22) and about +0.010 at search +-8 frames (P2a-bc, unpaired mean while running), i.e.
+from about -0.07 to about +0.01. The linear-domain mean (`lin`) lost at every h (-0.053 to -0.077). Related method:
+Breithaupt, Gerkmann & Martin 2008 compensate the same log-domain bias after cepstro-temporal smoothing
+(docs/references.md, pending).
