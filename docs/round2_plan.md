@@ -35,6 +35,65 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-18: r2_diag conclusions and gru_v6 prep (branch exp/r2-v6, from exp/r2-diag)
+
+r2_diag (docs/r2_diag.md): every validation noise_code also occurs in train (validation is a seen-noise test); gru_v5b is
+weakest on stationary NOISEX noises (aircraft_cockpit, factory, broadband_noise, destroyer_operations, hf_channel) and at
+0 dB; per-category routing / blending with dsp-v8 is bounded at about +0.02 PESQ and is about 0 with a realistic noise
+classifier, so it is not pursued. Improvements go into the model.
+
+Phase headroom (oracle: gru_v5b enhanced magnitude + clean STFT phase, 16-bit scoring, scripts/r2_phase_oracle.py,
+logs/r2_phase_oracle.md; analysis bound, not a method):
+
+| split | gru_v5b | oracle phase | delta | 0 dB delta | 15 dB delta | weak-5 delta |
+|---|---|---|---|---|---|---|
+| validation | 2.6962 | 2.9893 | +0.293 | +0.159 | +0.312 | +0.346 (n 38) |
+| val_remix | 2.5170 | 2.7776 | +0.261 | +0.162 | +0.308 | +0.328 (n 76) |
+
+Phase is worth about +0.26 to +0.29 at most: largest on the weak stationary categories, smallest at 0 dB (there the
+magnitude estimate is still the limit). SNR gains about +2.5 dB.
+
+Two separately testable fine-tunes from gru_v5b (both start output-identical to gru_v5b; configs/dl/gru_v6{a,b}.yaml):
+- **gru_v6a, complex ratio mask** (`model.mask_type: crm`): the sigmoid head is the real part M_r, plus an imaginary
+  head M_i = mask_imag_scale * tanh(Linear(h)) with zero weights/bias; enhanced = (M_r + j M_i) * Y. mask_imag_scale 0.1:
+  with 1.0 the zero-init head drifted under Adam (val8 2.717 -> 2.621 after 10 steps, 2.573 after 40), with 0.1 it holds
+  (2.703 / 2.694). Compressed-complex loss term implemented (`lambda_ccplx`) but off this round.
+- **gru_v6b, noise-aware inputs** (`model.noise_aware: true`, src/nrc/features.py): 2 x 257 features per model frame,
+  normalised with train-set mean/std buffers, added through a zero-initialised Linear(514 -> H) into the input projection.
+  - log noise PSD: dsp-v8 stationary estimate (spp_mean, noise_fraction 0.1, 3 iterations, xi_H1 10 dB), before the
+    noise bias.
+  - log xi: first-step decision-directed a priori SNR of the dsp-v7 path (forward DD, alpha 0.94, xi_min -25 dB, LSA gain,
+    gmin -30 dB, TSNR gain in the recursion, noise x two-band bias 1.25/1.5), no NLM.
+  - **Grid mapping.** Both are estimated on dsp-v8's own grid: n_fft 1024, hop 256, 513 bins at k x 15.625 Hz, frame j
+    centred at sample j x 256 (scipy, zero boundary). The model grid is n_fft 512, hop 128, 257 bins at f x 31.25 Hz,
+    frame m centred at sample m x 128 (torch center=True).
+    - Frequency: the LOG values are linearly interpolated over frequency in Hz onto the 257 model bins. The model bin
+      f falls on dsp bin 2f, so this is an exact resampling of the log spectrum.
+    - Time: the log noise PSD is stationary and is broadcast to every model frame. Log xi is linearly interpolated in
+      the log domain between dsp frame centres (model frame m = dsp frame m/2, edges held).
+  - Training: the features are computed per remixed sample by CPU worker processes (`--loader-workers`), prefetched
+    within the epoch. The batch RNG stream is unchanged, so resume stays deterministic. At inference forward() computes
+    them from the noisy waveform.
+- Shared: init_from weights/gru_v5b.pt (`load_partial`: strict except the new heads), mixture gain augmentation,
+  cmag + MR-STFT 0.5 + SI-SDR 0.3, lr 1e-4, 100 epochs, early stop after 8 val points, batch 16, val every 2 epochs.
+  Colab: notebooks/colab_train.ipynb (branch exp/r2-v6, MyDrive/nrc_ckpt/<config_stem>/, resume / skip-completed,
+  per-run stdout log on Drive).
+
+Checks (2026-11-18, local CPU):
+- gru_v5b inference is bit-identical on 20 validation files (max |diff| 0).
+- Warm start with --max-steps 0, val subset 8: gru_v5b 2.716825 == gru_v6a == gru_v6b.
+- 10-step smoke: losses finite, checkpoints written. Loss / val8 / s per step: v5b-config reference -4.579 / 2.7049 / 6.9;
+  v6a (scale 1.0) -4.567 / 2.6207 / 7.5; v6b -4.578 / 2.6968 / 7.6 (loader wait 0.02 s/batch with 4 workers).
+- v6b features: 52 ms per 3 s file on one core, about 0.83 s per batch of 16. Loader throughput is 0.92 / 0.49 / 0.29 /
+  0.19 s per batch with 1 / 2 / 4 / 8 workers.
+- CPU inference per 3 s file: v5b 0.20 s, v6a 0.16 s, v6b 0.22 s (v6b adds the feature cost).
+
+Estimated T4 time per config, 100 epochs as an upper bound. Early stopping usually ends earlier: gru_v5b's best was
+epoch 8.
+- v6a: about 30 min, close to gru_v5b. The CPU step cost is +9 %. Reference: the v3b T4 log, 15.4 s/epoch incl. val.
+- v6b: loader-bound on a standard 2-vCPU Colab runtime. About 0.5-0.65 s/batch, i.e. 40-55 s/epoch, plus about 10 s of
+  feature work per val point and about 1 min of aux stats. Total about 75-100 min. With 8 vCPUs about 35 min.
+
 ## Open questions (confirm from the round-2 notice)
 
 - Are pretrained models allowed?

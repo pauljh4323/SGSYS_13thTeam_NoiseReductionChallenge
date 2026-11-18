@@ -15,7 +15,7 @@ model:
   conv_channels: 16
   conv_norm: group
   mask_type: crm      # v6a: complex ratio mask (imag head zero-init)
-  mask_imag_scale: 1.0
+  mask_imag_scale: 0.1  # 1.0 drifted in smoke (val8 2.717 -> 2.573 after 40 steps); 0.1 -> 2.694
 
 train:
   seed: 0
