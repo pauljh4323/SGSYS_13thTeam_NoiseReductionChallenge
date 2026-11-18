@@ -1,0 +1,51 @@
+# gru_v7a: complex ratio mask (Williamson, Wang & Wang 2016) trained FROM SCRATCH (random init, no init_from), so the
+# phase path is not stuck at the v5b function (v6a warm start: best epoch 2, 0.04 % of phase headroom recovered).
+# gru_v5b architecture and data/augmentation recipe; mask_imag_scale 1.0.
+# Loss: compressed spectral loss (Braun & Tashev 2021; c = 0.3, alpha = 0.3 -> 0.3 complex + 0.7 magnitude)
+#       + 0.5 MR-STFT + 0.3 (-SI-SDR dB).
+# Budget: the from-scratch run in the v5b lineage is gru_v2b (150 epochs, lr 1e-3, no early stop, val every 2;
+# v2b -> v3b -> v4b -> v5b = 330 epochs in total). Here 300 epochs, lr 1e-3, early stop only after
+# 75 val points (150 epochs) without gain. Checkpoints: best.pt (val PESQ), last.pt (every epoch).
+# Inference: method/params; training: model/train.
+method: gru_mask
+params:
+  weights: weights/gru_v7a.pt  # copy <ckpt-dir>/best.pt here after training (< 50 MB)
+  device: cpu
+
+model:
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+  mask_type: crm        # imaginary head: zero-init output layer, trained from step 0 together with everything else
+  mask_imag_scale: 1.0
+
+train:
+  seed: 0                         # as gru_v5b (and gru_v2b)
+  epochs: 300
+  batch_size: 16
+  lr: 1.0e-3                      # from-scratch lr of gru_v2b (v5b's 2e-4 was a fine-tune lr)
+  grad_clip: 5.0
+  compress: 0.3                   # power-law c
+  loss: cmag+mrstft+sisdr
+  lambda_cmag: 0.7                # (1 - alpha) * compressed magnitude MSE
+  lambda_ccplx: 0.3               # alpha * compressed complex MSE
+  lambda_mrstft: 0.5
+  lambda_sisdr: 0.3
+  val_every: 2
+  val_batch: 16
+  plateau_factor: 0.5
+  plateau_patience: 3
+  min_lr: 1.0e-5
+  patience_val_points: 75         # 150 epochs without val PESQ gain (>= gru_v2b's full 150-epoch run)
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_mode: mixture              # p_wide: U(-30,+6) dB, else U(-6,+3) dB, all samples
+    p_wide: 0.5
+    gain_wide_db: [-30, 6]
+    gain_narrow_db: [-6, 3]
+    peak: 0.99

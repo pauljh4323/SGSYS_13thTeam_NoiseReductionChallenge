@@ -16,6 +16,8 @@ architecture (new heads zero-init, see nrc.models.gru_mask.load_partial). noise_
 computed from the train noisy set at warm start, and the per-sample features (nrc.features) of every remixed batch
 are computed by --loader-workers CPU processes, prefetched within the epoch (the batch RNG stream is unchanged).
 train.lambda_ccplx > 0 adds a compressed-complex spectral MSE (default 0 = off).
+train.lambda_cmag (default 1.0) weights the compressed-magnitude term; lambda_cmag 0.7 + lambda_ccplx 0.3 is the
+Braun & Tashev (2021) compressed spectral loss with alpha = 0.3 (exp/r2-v7, gru_v7a).
 """
 from __future__ import annotations
 
@@ -99,6 +101,41 @@ def _epoch_batches(data, rng, bs, n_steps, pool, n_fft, hop, depth):
         yield c, n, (fut.result() if fut is not None else None)
 
 
+def loss_weights(tcfg: dict) -> dict:
+    """Loss name and weights from a config's train section (defaults reproduce gru_v1..v5b)."""
+    return {"name": tcfg.get("loss", "cmag"), "c": float(tcfg.get("compress", 0.3)),
+            "cmag": float(tcfg.get("lambda_cmag", 1.0)), "ccplx": float(tcfg.get("lambda_ccplx", 0.0)),
+            "mrstft": float(tcfg.get("lambda_mrstft", tcfg.get("mrstft_lambda", 0.5))),
+            "sisdr": float(tcfg.get("lambda_sisdr", 0.0))}
+
+
+def batch_loss(model, clean_t, noisy_t, aux_t, lw: dict):
+    """Training loss of one (B, N) batch (same ops as the inline loss up to exp/r2-v6)."""
+    import torch
+    from nrc.losses import cmag_loss, compressed_spectral_loss, mrstft_loss, sisdr_loss
+    c, crm = lw["c"], model.mask_type == "crm"
+    with torch.no_grad():
+        clean_spec = model.stft(clean_t)
+        target = clean_spec.abs()
+    if lw["name"] == "cmag" and not crm and lw["ccplx"] == 0 and lw["cmag"] == 1.0:
+        mag = model.stft(noisy_t).abs()
+        return cmag_loss(model.mask(mag, aux_t) * mag, target, c)
+    spec = model.stft(noisy_t)
+    if crm:
+        est_spec = model.apply_mask(spec, aux_t)
+        est_mag = est_spec.abs()
+    else:  # magnitude mask: same ops as gru_v5b training
+        m = model.mask(spec.abs(), aux_t)
+        est_spec, est_mag = m * spec, m * spec.abs()
+    loss = compressed_spectral_loss(est_spec, clean_spec, c, lw["cmag"], lw["ccplx"], est_mag=est_mag)
+    if lw["name"] != "cmag":
+        est_wave = model.istft(est_spec, length=noisy_t.shape[-1])
+        loss = loss + lw["mrstft"] * mrstft_loss(est_wave, clean_t)
+        if lw["name"] == "cmag+mrstft+sisdr":
+            loss = loss + lw["sisdr"] * sisdr_loss(est_wave, clean_t)
+    return loss
+
+
 def _enhance_batch(model, noisy: np.ndarray, device, batch: int) -> np.ndarray:
     import torch
     out = []
@@ -143,7 +180,7 @@ def main(argv=None) -> int:
 
     import torch
     from nrc.data.remix import RemixData
-    from nrc.losses import LOSSES, ccplx_loss, cmag_loss, mrstft_loss, sisdr_loss
+    from nrc.losses import LOSSES
     from nrc.models.gru_mask import GRUMask, count_params, load_partial, save_weights
 
     cfg = load_config(args.config)
@@ -220,10 +257,6 @@ def main(argv=None) -> int:
         return 0
 
     loss_name = tcfg.get("loss", "cmag")
-    lam = float(tcfg.get("lambda_mrstft", tcfg.get("mrstft_lambda", 0.5)))
-    lam_sisdr = float(tcfg.get("lambda_sisdr", 0.0))
-    lam_ccplx = float(tcfg.get("lambda_ccplx", 0.0))
-    crm = model.mask_type == "crm"
     if loss_name not in LOSSES:
         raise ValueError(f"train.loss must be one of {LOSSES}, got {loss_name!r}")
     patience = tcfg.get("patience_val_points")
@@ -231,8 +264,9 @@ def main(argv=None) -> int:
 
     epochs, bs = int(tcfg["epochs"]), int(tcfg.get("batch_size", 16))
     steps_per_epoch = math.ceil(len(data) / bs)
-    val_every, c = int(tcfg.get("val_every", 1)), float(tcfg.get("compress", 0.3))
+    val_every = int(tcfg.get("val_every", 1))
     clip = float(tcfg.get("grad_clip", 5.0))
+    lw = loss_weights(tcfg)
     new_log = not log_path.is_file()
     model.train()
     loader = (ProcessPoolExecutor(max_workers=max(1, args.loader_workers)) if model.noise_aware else None)
@@ -255,28 +289,7 @@ def main(argv=None) -> int:
                 clean_b, noisy_b, aux_b = nxt
                 clean_t, noisy_t = torch.from_numpy(clean_b).to(device), torch.from_numpy(noisy_b).to(device)
                 aux_t = torch.from_numpy(aux_b).to(device) if aux_b is not None else None
-                with torch.no_grad():
-                    clean_spec = model.stft(clean_t)
-                    target = clean_spec.abs()
-                if loss_name == "cmag" and not crm and lam_ccplx == 0:
-                    mag = model.stft(noisy_t).abs()
-                    loss = cmag_loss(model.mask(mag, aux_t) * mag, target, c)
-                else:
-                    spec = model.stft(noisy_t)
-                    if crm:
-                        est_spec = model.apply_mask(spec, aux_t)
-                        est_mag = est_spec.abs()
-                    else:  # magnitude mask: same ops as gru_v5b training
-                        m = model.mask(spec.abs(), aux_t)
-                        est_spec, est_mag = m * spec, m * spec.abs()
-                    loss = cmag_loss(est_mag, target, c)
-                    if lam_ccplx > 0:
-                        loss = loss + lam_ccplx * ccplx_loss(est_spec, clean_spec, c)
-                    if loss_name != "cmag":
-                        est_wave = model.istft(est_spec, length=noisy_t.shape[-1])
-                        loss = loss + lam * mrstft_loss(est_wave, clean_t)
-                        if loss_name == "cmag+mrstft+sisdr":
-                            loss = loss + lam_sisdr * sisdr_loss(est_wave, clean_t)
+                loss = batch_loss(model, clean_t, noisy_t, aux_t, lw)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)

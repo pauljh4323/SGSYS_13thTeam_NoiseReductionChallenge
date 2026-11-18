@@ -6,6 +6,9 @@ mrstft: multi-resolution STFT loss on time-domain waves; per resolution (FFT 256
         plus mean |log|S| - log|S_hat||, averaged over resolutions.
 sisdr:  negative scale-invariant SDR (dB) on zero-mean time-domain waves, mean over batch;
         eps-stabilized so an all-zeros clean or estimate stays finite (additive term, gru_v4b).
+compressed spectral (Braun & Tashev 2021): w_mag * cmag + w_cplx * ccplx with power-law c; the paper's
+        alpha-blend (alpha complex + (1 - alpha) magnitude, c = alpha = 0.3) is w_cplx = alpha, w_mag = 1 - alpha
+        (train.lambda_ccplx / train.lambda_cmag, gru_v7a). w_mag = 1, w_cplx = 0 is the gru_v1..v5b cmag term.
 """
 from __future__ import annotations
 
@@ -26,6 +29,17 @@ def ccplx_loss(est_spec: torch.Tensor, tgt_spec: torch.Tensor, c: float = 0.3, e
         mag = z.abs().clamp_min(eps)
         return z * (mag ** (c - 1.0))
     return (comp(est_spec) - comp(tgt_spec)).abs().pow(2).mean()
+
+
+def compressed_spectral_loss(est_spec: torch.Tensor, tgt_spec: torch.Tensor, c: float = 0.3,
+                             w_mag: float = 1.0, w_cplx: float = 0.0,
+                             est_mag: torch.Tensor | None = None) -> torch.Tensor:
+    """w_mag * cmag(|est|, |tgt|) + w_cplx * ccplx(est, tgt). est_mag overrides |est_spec| (magnitude-mask
+    training uses m * |X|, exactly as gru_v5b); the complex term is skipped when w_cplx == 0."""
+    loss = w_mag * cmag_loss(est_spec.abs() if est_mag is None else est_mag, tgt_spec.abs(), c)
+    if w_cplx > 0:
+        loss = loss + w_cplx * ccplx_loss(est_spec, tgt_spec, c)
+    return loss
 
 
 def _mag(wave: torch.Tensor, n_fft: int, hop: int) -> torch.Tensor:
