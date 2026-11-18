@@ -45,6 +45,17 @@ def _eval_module():
     return mod
 
 
+_EVAL = None
+
+
+def _score_task(task):
+    """scripts/eval.py evaluate_row, loaded once per worker process (picklable top-level wrapper)."""
+    global _EVAL
+    if _EVAL is None:
+        _EVAL = _eval_module()
+    return _EVAL.evaluate_row(task)
+
+
 def wav_name(row) -> str:
     return Path(row["noisy_path"]).name
 
@@ -86,7 +97,6 @@ def _blend_write(task):
 
 
 def stage_blend(data_root, jobs):
-    ev = _eval_module()
     cfg = load_config(CFG["gru"])  # only used for its name inside evaluate_row (source "pred")
     for split in SPLITS:
         man = load_manifest(data_root, split)
@@ -104,7 +114,7 @@ def stage_blend(data_root, jobs):
             tasks = [(root, r.to_dict(), cfg, split, "pred", d / wav_name(r), 0.0, 0.0)
                      for _, r in man.iterrows()]
             with ProcessPoolExecutor(max_workers=jobs) as pool:
-                rows = list(pool.map(ev.evaluate_row, tasks, chunksize=4))
+                rows = list(pool.map(_score_task, tasks, chunksize=4))
             df = pd.DataFrame(rows)
             df.to_csv(csv, index=False)
             print(f"blend {split} w={w:g}: PESQ {df.pesq.mean():.4f} SNR {df.snr_db.mean():.3f} "
