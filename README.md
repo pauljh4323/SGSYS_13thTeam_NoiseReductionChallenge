@@ -11,6 +11,17 @@ Validation `결과: PESQ 1.9884`
 - 제출 버전의 validation 결과 (공식 validation 164개 파일, PESQ-WB `pesq==0.0.4` 16 kHz): PESQ 1.9884, SNR 12.84 dB
 - 전체 validation 결과 (목표 SNR별, 난이도별): [docs/validation_results.md](docs/validation_results.md)
 
+## 현재 main 버전 (태그 `dsp-v8`, 1차 마감 이후 개선, 미제출)
+
+- 방법: MMSE-LSA (Ephraim & Malah) + TSNR/HRNR 2단계 a priori SNR + 100 Hz 고역 통과 필터 (`dsp-v7`)에,
+  a priori SNR의 1단계 추정을 non-local means (NLM)로 보강했습니다. ML 항 max(gamma - 1, 0)을 로그 영역에서
+  3x3 패치, 탐색 범위 ±128 프레임 × ±2 bin, h 16으로 가중 평균하고, 로그 평균의 편향 (약 -2.5 dB)을
+  Euler–Mascheroni 상수 (0.5772)로 보정한 뒤 decision-directed 추정과 50:50으로 섞습니다 (`configs/dsp_p.yaml`).
+  전통적 신호 처리만 사용하며 학습된 모델은 없습니다.
+- validation 결과 (`main.py` 출력, 164개 파일): PESQ 2.0214, SNR 12.81 dB (`dsp-v7`: PESQ 1.9884, SNR 12.84 dB)
+- 전체 train (1296개 파일) paired ΔPESQ +0.0412 ± 0.0028 (`dsp-v7` 대비), 실험 기록: [docs/exp_dsp_p.md](docs/exp_dsp_p.md)
+- NLM 탐색 때문에 처리 시간이 늘었습니다 (3초 파일당 약 2–3초, CPU).
+
 ## 제출 내역
 
 | 라운드 | 제출일 | 태그 | validation PESQ | 리더보드 PESQ |
