@@ -1,0 +1,32 @@
+# dsp-p p2a edge extension 3: nlm_search_t 16 -> 32 (pipeline, paired vs current adopted).
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.1
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  xi_nlm: true
+  nlm_patch_f: 3
+  nlm_mix: 0.5
+  nlm_domain: log_bc
+  nlm_patch_t: 3
+  nlm_search_t: 16
+  nlm_search_f: 2
+  nlm_h: 16.0
+grid:
+  nlm_search_t:
+  - 32
+stage_reference: logs/dsp_p_ref_p2a_x3.yaml
