@@ -1,0 +1,6 @@
+# gru_v6b weights (Colab-trained, configs/dl/gru_v6b.yaml), inference with level norm off.
+method: gru_mask
+params:
+  weights: weights/gru_v6b.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false

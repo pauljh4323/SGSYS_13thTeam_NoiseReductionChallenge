@@ -11,6 +11,11 @@ the ISTFT output; legacy key mrstft_lambda) or "cmag+mrstft+sisdr" (+ lambda_sis
 SI-SDR on the ISTFT output). train.patience_val_points: early stop after N val points without improvement
 (log column early_stop = 1; a resumed early-stopped run exits at once). --max-steps 0 only
 validates the initial model (warm-start sanity) and exits without writing checkpoints.
+Round 2 (exp/r2-v6): model.mask_type "crm" / model.noise_aware warm-start from a "mag" checkpoint of the same base
+architecture (new heads zero-init, see nrc.models.gru_mask.load_partial). noise_aware: aux normalisation stats are
+computed from the train noisy set at warm start, and the per-sample features (nrc.features) of every remixed batch
+are computed by --loader-workers CPU processes, prefetched within the epoch (the batch RNG stream is unchanged).
+train.lambda_ccplx > 0 adds a compressed-complex spectral MSE (default 0 = off).
 """
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ import csv
 import math
 import os
 import time
+from collections import deque
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -54,6 +60,43 @@ def _norm_stats(model, noisy: np.ndarray, device, chunk: int = 64):
             count += f.shape[0] * f.shape[2]
     mean = s1 / count
     return mean, (s2 / count - mean ** 2).clamp_min(0).sqrt()
+
+
+def _aux_stats(noisy: np.ndarray, n_fft: int, hop: int, workers: int, chunk: int = 32):
+    """Per-feature mean/std of the raw noise-aware features over all frames of the train noisy set."""
+    from nrc.features import batch_features
+    s1 = s2 = None
+    count = 0
+    with ProcessPoolExecutor(max_workers=max(1, workers)) as pool:
+        futs = [pool.submit(batch_features, noisy[i:i + chunk], n_fft, hop) for i in range(0, len(noisy), chunk)]
+        for f in futs:
+            a = f.result().astype(np.float64)
+            x1, x2 = a.sum(axis=(0, 1)), (a ** 2).sum(axis=(0, 1))
+            s1, s2 = (x1, x2) if s1 is None else (s1 + x1, s2 + x2)
+            count += a.shape[0] * a.shape[1]
+    mean = s1 / count
+    return mean, np.sqrt(np.maximum(s2 / count - mean ** 2, 0.0))
+
+
+def _epoch_batches(data, rng, bs, n_steps, pool, n_fft, hop, depth):
+    """Yield (clean, noisy, aux | None) for one epoch. Batches are drawn from rng in order (same stream as without
+    prefetch: exactly n_steps draws per epoch); aux features are computed ahead by the worker pool."""
+    from nrc.features import batch_features
+    pending, drawn = deque(), 0
+
+    def draw():
+        c, n = data.batch(rng, bs)
+        pending.append((c, n, pool.submit(batch_features, n, n_fft, hop) if pool is not None else None))
+
+    while drawn < min(depth, n_steps):
+        draw()
+        drawn += 1
+    for _ in range(n_steps):
+        c, n, fut = pending.popleft()
+        if drawn < n_steps:
+            draw()
+            drawn += 1
+        yield c, n, (fut.result() if fut is not None else None)
 
 
 def _enhance_batch(model, noisy: np.ndarray, device, batch: int) -> np.ndarray:
@@ -93,12 +136,15 @@ def main(argv=None) -> int:
     parser.add_argument("--val-subset", type=int, default=None, help="stratified val subset (seed 0)")
     parser.add_argument("--val-jobs", type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument("--threads", type=int, default=None, help="torch CPU threads")
+    parser.add_argument("--loader-workers", type=int, default=os.cpu_count() or 1,
+                        help="CPU processes for noise-aware features (noise_aware models only)")
+    parser.add_argument("--prefetch", type=int, default=None, help="batches in flight (default 2 x workers)")
     args = parser.parse_args(argv)
 
     import torch
     from nrc.data.remix import RemixData
-    from nrc.losses import LOSSES, cmag_loss, mrstft_loss, sisdr_loss
-    from nrc.models.gru_mask import GRUMask, count_params, save_weights
+    from nrc.losses import LOSSES, ccplx_loss, cmag_loss, mrstft_loss, sisdr_loss
+    from nrc.models.gru_mask import GRUMask, count_params, load_partial, save_weights
 
     cfg = load_config(args.config)
     mcfg, tcfg = cfg.get("model", {}), cfg["train"]
@@ -149,12 +195,23 @@ def main(argv=None) -> int:
     elif init_from:
         init_path = Path(init_from) if Path(init_from).is_absolute() else REPO_ROOT / init_from
         ck = torch.load(init_path, map_location=device, weights_only=True)
-        if ck.get("model_cfg") != model.config:
-            raise ValueError(f"--init-from model_cfg {ck.get('model_cfg')} != config model {model.config}")
-        model.load_state_dict(ck["model_state"])  # strict; includes feat_mean/feat_std buffers
-        print(f"init from {init_path} (epoch {ck.get('epoch')}, pesq {ck.get('pesq')}); fresh optimizer")
+        if ck.get("model_cfg") == model.config:
+            model.load_state_dict(ck["model_state"])  # strict; includes feat_mean/feat_std buffers
+            left = []
+        else:  # round-2 heads (crm / noise_aware) on the same base architecture; raises otherwise
+            left = load_partial(model, ck)
+        print(f"init from {init_path} (epoch {ck.get('epoch')}, pesq {ck.get('pesq')}); fresh optimizer"
+              + (f"; left at zero/identity init: {left}" if left else ""))
+        if model.noise_aware:
+            ta = time.perf_counter()
+            mean, std = _aux_stats(data.noisy, model.n_fft, model.hop, args.loader_workers)
+            model.set_aux_stats(torch.from_numpy(mean).float().to(device), torch.from_numpy(std).float().to(device))
+            print(f"aux stats from {len(data.noisy)} train noisy files ({time.perf_counter() - ta:.1f}s)")
     else:
         model.set_norm_stats(*_norm_stats(model, data.noisy, device))
+        if model.noise_aware:
+            mean, std = _aux_stats(data.noisy, model.n_fft, model.hop, args.loader_workers)
+            model.set_aux_stats(torch.from_numpy(mean).float().to(device), torch.from_numpy(std).float().to(device))
     print(f"model: {count_params(model):,} params")
     if args.max_steps == 0:
         with ProcessPoolExecutor(max_workers=max(1, args.val_jobs)) as pool:
@@ -165,6 +222,8 @@ def main(argv=None) -> int:
     loss_name = tcfg.get("loss", "cmag")
     lam = float(tcfg.get("lambda_mrstft", tcfg.get("mrstft_lambda", 0.5)))
     lam_sisdr = float(tcfg.get("lambda_sisdr", 0.0))
+    lam_ccplx = float(tcfg.get("lambda_ccplx", 0.0))
+    crm = model.mask_type == "crm"
     if loss_name not in LOSSES:
         raise ValueError(f"train.loss must be one of {LOSSES}, got {loss_name!r}")
     patience = tcfg.get("patience_val_points")
@@ -176,6 +235,9 @@ def main(argv=None) -> int:
     clip = float(tcfg.get("grad_clip", 5.0))
     new_log = not log_path.is_file()
     model.train()
+    loader = (ProcessPoolExecutor(max_workers=max(1, args.loader_workers)) if model.noise_aware else None)
+    depth = args.prefetch or 2 * max(1, args.loader_workers)
+    t_wait = []
     with ProcessPoolExecutor(max_workers=max(1, args.val_jobs)) as pool, \
             open(log_path, "a", newline="", encoding="utf-8") as logf:
         log = csv.DictWriter(logf, fieldnames=LOG_FIELDS)
@@ -183,22 +245,38 @@ def main(argv=None) -> int:
             log.writeheader()
         for epoch in range(start_epoch, epochs):
             te, losses, stop, early = time.perf_counter(), [], False, False
-            for _ in range(steps_per_epoch):
-                clean_b, noisy_b = data.batch(rng, bs)
+            batches = _epoch_batches(data, rng, bs, steps_per_epoch, loader, model.n_fft, model.hop, depth)
+            while True:
+                tw = time.perf_counter()
+                nxt = next(batches, None)
+                t_wait.append(time.perf_counter() - tw)
+                if nxt is None:
+                    break
+                clean_b, noisy_b, aux_b = nxt
                 clean_t, noisy_t = torch.from_numpy(clean_b).to(device), torch.from_numpy(noisy_b).to(device)
+                aux_t = torch.from_numpy(aux_b).to(device) if aux_b is not None else None
                 with torch.no_grad():
-                    target = model.stft(clean_t).abs()
-                if loss_name == "cmag":
+                    clean_spec = model.stft(clean_t)
+                    target = clean_spec.abs()
+                if loss_name == "cmag" and not crm and lam_ccplx == 0:
                     mag = model.stft(noisy_t).abs()
-                    loss = cmag_loss(model.mask(mag) * mag, target, c)
+                    loss = cmag_loss(model.mask(mag, aux_t) * mag, target, c)
                 else:
                     spec = model.stft(noisy_t)
-                    mag = spec.abs()
-                    m = model.mask(mag)
-                    est_wave = model.istft(m * spec, length=noisy_t.shape[-1])
-                    loss = cmag_loss(m * mag, target, c) + lam * mrstft_loss(est_wave, clean_t)
-                    if loss_name == "cmag+mrstft+sisdr":
-                        loss = loss + lam_sisdr * sisdr_loss(est_wave, clean_t)
+                    if crm:
+                        est_spec = model.apply_mask(spec, aux_t)
+                        est_mag = est_spec.abs()
+                    else:  # magnitude mask: same ops as gru_v5b training
+                        m = model.mask(spec.abs(), aux_t)
+                        est_spec, est_mag = m * spec, m * spec.abs()
+                    loss = cmag_loss(est_mag, target, c)
+                    if lam_ccplx > 0:
+                        loss = loss + lam_ccplx * ccplx_loss(est_spec, clean_spec, c)
+                    if loss_name != "cmag":
+                        est_wave = model.istft(est_spec, length=noisy_t.shape[-1])
+                        loss = loss + lam * mrstft_loss(est_wave, clean_t)
+                        if loss_name == "cmag+mrstft+sisdr":
+                            loss = loss + lam_sisdr * sisdr_loss(est_wave, clean_t)
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
@@ -240,11 +318,16 @@ def main(argv=None) -> int:
             logf.flush()
             print(f"epoch {epoch + 1}/{epochs} step {step} loss {np.mean(losses):.5f} "
                   f"val_pesq {pesq_v:.4f} best {best:.4f} (ep {best_epoch}) lr {lr:.1e} "
-                  f"[{epoch_s:.1f}s + val {val_s:.1f}s, {epoch_s / max(1, len(losses)):.3f}s/step]", flush=True)
+                  f"[{epoch_s:.1f}s + val {val_s:.1f}s, {epoch_s / max(1, len(losses)):.3f}s/step"
+                  + (f", loader wait {np.mean(t_wait[1:] or t_wait):.3f}s/batch" if loader is not None else "")
+                  + "]", flush=True)
+            t_wait = []
             if early:
                 print(f"early stop: no val PESQ gain for {since_best} val points", flush=True)
             if stop or early:
                 break
+    if loader is not None:
+        loader.shutdown(cancel_futures=True)
     print(f"done: best val PESQ {best:.4f} at epoch {best_epoch}; weights {best_path}")
     return 0
 

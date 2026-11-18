@@ -20,6 +20,14 @@ def cmag_loss(est_mag: torch.Tensor, tgt_mag: torch.Tensor, c: float = 0.3) -> t
     return torch.mean((est_mag.clamp_min(1e-8) ** c - tgt_mag.clamp_min(1e-8) ** c) ** 2)
 
 
+def ccplx_loss(est_spec: torch.Tensor, tgt_spec: torch.Tensor, c: float = 0.3, eps: float = 1e-8) -> torch.Tensor:
+    """Compressed complex spectral MSE: |X|^c e^{j angle X} for estimate and target (off unless lambda_ccplx > 0)."""
+    def comp(z):
+        mag = z.abs().clamp_min(eps)
+        return z * (mag ** (c - 1.0))
+    return (comp(est_spec) - comp(tgt_spec)).abs().pow(2).mean()
+
+
 def _mag(wave: torch.Tensor, n_fft: int, hop: int) -> torch.Tensor:
     win = torch.hann_window(n_fft, periodic=True, device=wave.device, dtype=wave.dtype)
     spec = torch.stft(wave, n_fft, hop, window=win, center=True, pad_mode="reflect",
