@@ -1,0 +1,33 @@
+# dsp-p finalist (scripts/run_pipeline_dsp_p.py; staged paired sweeps on the FULL train set, 1296 files,
+# keep rule d >= 0.002 and >= 2*SE). = dsp-v7 (dsp_k) plus:
+#   P2a: {"xi_nlm": true, "nlm_patch_f": 3, "nlm_mix": 0.5, "nlm_domain": "log_bc", "nlm_patch_t": 3, "nlm_search_t": 128, "nlm_search_f": 2, "nlm_h": 16.0} (d vs dsp_k +0.0412)
+#   P2b: nlm_mix 0.5
+#   P3: gain_smooth not adopted
+# Logs: logs/pipeline_dsp_p.status, logs/sweep_dsp_p_*_paired.txt, docs/exp_dsp_p.md.
+method: mmse_lsa
+params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.1
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  xi_nlm: true
+  nlm_patch_f: 3
+  nlm_mix: 0.5
+  nlm_domain: log_bc
+  nlm_patch_t: 3
+  nlm_search_t: 128
+  nlm_search_f: 2
+  nlm_h: 16.0

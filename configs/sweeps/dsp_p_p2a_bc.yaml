@@ -1,0 +1,32 @@
+# dsp-p Stage P2a-bc: P2a NLM grid continued in nlm_domain log_bc (P2m mechanism check: log_bc h 8 the only point
+# with d >= -0.002 region, edge winner). nlm_h {0.5, 1, 2} replaced by {4, 8, 16} (h 2 lost 0.054 in P2m; 16 = the edge
+# extension). Full train (1296), paired vs dsp_k; points identical to P2m points copied from logs/sweep_dsp_p_p2m*.csv.
+method: mmse_lsa
+base_params:
+  n_fft: 1024
+  hop: 256
+  window: hann
+  noise_est: spp_mean
+  noise_fraction: 0.10
+  spp_iters: 3
+  spp_xi_h1_db: 10
+  noise_bias: 1.25
+  alpha: 0.94
+  xi_min_db: -25
+  gmin_db: -30
+  xi_mode: hrnr
+  hrnr_rho: 0.3
+  xi_cepstral_smoothing: false
+  highpass_hz: 100
+  noise_bias_low: 1.25
+  noise_bias_high: 1.5
+  xi_nlm: true
+  nlm_patch_f: 3
+  nlm_mix: 0.5
+  nlm_domain: log_bc
+grid:
+  nlm_patch_t: [3, 5]
+  nlm_search_t: [4, 8]
+  nlm_search_f: [2, 4]
+  nlm_h: [4.0, 8.0, 16.0]
+stage_reference: configs/dsp_k.yaml

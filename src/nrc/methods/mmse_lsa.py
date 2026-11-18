@@ -53,12 +53,34 @@ Optional extensions (defaults reproduce the plain DD/LSA path bit-identically):
                          smoothing of |Y|^2 over time (tv_alpha), M = centred minimum of P over
                          +-tv_window_frames frames, lambda(k,l) = max(lambda_stat(k), tv_bias M(k,l)),
                          then the noise bias. Needs a stationary estimator (not "mcra"). Off by default.
+  dd_direction           decision-directed recursion direction (two-step path): "forward" (default),
+                         "backward" (last frame to first, using the next frame's final estimate), "avg" /
+                         "geo" (arithmetic / geometric mean of the forward and backward first-step xi; G1,
+                         TSNR and HRNR are then recomputed from the combined xi). Bidirectional DD is our own
+                         non-causal variant of Ephraim & Malah 1984 (offline, file-by-file).
+  xi_nlm, nlm_patch_t, nlm_patch_f, nlm_search_t, nlm_search_f, nlm_h, nlm_mix
+                         non-local-means (Buades, Coll, Morel 2005) estimate of the ML term max(gamma-1, 0)
+                         in the log domain (floored at xi_min before the log): patches of nlm_patch_t frames x
+                         nlm_patch_f bins, search window +-nlm_search_t frames x +-nlm_search_f bins
+                         (symmetric padding), weights exp(-||patch diff||^2 / (nlm_h^2 * patch size)), self
+                         included. Mixed into the first-step DD xi as nlm_mix * xi_nlm + (1-nlm_mix) * xi_dd
+                         before the xi_min floor (inside the recursion). Off by default.
+  nlm_domain             averaging domain of the NLM weighted mean (weights always from log-domain patch
+                         distances): "log" (default) exp of the weighted mean of the logs; "log_bc" the same
+                         times exp(Euler gamma) (E[ln X] = ln E[X] - 0.5772 for an exponentially distributed
+                         periodogram, i.e. the log mean under-estimates by ~2.5 dB); "lin" weighted mean of
+                         the linear ML values max(gamma - 1, 0).
+  gain_smooth, gs_thr_db, gs_bins, gs_frames
+                         low-SNR gain smoothing (after Esch & Vary 2009): frame SNR = 10 log10 of the mean
+                         final xi over 300-4000 Hz; in frames below gs_thr_db G is replaced by its 2D moving
+                         average over +-gs_bins x +-gs_frames (edges: nearest), clipped to [gmin, 1]; other
+                         frames untouched. Applied before the pause expander. Off by default.
 """
 from __future__ import annotations
 
 import numpy as np
 from scipy import signal
-from scipy.ndimage import median_filter, minimum_filter1d, uniform_filter1d
+from scipy.ndimage import median_filter, minimum_filter1d, uniform_filter, uniform_filter1d
 from scipy.special import exp1, gammaln, hyp1f1
 
 from ..io import as_waveform
@@ -76,6 +98,8 @@ GAIN_MODES = ("lsa", "beta")
 _BETA_V_MAX = 200.0  # above: Wiener limit xi/(1+xi) (first asymptotic correction beta^2/(4v) < 1e-3)
 _PAUSE_BAND_HZ = (300.0, 4000.0)
 _SPLIT_HZ, _FADE_HZ = 1000.0, 200.0
+DD_DIRECTIONS = ("forward", "backward", "avg", "geo")
+NLM_DOMAINS = ("log", "log_bc", "lin")
 
 
 def banded_initial_noise(z, times, length, sr, n_fft, noise_fraction, n_bands):
@@ -297,6 +321,54 @@ def cepstral_xi(gamma, noise, xi_min, sr=16000, alpha_env=0.5, alpha_high=0.97,
     return np.maximum(psd / noise, xi_min)
 
 
+def nlm_ml_xi(gamma, xi_min, patch_t=3, patch_f=3, search_t=4, search_f=2, h=1.0, domain="log"):
+    """Non-local-means estimate (bins, frames) of the ML a priori SNR max(gamma - 1, 0), log domain.
+
+    L = log(max(gamma - 1, xi_min)); for every offset (dt, df) in the search window the mean squared patch
+    difference D is a box filter of (L - L_shifted)^2 over patch_f x patch_t; weight exp(-D / h^2)
+    (= exp(-||diff||^2 / (h^2 * patch size))); result exp(sum w L_shifted / sum w) for domain "log",
+    that times exp(Euler gamma) for "log_bc", sum w X_shifted / sum w with X = max(gamma - 1, 0) for "lin".
+    """
+    log_x = np.log(np.maximum(gamma - 1.0, xi_min))
+    st, sf = int(search_t), int(search_f)
+    padded = np.pad(log_x, ((sf, sf), (st, st)), mode="symmetric")
+    lin_pad = (np.pad(np.maximum(gamma - 1.0, 0.0), ((sf, sf), (st, st)), mode="symmetric")
+               if domain == "lin" else None)
+    n_f, n_t = log_x.shape
+    acc = np.zeros_like(log_x)
+    wsum = np.zeros_like(log_x)
+    inv_h2 = 1.0 / (float(h) ** 2)
+    for df in range(-sf, sf + 1):
+        for dt in range(-st, st + 1):
+            shifted = padded[sf + df:sf + df + n_f, st + dt:st + dt + n_t]
+            d = uniform_filter((log_x - shifted) ** 2, size=(int(patch_f), int(patch_t)),
+                               mode="nearest")
+            w = np.exp(-d * inv_h2)
+            if lin_pad is None:
+                acc += w * shifted
+            else:
+                acc += w * lin_pad[sf + df:sf + df + n_f, st + dt:st + dt + n_t]
+            wsum += w
+    if domain == "lin":
+        return acc / wsum
+    if domain == "log_bc":
+        return np.exp(acc / wsum + _EULER)
+    return np.exp(acc / wsum)
+
+
+def smooth_low_snr_gain(g, xi, sr, n_fft, gmin, thr_db=0.0, n_bins=1, n_frames=1):
+    """2D moving average of G (bins, frames) in frames whose mean xi over 300-4000 Hz < thr_db."""
+    freqs = np.arange(g.shape[0]) * sr / n_fft
+    band = (freqs >= _PAUSE_BAND_HZ[0]) & (freqs <= _PAUSE_BAND_HZ[1])
+    snr_db = 10.0 * np.log10(np.maximum(xi[band].mean(axis=0), _EPS))
+    low = snr_db < thr_db
+    if not np.any(low):
+        return g
+    gs = np.clip(uniform_filter(g, size=(2 * int(n_bins) + 1, 2 * int(n_frames) + 1),
+                                mode="nearest"), gmin, 1.0)
+    return np.where(low[None, :], gs, g)
+
+
 def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alpha_p, alpha_s,
              mcra_window, delta, q=0.2, bias=1.0, smooth_frames=0, noise_bias=1.0,
              xi_mode="dd", hrnr_rho=0.5, highpass_hz=0.0, sr=16000, noise_select_bands=1,
@@ -304,8 +376,25 @@ def validate(n_fft, hop, window, noise_est, noise_fraction, alpha, alpha_d, alph
              hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
              pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
              spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-             tv_bias=1.0):
+             tv_bias=1.0, dd_direction="forward", xi_nlm=False, nlm_patch_t=3, nlm_patch_f=3,
+             nlm_search_t=4, nlm_search_f=2, nlm_h=1.0, nlm_mix=0.5, gain_smooth=False,
+             gs_thr_db=0.0, gs_bins=1, gs_frames=1, xi_cepstral_smoothing=False, nlm_domain="log"):
     check_nola(n_fft, hop, window)
+    if nlm_domain not in NLM_DOMAINS:
+        raise ValueError(f"nlm_domain must be one of {NLM_DOMAINS}.")
+    if dd_direction not in DD_DIRECTIONS:
+        raise ValueError(f"dd_direction must be one of {DD_DIRECTIONS}.")
+    if xi_cepstral_smoothing and (dd_direction != "forward" or xi_nlm):
+        raise ValueError("dd_direction / xi_nlm need the DD first step (xi_cepstral_smoothing off).")
+    for name, v, lo in (("nlm_patch_t", nlm_patch_t, 1), ("nlm_patch_f", nlm_patch_f, 1),
+                        ("nlm_search_t", nlm_search_t, 0), ("nlm_search_f", nlm_search_f, 0),
+                        ("gs_bins", gs_bins, 0), ("gs_frames", gs_frames, 0)):
+        if int(v) != v or v < lo:
+            raise ValueError(f"{name} must be an integer >= {lo}.")
+    if not nlm_h > 0 or not 0 <= nlm_mix <= 1:
+        raise ValueError("nlm_h must be > 0 and nlm_mix in [0, 1].")
+    if not np.isfinite(gs_thr_db):
+        raise ValueError("gs_thr_db must be finite.")
     if int(spp_iters) != spp_iters or spp_iters < 1:
         raise ValueError("spp_iters must be an integer >= 1.")
     if not np.isfinite(spp_xi_h1_db):
@@ -371,7 +460,9 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             hrnr_nonlinearity="halfwave", gain_mode="lsa", beta=0.0, pause_thr_db=3.0,
             pause_att_db=0.0, pause_release_frames=4, noise_bias_low=None, noise_bias_high=None,
             spp_iters=2, spp_xi_h1_db=15.0, tv_noise=False, tv_alpha=0.8, tv_window_frames=16,
-            tv_bias=1.0):
+            tv_bias=1.0, dd_direction="forward", xi_nlm=False, nlm_patch_t=3, nlm_patch_f=3,
+            nlm_search_t=4, nlm_search_f=2, nlm_h=1.0, nlm_mix=0.5, gain_smooth=False,
+            gs_thr_db=0.0, gs_bins=1, gs_frames=1, nlm_domain="log"):
     x = as_waveform(noisy)
     if sr != 16000:
         raise ValueError("This method uses 16000 Hz / wideband PESQ.")
@@ -384,7 +475,9 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
              highpass_hz, sr, noise_select_bands, noise_freq_smooth_bins, noise_freq_smooth_mode,
              hrnr_nonlinearity, gain_mode, beta, pause_thr_db, pause_att_db, pause_release_frames,
              noise_bias_low, noise_bias_high, spp_iters, spp_xi_h1_db, tv_noise, tv_alpha,
-             tv_window_frames, tv_bias)
+             tv_window_frames, tv_bias, dd_direction, xi_nlm, nlm_patch_t, nlm_patch_f,
+             nlm_search_t, nlm_search_f, nlm_h, nlm_mix, gain_smooth, gs_thr_db, gs_bins, gs_frames,
+             xi_cepstral_smoothing, nlm_domain)
     _, times, z = stft(x, sr, n_fft, hop, window)
     power = np.abs(z) ** 2
     if noise_est in STATIONARY_ESTS:
@@ -414,10 +507,15 @@ def enhance(noisy, sr=16000, n_fft=512, hop=128, window="hann", noise_est="initi
             return beta_gain(xi_, g_, float(beta))
     pause = (pause_attenuation(gamma, sr, n_fft, pause_thr_db, pause_att_db, pause_release_frames)
              if pause_att_db > 0 else None)
-    if xi_mode != "dd" or xi_cepstral_smoothing:
+    xi_nlm_arr = (nlm_ml_xi(gamma, xi_min, nlm_patch_t, nlm_patch_f, nlm_search_t, nlm_search_f,
+                            nlm_h, nlm_domain) if xi_nlm else None)
+    smooth = ((float(gs_thr_db), int(gs_bins), int(gs_frames)) if gain_smooth else None)
+    if (xi_mode != "dd" or xi_cepstral_smoothing or dd_direction != "forward" or xi_nlm
+            or gain_smooth):
         y = _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode,
                               bool(xi_cepstral_smoothing), hrnr_rho, len(x), sr, n_fft, hop, window,
-                              hrnr_nonlinearity, gain_fn, pause)
+                              hrnr_nonlinearity, gain_fn, pause, dd_direction, xi_nlm_arr,
+                              float(nlm_mix), smooth)
     else:
         y = _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, len(x), sr, n_fft, hop, window,
                         gain_fn, pause)
@@ -455,34 +553,72 @@ def _enhance_dd(z, gamma, noise, alpha, xi_min, gmin, length, sr, n_fft, hop, wi
     return istft(enhanced, length, sr, n_fft, hop, window)
 
 
-def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, rho, length, sr,
-                      n_fft, hop, window, nonlinearity="halfwave", gain_fn=lsa_gain, pause=None):
-    """First-step xi (DD or cepstral), then optional TSNR / HRNR second step."""
-    xi_cs = cepstral_xi(gamma, noise, xi_min, sr) if cepstral else None
-    g_final = np.empty(z.shape)
-    prev_amp2 = np.zeros(z.shape[0])
-    for t in range(z.shape[1]):
+def _dd_pass(gamma, noise, alpha, xi_min, gmin, xi_mode, gain_fn, xi_cs=None, reverse=False,
+             xi_nlm=None, nlm_mix=0.5):
+    """One DD (or cepstral) first-step pass + per-frame TSNR. Returns (xi1, xi_last, g) (bins, frames).
+
+    reverse runs the recursion from the last frame to the first (prev = the next frame's estimate).
+    The forward pass without NLM is the dsp-v7 loop operation for operation.
+    """
+    xi1_all = np.empty(gamma.shape)
+    xi_last = np.empty(gamma.shape)
+    g_all = np.empty(gamma.shape)
+    prev_amp2 = np.zeros(gamma.shape[0])
+    n = gamma.shape[1]
+    order = range(n - 1, -1, -1) if reverse else range(n)
+    for i, t in enumerate(order):
         gm = gamma[:, t]
-        if cepstral:
+        if xi_cs is not None:
             xi1 = xi_cs[:, t]
         else:
             inst = np.maximum(gm - 1.0, 0.0)
-            xi1 = (alpha + (1 - alpha) * inst if t == 0
+            xi1 = (alpha + (1 - alpha) * inst if i == 0
                    else alpha * prev_amp2 / noise[:, t] + (1 - alpha) * inst)
+            if xi_nlm is not None:
+                xi1 = nlm_mix * xi_nlm[:, t] + (1.0 - nlm_mix) * xi1
             xi1 = np.maximum(xi1, xi_min)
+        xi1_all[:, t] = xi1
         g = np.clip(gain_fn(xi1, gm), gmin, 1.0)
+        xl = xi1
         if xi_mode != "dd":  # TSNR second step: xi2 = |G1 Y|^2 / lambda_d = G1^2 gamma
             xi2 = np.maximum(g * g * gm, xi_min)
             g = np.clip(gain_fn(xi2, gm), gmin, 1.0)
-        g_final[:, t] = g
+            xl = xi2
+        xi_last[:, t] = xl
+        g_all[:, t] = g
         prev_amp2 = g * g * gm * noise[:, t]  # |S_hat|^2 of the final estimate (DD recursion)
+    return xi1_all, xi_last, g_all
+
+
+def _enhance_two_step(z, gamma, noise, alpha, xi_min, gmin, xi_mode, cepstral, rho, length, sr,
+                      n_fft, hop, window, nonlinearity="halfwave", gain_fn=lsa_gain, pause=None,
+                      dd_direction="forward", xi_nlm=None, nlm_mix=0.5, smooth=None):
+    """First-step xi (DD or cepstral, any direction, optional NLM mix), then optional TSNR / HRNR."""
+    xi_cs = cepstral_xi(gamma, noise, xi_min, sr) if cepstral else None
+    args = (gamma, noise, alpha, xi_min, gmin, xi_mode, gain_fn, xi_cs)
+    if dd_direction in ("forward", "backward"):
+        _, xi_last, g_final = _dd_pass(*args, reverse=dd_direction == "backward", xi_nlm=xi_nlm,
+                                       nlm_mix=nlm_mix)
+    else:
+        xf = _dd_pass(*args, reverse=False, xi_nlm=xi_nlm, nlm_mix=nlm_mix)[0]
+        xb = _dd_pass(*args, reverse=True, xi_nlm=xi_nlm, nlm_mix=nlm_mix)[0]
+        xi1 = 0.5 * (xf + xb) if dd_direction == "avg" else np.sqrt(xf * xb)
+        xi1 = np.maximum(xi1, xi_min)
+        g_final = np.clip(gain_fn(xi1, gamma), gmin, 1.0)
+        xi_last = xi1
+        if xi_mode != "dd":
+            xi_last = np.maximum(g_final * g_final * gamma, xi_min)
+            g_final = np.clip(gain_fn(xi_last, gamma), gmin, 1.0)
     if xi_mode == "hrnr":
         s_tsnr = istft(g_final * z, length, sr, n_fft, hop, window)
         rect = np.abs(s_tsnr) if nonlinearity == "fullwave" else np.maximum(s_tsnr, 0.0)
         _, _, z_h = stft(rect, sr, n_fft, hop, window)
         z_h = z_h[:, :z.shape[1]]
         xi_h = (rho * g_final ** 2 * np.abs(z) ** 2 + (1 - rho) * np.abs(z_h) ** 2) / noise
-        g_final = np.clip(gain_fn(np.maximum(xi_h, xi_min), gamma), gmin, 1.0)
+        xi_last = np.maximum(xi_h, xi_min)
+        g_final = np.clip(gain_fn(xi_last, gamma), gmin, 1.0)
+    if smooth is not None:
+        g_final = smooth_low_snr_gain(g_final, xi_last, sr, n_fft, gmin, *smooth)
     if pause is not None:
         g_final = np.maximum(g_final * pause[None, :], gmin)
     return istft(g_final * z, length, sr, n_fft, hop, window)
