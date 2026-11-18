@@ -1,0 +1,6 @@
+# gru_v5b_s2 weights (Colab-trained seed control, configs/dl/gru_v5b_s2.yaml; best.pt, epoch 20), level norm off.
+method: gru_mask
+params:
+  weights: weights/gru_v5b_s2.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false

@@ -1,0 +1,6 @@
+# gru_v7a epoch-300 weights (Colab-trained, configs/dl/gru_v7a.yaml; last.pt exported by scripts/export_last.py), level norm off.
+method: gru_mask
+params:
+  weights: weights/gru_v7a_e300.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false

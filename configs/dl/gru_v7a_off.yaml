@@ -1,0 +1,6 @@
+# gru_v7a weights (Colab-trained, configs/dl/gru_v7a.yaml; best.pt, epoch 262, train-log val 2.6635), level norm off.
+method: gru_mask
+params:
+  weights: weights/gru_v7a.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false
