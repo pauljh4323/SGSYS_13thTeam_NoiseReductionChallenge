@@ -82,3 +82,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-18,045b8e9,submission,mmse_lsa,2.0214,1.3441,1.7803,2.0002,2.3873,12.909,split=validation n=164 failed=0 snr=12.807 stoi=0.8952 clipped=0 src=pred | e2e main.py outputs
 2026-11-18,045b8e9-dirty,submission,mmse_lsa,1.9221,1.2976,1.6381,2.0939,2.6631,11.120,split=val_remix n=328 failed=0 snr=11.184 stoi=0.8618 clipped=0 src=pred | dsp-v8 main.py outputs val_remix
 2026-11-18,115e79a,submission,mmse_lsa,1.9221,1.2976,1.6381,2.0939,2.6631,11.120,split=val_remix n=328 failed=0 snr=11.184 stoi=0.8618 clipped=0 src=pred | dsp-v8 main.py outputs val_remix (clean rescore of the same outputs)
+2026-11-18,8c77628,submission,gru_mask,2.6962,1.9531,2.4100,2.7022,3.0834,16.844,split=validation n=164 failed=0 snr=16.812 stoi=0.9406 clipped=0 src=pred | e2e main.py outputs

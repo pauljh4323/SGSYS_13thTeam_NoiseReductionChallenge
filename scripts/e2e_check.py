@@ -9,6 +9,7 @@
 (d) fresh pip venv (outputs/venv_ci, created from this interpreter): pip install -r the clone's
     requirements.txt, run the clone's main.py -> outputs/e2e/output_venv/; venv deleted afterwards.
 Asserts all output sets are bit-identical and match the inputs (names/count/length/sr/subtype),
+that each output dir holds exactly the input WAV names and nothing else (no logs/extra files),
 then checks a 44.1 kHz stereo file (in a subfolder, .WAV) and a 1.7 s file.
 Compliance depends on ROUND (override with --round):
   ROUND 1: the submission method must be in CLASSICAL_METHODS, and main.py run in a subprocess must
@@ -103,6 +104,18 @@ def compare_to_inputs(inp: Path, out: Path, label: str, require_pcm16: bool = Tr
     check(not bad, f"{label}: sr/length/channels/subtype preserved" + (f" {bad[:3]}" if bad else ""))
 
 
+def exact_contents(inp: Path, out: Path, label: str) -> None:
+    """output/ must hold exactly the input WAV paths (same names, same layout) and nothing else:
+    no extra files of any type, no extra or missing directories."""
+    want = {p.as_posix() for p in wavs(inp)}
+    want |= {parent.as_posix() for p in wavs(inp) for parent in p.parents if parent != Path(".")}
+    got = {p.relative_to(out).as_posix() for p in out.rglob("*")}
+    extra, missing = sorted(got - want), sorted(want - got)
+    check(not extra and not missing,
+          f"{label}: output/ holds exactly the input WAV names ({len(got)} entries)"
+          + (f" extra {extra[:3]}" if extra else "") + (f" missing {missing[:3]}" if missing else ""))
+
+
 def same_bits(a: Path, b: Path) -> tuple[bool, int]:
     diff = [r for r in wavs(a) if not (b / r).is_file() or (a / r).read_bytes() != (b / r).read_bytes()]
     return wavs(a) == wavs(b) and not diff, len(diff)
@@ -147,6 +160,7 @@ def main(argv=None) -> int:
     check(len(wavs(inp)) == len(manifest), f"(a) copied {len(manifest)} validation noisy wavs")
     check(run_main(REPO_ROOT / "main.py", inp, out_a) == 0, "(a) main.py failed=0")
     compare_to_inputs(inp, out_a, "(a)")
+    exact_contents(inp, out_a, "(a)")
     if not args.skip_eval:
         stdout = run([sys.executable, REPO_ROOT / "scripts" / "eval.py",
                       "--config", REPO_ROOT / "configs" / "submission.yaml",
@@ -163,6 +177,7 @@ def main(argv=None) -> int:
     check(not (clone / "data").exists(), "(b) clone has no data/")
     check(run_main(clone / "main.py", inp, out_b) == 0, "(b) clone main.py failed=0")
     compare_to_inputs(inp, out_b, "(b)")
+    exact_contents(inp, out_b, "(b)")
     diff = [r for r in wavs(out_a) if not (out_b / r).is_file()
             or (out_a / r).read_bytes() != (out_b / r).read_bytes()]
     check(wavs(out_a) == wavs(out_b) and not diff,
@@ -184,6 +199,7 @@ def main(argv=None) -> int:
         check(run_main(clone / "main.py", inp, out_d, python=py) == 0,
               "(d) fresh pip venv: clone main.py failed=0")
         compare_to_inputs(inp, out_d, "(d)")
+        exact_contents(inp, out_d, "(d)")
         ok, ndiff = same_bits(out_a, out_d)
         check(ok, f"(a)==(d) fresh pip venv bit-identical ({len(wavs(out_a))} files, {ndiff} differ)")
     finally:
@@ -198,6 +214,7 @@ def main(argv=None) -> int:
             or (out_a / r).read_bytes() != (out_c / r).read_bytes()]
     check(wavs(out_a) == wavs(out_c) and not diff,
           f"(a)==(c) bit-identical ({len(wavs(out_a))} files, {len(diff)} differ)")
+    exact_contents(inp, out_c, "(c)")
 
     # extra: 44.1 kHz stereo in a subfolder with .WAV, and a 1.7 s file
     x_in, x_out = E2E / "extra_input", E2E / "extra_output"
@@ -212,6 +229,7 @@ def main(argv=None) -> int:
     sf.write(str(x_in / "short_1p7s.wav"), x[: int(1.7 * sr)], sr, subtype="PCM_16")
     check(run_main(REPO_ROOT / "main.py", x_in, x_out) == 0, "(extra) main.py failed=0")
     compare_to_inputs(x_in, x_out, "(extra)")
+    exact_contents(x_in, x_out, "(extra)")
     for rel in wavs(x_in):
         info = sf.info(str(x_in / rel))
         same = (x_in / rel).read_bytes() == (x_out / rel).read_bytes()

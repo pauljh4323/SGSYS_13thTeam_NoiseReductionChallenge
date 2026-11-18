@@ -13,6 +13,10 @@ Candidate (not submitted; promoted 2026-11-18, after the round-1 deadline): dsp_
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
 - Leaderboard: https://docs.google.com/spreadsheets/d/1Jebd63s24CKjO6MOe14fef9j_coWdc87011rAgsibtI/edit?gid=1596638433#gid=1596638433
 - Live standings and snapshots only in docs/leaderboard.md (newest snapshot first); the fixed leaderboard score of a past submission may also appear in the README submissions table. Never copy other teams' standings elsewhere.
+- Round 2 (TA env: Python 3.12, torch 2.15.0+cpu, pesq 0.0.4): weights must load with torch.load(..., weights_only=True) (tensors + primitive metadata only); no downloads at inference.
+- Round 2 output: flat output/ with exactly the input WAV names (16 kHz mono, same sample count), nothing else in output/ (logs elsewhere); scripts/e2e_check.py enforces it.
+- Round 2 README must state every TA notice item (env, packages, model/weight paths, training settings, inference command/cell order, seed, epochs, main settings, chosen weights' val score, absolute-path locations).
+- Round 2: the best verified submission counts; missing/extra files or format/PESQ errors withhold the score.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.
 - Clean audio for evaluation only. Output keeps sample rate, channel count, sample count, filename. No absolute paths.
