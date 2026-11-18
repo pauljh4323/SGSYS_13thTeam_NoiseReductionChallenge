@@ -1,6 +1,7 @@
 # CLAUDE.md — Speech Noise Reduction Challenge 1 (traditional DSP)
 ## Objective
 Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Deadline 2026-11-17 23:59 KST.
+Objective is PESQ-WB only; SNR and listening quality may be traded for PESQ; generalisation (val_remix) is the only guard.
 Current submission: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7, submitted 2026-11-16 (tag sub-20261116); supersedes dsp-v6 1.9637, dsp-v5 1.9570, dsp-v4 1.9497, dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505.
 Candidate (not submitted; promoted 2026-11-18, after the round-1 deadline): dsp_p / val PESQ 2.0214, SNR 12.81 dB / tag dsp-v8 (dsp-v7 + NLM a priori SNR, log_bc).
 ## Working policy

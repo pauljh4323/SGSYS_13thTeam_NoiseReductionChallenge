@@ -1,0 +1,75 @@
+1. D: 94,315 params, input (16, 2, 257, 376), out range [0.4685, 0.4703], loss 0.00093, grads finite True
+2. PESQ (3.0 s files): serial 63 ms/call; pool of 16: 8 calls 0.16s, 32 calls (one training step: 16 enh + 16 noisy) 0.87s; enh 2.316 / noisy 1.341; pool == serial True
+3. lambda 0, gru_v5b weights: train_mgan G loss == train.batch_loss (gru_v5b) bitwise: True (-4.9376459122 vs -4.9376459122); weights v5b 1.0/0.5/0.3 = v6m1 1.0/0.5/0.3
+4. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\scripts\train_mgan.py --config configs/dl/gru_v6m1.yaml --pretrain-d C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt --max-steps 2 --device cpu
+   data: train 1296 x 48000 samples, load 1.8s, device cpu, pesq jobs 16
+   G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+     pretrain step 1: d_loss 0.155491 D(enh) 0.4695 pesq enh 3.072 noisy 1.549
+     pretrain step 2: d_loss 0.135366 D(enh) 0.4741 pesq enh 2.680 noisy 1.459
+   pretrain epoch 1 step 2 d_loss 0.145428 d_enh 0.4718 d_clean 0.4718 train_pesq_enh 2.8758 train_pesq_noisy 1.5045 pesq_failed 0 corr_d_pesq -0.1995 epoch_s 4.2
+   done: D pretrain -> C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt
+   (12.3s, exit 0)
+=== gru_v6m1: 1.0 cmag + 0.5 MR-STFT + 0.3 (-SI-SDR) + 0.05 (D-1)^2
+5a. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\scripts\train_mgan.py --config configs/dl/gru_v6m1.yaml --ckpt-dir C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m1 --d-init C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt --allow-unfinished-d --max-steps 2 --val-subset 3 --device cpu
+   data: train 1296 x 48000 samples, load 1.8s, device cpu, pesq jobs 16
+   G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+   D init from C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt (pretrain epochs 1, replay 32)
+   G loss = 1.0 cmag + 0.5 MR-STFT + 0.3 (-SI-SDR) + 0.05 (D - 1)^2; lr G 1.0e-04 D 2.0e-04; 60 epochs x 81 steps
+     step 1: g_loss -4.923985 (cmag 0.00579 mrstft 0.55561 sisdr -17.4041 adv 0.27322) d_loss 0.134498 D(enh) 0.4773 pesq enh 3.072 noisy 1.549 [G 3.796s, PESQ wait 0.000s, D 0.488s]
+     step 2: g_loss -4.206572 (cmag 0.01093 mrstft 0.75514 sisdr -15.3614 adv 0.26678) d_loss 0.130453 D(enh) 0.4835 pesq enh 2.672 noisy 1.459 [G 2.741s, PESQ wait 0.000s, D 0.488s]
+   epoch 1/60 step 2 g -4.565278 adv 0.269998 d 0.132476 D(enh) 0.4804 pesq_tr 2.8717 val_pesq 2.3064 val_snr 15.209 best 2.3064 (ep 1) [7.5s + val 0.6s, 3.770s/step]
+   done: best val PESQ 2.3064 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m1\best.pt
+   (15.6s, exit 0)
+   2 G+D steps finite: True [('1', '-4.923985', '0.134498'), ('2', '-4.206572', '0.130453')]
+   train_log.csv: 1,2,-4.565278,0.008363,0.655378,-16.3828,0.269998,0.132476,0.4804,0.4805,2.8717,1.5045,0,2.3064,15.209,0,1.00e-04,2.00e-04,7.5,0.6,2.3064,
+5b. best.pt weights_only=True OK: keys ['config', 'epoch', 'format', 'model_cfg', 'model_state', 'pesq'], epoch 1, pesq 2.3064, 2,373,651 params
+    last.pt full state: True (replay 64 rows, 42.0 MB)
+5c. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\input3 --output C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m1 --config C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m1_smoke.yaml
+   main.py: processed=3 failed=0 clipped_samples=0 total=2.3s -> C:\TempFolder\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m1
+   (5.5s, exit 0)
+    speaker016_utt01_seg0016_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker037_utt01_seg0010_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker040_utt01_seg0014_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+=== gru_v6m2: 1.0 cmag + 0.2 MR-STFT + 0.0 (-SI-SDR) + 0.3 (D-1)^2
+5a. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\scripts\train_mgan.py --config configs/dl/gru_v6m2.yaml --ckpt-dir C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m2 --d-init C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt --allow-unfinished-d --max-steps 2 --val-subset 3 --device cpu
+   data: train 1296 x 48000 samples, load 1.9s, device cpu, pesq jobs 16
+   G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+   D init from C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt (pretrain epochs 1, replay 32)
+   G loss = 1.0 cmag + 0.2 MR-STFT + 0.0 (-SI-SDR) + 0.3 (D - 1)^2; lr G 1.0e-04 D 2.0e-04; 60 epochs x 81 steps
+     step 1: g_loss 0.198881 (cmag 0.00579 mrstft 0.55561 sisdr nan adv 0.27322) d_loss 0.134498 D(enh) 0.4773 pesq enh 3.072 noisy 1.549 [G 3.228s, PESQ wait 0.000s, D 0.483s]
+     step 2: g_loss 0.240520 (cmag 0.01063 mrstft 0.74934 sisdr nan adv 0.26675) d_loss 0.130301 D(enh) 0.4835 pesq enh 2.664 noisy 1.459 [G 2.523s, PESQ wait 0.000s, D 0.460s]
+   epoch 1/60 step 2 g 0.219700 adv 0.269983 d 0.132399 D(enh) 0.4804 pesq_tr 2.8680 val_pesq 2.3047 val_snr 15.298 best 2.3047 (ep 1) [6.7s + val 0.5s, 3.357s/step]
+   done: best val PESQ 2.3047 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m2\best.pt
+   (14.6s, exit 0)
+   2 G+D steps finite: True [('1', '0.198881', '0.134498'), ('2', '0.240520', '0.130301')]
+   train_log.csv: 1,2,0.219700,0.008210,0.652476,,0.269983,0.132399,0.4804,0.4805,2.8680,1.5045,0,2.3047,15.298,0,1.00e-04,2.00e-04,6.7,0.5,2.3047,
+5b. best.pt weights_only=True OK: keys ['config', 'epoch', 'format', 'model_cfg', 'model_state', 'pesq'], epoch 1, pesq 2.3047, 2,373,651 params
+    last.pt full state: True (replay 64 rows, 42.0 MB)
+5c. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\input3 --output C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m2 --config C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m2_smoke.yaml
+   main.py: processed=3 failed=0 clipped_samples=0 total=2.6s -> C:\TempFolder\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m2
+   (4.7s, exit 0)
+    speaker016_utt01_seg0016_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker037_utt01_seg0010_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker040_utt01_seg0014_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+=== gru_v6m3: 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 1.0 (D-1)^2
+5a. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\scripts\train_mgan.py --config configs/dl/gru_v6m3.yaml --ckpt-dir C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m3 --d-init C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt --allow-unfinished-d --max-steps 2 --val-subset 3 --device cpu
+   data: train 1296 x 48000 samples, load 1.9s, device cpu, pesq jobs 16
+   G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+   D init from C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\d_pretrain.pt (pretrain epochs 1, replay 32)
+   G loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 1.0 (D - 1)^2; lr G 1.0e-04 D 2.0e-04; 60 epochs x 81 steps
+     step 1: g_loss 0.274379 (cmag 0.00579 mrstft nan sisdr nan adv 0.27322) d_loss 0.134498 D(enh) 0.4773 pesq enh 3.072 noisy 1.549 [G 3.042s, PESQ wait 0.000s, D 0.512s]
+     step 2: g_loss 0.268852 (cmag 0.01057 mrstft nan sisdr nan adv 0.26674) d_loss 0.130275 D(enh) 0.4835 pesq enh 2.660 noisy 1.459 [G 2.420s, PESQ wait 0.000s, D 0.490s]
+   epoch 1/60 step 2 g 0.271615 adv 0.269978 d 0.132387 D(enh) 0.4804 pesq_tr 2.8659 val_pesq 2.3078 val_snr 15.309 best 2.3078 (ep 1) [6.5s + val 0.6s, 3.241s/step]
+   done: best val PESQ 2.3078 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m3\best.pt
+   (14.3s, exit 0)
+   2 G+D steps finite: True [('1', '0.274379', '0.134498'), ('2', '0.268852', '0.130275')]
+   train_log.csv: 1,2,0.271615,0.008183,,,0.269978,0.132387,0.4804,0.4805,2.8659,1.5045,0,2.3078,15.309,0,1.00e-04,2.00e-04,6.5,0.6,2.3078,
+5b. best.pt weights_only=True OK: keys ['config', 'epoch', 'format', 'model_cfg', 'model_state', 'pesq'], epoch 1, pesq 2.3078, 2,373,651 params
+    last.pt full state: True (replay 64 rows, 42.0 MB)
+5c. D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\input3 --output C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m3 --config C:\TEMPFO~1\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\gru_v6m3_smoke.yaml
+   main.py: processed=3 failed=0 clipped_samples=0 total=2.4s -> C:\TempFolder\claude\7489c7b55ae4d1fe\e241d3a4-ae25-4035-b714-c1081db5f9a8\scratchpad\mgan_smoke\output_gru_v6m3
+   (4.4s, exit 0)
+    speaker016_utt01_seg0016_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker037_utt01_seg0010_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+    speaker040_utt01_seg0014_noisy.wav: in 48000 @ 16000 Hz 1 ch -> out 48000 @ 16000 Hz 1 ch: OK
+SMOKE PASS
