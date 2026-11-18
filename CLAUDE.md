@@ -5,6 +5,10 @@ Current submission candidate: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7
 ## Rounds
 - Round 1 (classical DSP only, no ML/DL) ends 2026-11-17 23:59 KST; round 2 (DL) starts 2026-11-18 KST.
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
+- Round 2 (TA env: Python 3.12, torch 2.15.0+cpu, pesq 0.0.4): weights must load with torch.load(..., weights_only=True) (tensors + primitive metadata only); no downloads at inference.
+- Round 2 output: flat output/ with exactly the input WAV names (16 kHz mono, same sample count), nothing else in output/ (logs elsewhere); scripts/e2e_check.py enforces it.
+- Round 2 README must state every TA notice item (env, packages, model/weight paths, training settings, inference command/cell order, seed, epochs, main settings, chosen weights' val score, absolute-path locations).
+- Round 2: the best verified submission counts; missing/extra files or format/PESQ errors withhold the score.
 - Standings live only in docs/leaderboard.md (newest snapshot first); never copy leaderboard numbers elsewhere.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.

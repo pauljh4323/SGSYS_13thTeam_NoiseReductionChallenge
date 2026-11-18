@@ -73,7 +73,7 @@ pip install -r requirements.txt
 ```
 
 `requirements.txt`에는 `main.py` 실행에 필요한 고정 버전 의존성만 있습니다 (numpy, scipy, soundfile, pyyaml).
-`r2-prep` 브랜치에서는 2차 챌린지용 `torch==2.14.1` (CPU)이 추가되어 있습니다 (아래 "2차 챌린지 (준비 중)" 참고).
+`r2-prep` 브랜치에서는 2차 챌린지용 `torch==2.15.0` (CPU)이 추가되어 있습니다 (아래 "2차 챌린지" 참고).
 
 conda를 쓰는 경우 (전체 개발 환경, 평가 도구 포함):
 
@@ -139,24 +139,18 @@ python main.py
 
 비교 (validation PESQ / SNR): 처리 전 입력 1.3947 / 9.63 dB, 과목 Wiener 베이스라인 1.5987 / 13.12 dB.
 
-## 2차 챌린지 (준비 중)
+## 2차 챌린지
 
-2차 챌린지(딥러닝, 2026-11-18 시작)용 제출본을 `r2-prep` 브랜치(태그 `r2-ready`)에 미리 준비해 두었습니다.
-2차 규칙은 아직 공지되지 않았으며, 공지 후 확인할 항목은 [docs/round2_plan.md](docs/round2_plan.md)에 있습니다.
-위의 1차 챌린지 내용(`dsp-v7`)은 `main` 브랜치 기준이며, 1차 종료 전까지 `main`은 변경하지 않습니다.
+2차 챌린지(딥러닝, 2026-11-18 시작) 제출본은 `r2-prep` 브랜치(태그 `r2-ready`)에 있습니다. 위의 1차 챌린지 내용(`dsp-v7`)은 `main` 브랜치 기준입니다.
+조교 공지 체크리스트(실행 환경, 패키지, 모델·가중치 경로, 학습 설정, 추론 명령, seed, epoch, 주요 설정, 선택 가중치의 validation 점수, 절대 경로 수정 위치)를 아래 항목 순서대로 정리했습니다.
 
-### 방법 요약
+### 1. 실행 환경
 
-- 모델: `gru_v5b` — 양방향 GRU(BiGRU) 기반 크기(magnitude) 마스크 추정기, 파라미터 2,373,651개 (2.37M), 가중치 `weights/gru_v5b.pt` (9.5 MB).
-- 처리 과정: 잡음 음성 → STFT (n_fft 512, hop 128, periodic Hann) → log1p 크기 + 주파수 bin별 정규화 →
-  Conv2d 2층 (주파수 방향 stride 2) → BiGRU 2층 (방향당 hidden 256) → Linear + sigmoid 마스크 →
-  마스크 × 잡음 STFT (잡음 위상 사용) → ISTFT (입력과 같은 길이).
-- 학습: train split만 사용해 처음부터 학습 (사전학습 모델·외부 데이터 없음). 손실 = 압축 크기 손실 + 다중 해상도 STFT 손실 + SI-SDR. 학습 코드는 `dl-main` 브랜치에 있으며 `r2-prep`에는 추론 코드만 있습니다.
-- 구현: `src/nrc/models/gru_mask.py`, `src/nrc/methods/gru_mask.py`. 설정: `configs/submission.yaml` (= `configs/dl/gru_v5b_off.yaml`, 입력 레벨 정규화 끔).
+- Python 3.12, CPU만 사용 (GPU 불필요), 추론 중 인터넷 다운로드 없음 (가중치는 저장소에 포함).
+- 조교 환경(Python 3.12 conda, `torch 2.15.0+cpu`, `pesq 0.0.4`)과 같은 `torch==2.15.0` (CPU 빌드)로 고정했습니다.
+- 확인 (2026-11-18, Windows 11, Python 3.12.16): 새 pip venv의 `torch 2.15.0+cpu`와 개발 환경 `torch 2.14.1+cpu`의 `main.py` 출력이 validation 164개 파일 전부 **바이트 단위로 동일**.
 
-### 설치 방법
-
-Python 3.12, pip만으로 설치합니다 (모든 OS 공통):
+### 2. 패키지 및 설치
 
 ```bash
 git checkout r2-prep
@@ -165,23 +159,75 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-`requirements.txt`에는 `--extra-index-url https://download.pytorch.org/whl/cpu`와 로컬 레이블 없는 `torch==2.14.1`이 들어 있습니다.
-이 지정자는 `2.14.1+cpu` 빌드에도 일치하므로 Windows/Linux에서는 CPU 인덱스의 `2.14.1+cpu`가 설치되고,
-macOS에서는 해당 인덱스에 `+cpu` 휠이 없어 PyPI의 `2.14.1` 휠로 대체됩니다.
-새 venv 설치 측정값: Windows에서 `torch.__version__` = `2.14.1+cpu`, 약 801 MB, pip install 193–313 s (네트워크에 따라 다름, 2026-11-12), 출력은 nrc 환경과 비트 단위로 동일.
+`requirements.txt` (`main.py` 실행용, 버전 고정): `numpy==2.5.4`, `scipy==1.18.1`, `soundfile==0.14.0`, `pyyaml==6.0.3`, `torch==2.15.0`
+(`--extra-index-url https://download.pytorch.org/whl/cpu`, Windows/Linux에서는 `2.15.0+cpu` 설치, macOS는 PyPI 휠로 대체).
+채점용 `pesq==0.0.4`와 평가 도구는 `requirements-dev.txt`, 학습 환경은 `dl-main`의 `environment.yml`에 있습니다 (추론에는 불필요).
 
-### 실행 방법
+### 3. 모델 및 가중치 경로
 
-1차와 같습니다: `input/`에 WAV 파일을 넣고 `python main.py`를 실행하면 `output/`에 같은 파일명으로 저장됩니다.
-GPU 없이 CPU만 사용합니다. validation 164개 파일 처리 시간 18.5–32.1 s (2026-11-12 측정, `scripts/e2e_check.py`).
+- 모델: `gru_v5b` — Conv2d 전단 + 양방향 GRU(BiGRU) 크기(magnitude) 마스크 추정기, 파라미터 2,373,651개 (2.37M).
+- 가중치: `weights/gru_v5b.pt` (9.5 MB). 텐서와 기본형(str/int/float/dict)만 담긴 체크포인트이며
+  `torch.load(path, map_location="cpu", weights_only=True)`로 읽습니다 (`src/nrc/models/gru_mask.py`의 `load_weights`; `torch 2.15.0+cpu`에서 확인).
+- 추론 설정: `configs/submission.yaml` (= `configs/dl/gru_v5b_off.yaml`, 입력 레벨 정규화 끔). 가중치 경로는 저장소 폴더 기준 상대 경로입니다.
+- 구현: `src/nrc/models/gru_mask.py` (모델), `src/nrc/methods/gru_mask.py` (추론), `main.py` (입출력).
+- 처리 과정: 잡음 음성 → STFT (n_fft 512, hop 128, periodic Hann) → log1p 크기 + 주파수 bin별 정규화 →
+  Conv2d 2층 (16채널, 3x3, 주파수 방향 stride 2, GroupNorm) → BiGRU 2층 (방향당 hidden 256) → Linear + sigmoid 마스크 →
+  마스크 × 잡음 STFT (잡음 위상 사용) → ISTFT (입력과 같은 길이).
 
-### Validation 결과
+### 4. 학습 설정 (seed, epoch, 주요 설정)
 
-`main.py` 출력 (16-bit WAV), PESQ-WB `pesq==0.0.4` 16 kHz, SNR = 과목 정의. 코드 커밋 32a68f8.
+학습과 추론은 분리되어 있습니다. 학습 코드(`scripts/train.py`, `src/nrc/losses.py`, `src/nrc/data/`, `notebooks/colab_train.ipynb`)는 `dl-main` 브랜치에 있고,
+`r2-prep`에는 추론 코드와 학습된 가중치만 있습니다. 학습 데이터는 챌린지 train split만 사용했습니다 (사전학습 모델·외부 데이터 없음,
+validation은 체크포인트 선택에만 사용, clean 음성은 학습 목표·평가에만 사용). 학습 환경: Google Colab T4 GPU.
+
+`gru_v5b`는 4단계로 학습했습니다. 각 단계는 이전 단계의 best 가중치에서 시작합니다 (가중치 + 정규화 버퍼, optimizer/scheduler는 새로 생성).
+
+| 단계 | 설정 파일 (`dl-main`) | 시작 가중치 | 손실 | lr | 최대 epoch | 실제 학습 epoch | 선택 epoch (val PESQ) |
+|---|---|---|---|---|---|---|---|
+| 1 | `configs/dl/gru_v2b.yaml` | 무작위 초기화 | 압축 크기 손실 (cmag) | 1e-3 | 150 | 150 | 148 (2.5051) |
+| 2 | `configs/dl/gru_v3b.yaml` | `gru_v2b.pt` | cmag + 0.5 × MR-STFT | 3e-4 | 100 | 92 (조기 종료) | 76 (2.5885) |
+| 3 | `configs/dl/gru_v4b.yaml` | `gru_v3b.pt` | cmag + 0.5 × MR-STFT + 0.1 × (−SI-SDR) | 2e-4 | 100 | 64 (조기 종료) | 48 (2.6796) |
+| 4 | `configs/dl/gru_v5b.yaml` | `gru_v4b.pt` | cmag + 0.5 × MR-STFT + 0.3 × (−SI-SDR) | 2e-4 | 100 | 24 (조기 종료) | **8 (2.6962)** |
+
+공통 설정: seed 0 (모든 단계, `numpy.random.default_rng(0)` + `torch.manual_seed(0)`), batch size 16 (3 s 구간), Adam, grad clip 5.0,
+크기 압축 지수 0.3, MR-STFT 해상도 256/512/1024 (hop 64/128/256), 2 epoch마다 validation 전체 PESQ로 평가,
+ReduceLROnPlateau (factor 0.5, patience 3회, 최소 lr 1e-5), 조기 종료 = 8회 연속(16 epoch) validation PESQ 향상 없음 (2–4단계).
+데이터 증강 (train 쌍 재조합): 확률 0.5로 원본 쌍, 나머지는 임의의 train clean + 임의의 train 잡음(noisy − clean, 무작위 순환 이동·부호)을 SNR U(−5, 20) dB로 혼합;
+입력 이득 U(−30, +6) dB (1단계, 모든 샘플) / 2–4단계는 확률 0.5로 U(−30, +6) dB, 아니면 U(−6, +3) dB; clean 목표에 같은 이득, 피크 0.99 제한.
+선택 가중치까지의 누적 학습량: 148 + 76 + 48 + 8 = 280 epoch. GPU 학습은 cuDNN 비결정성 때문에 같은 seed로도 비트 단위 재현은 보장되지 않습니다.
+
+학습 재현 (`dl-main` 브랜치, 단계 순서대로, 각 단계 best 가중치를 `weights/<이름>.pt`로 복사):
+
+```bash
+git checkout dl-main
+conda env create -f environment.yml && conda activate nrc   # Colab: pip install pesq==0.0.4 pystoi soundfile pyyaml
+python scripts/train.py --config configs/dl/gru_v2b.yaml --data-root <데이터 폴더>
+cp outputs/ckpt/gru_v2b/best.pt weights/gru_v2b.pt     # 이어서 gru_v3b, gru_v4b, gru_v5b
+```
+
+Colab 노트북 실행 순서 (`notebooks/colab_train.ipynb`): 런타임을 T4 GPU로 변경 → 셀 1 (Drive 마운트) → 셀 2 (저장소 clone, 시작 가중치 확인) →
+셀 3 (pip 설치) → 셀 4 (데이터 복사) → 셀 5 (학습, 끊기면 다시 실행하면 `last.pt`에서 이어서 학습) → 셀 6 (best epoch / val PESQ 출력).
+
+### 5. 추론 명령
+
+```bash
+python main.py                                   # input/ -> output/
+python main.py --input <noisy dir> --output <out dir>
+```
+
+- `input/`의 WAV 파일을 처리해 `output/` 바로 아래에 **같은 파일명**으로 저장합니다 (16 kHz 모노 입력 → 16 kHz 모노 16-bit PCM, 샘플 수 동일).
+  `output/`에는 입력 WAV와 같은 이름의 파일만 생기며 로그 등 다른 파일은 쓰지 않습니다 (진행 정보는 화면에만 출력).
+- 16 kHz가 아닌 입력·다채널 입력도 처리하며 입력과 같은 샘플링 주파수, 채널 수, 샘플 수로 저장합니다. 처리에 실패한 파일은 원본을 복사합니다.
+- 처리 시간: validation 164개 파일 CPU 20.3 s (`torch 2.15.0+cpu`, 2026-11-18).
+
+### 6. 선택 가중치의 validation 점수
+
+`main.py` 출력 (16-bit WAV), PESQ-WB `pesq==0.0.4` 16 kHz, SNR = 과목 정의. 코드 커밋 32a68f8 (`torch 2.15.0` 출력도 동일).
+val_remix = validation 쌍만으로 만든 보조 검증 세트 (잡음 재조합, 328개, `scripts/make_val_remix.py`); 체크포인트 선택에는 쓰지 않았습니다.
 
 | 세트 | n | PESQ noisy | PESQ gru_v5b | ΔPESQ | SNR noisy (dB) | SNR gru_v5b (dB) | ΔSNR (dB) |
 |---|---|---|---|---|---|---|---|
-| validation | 164 | 1.3947 | 2.6962 | +1.3015 | 9.63 | 16.81 | +7.18 |
+| validation | 164 | 1.3947 | **2.6962** | +1.3015 | 9.63 | **16.81** | +7.18 |
 | val_remix | 328 | 1.3620 | 2.5170 | +1.1551 | 7.50 | 15.45 | +7.95 |
 
 **목표 SNR별 (validation)**
@@ -201,11 +247,21 @@ GPU 없이 CPU만 사용합니다. validation 164개 파일 처리 시간 18.5�
 | moderate | 41 | 1.5161 | 2.7075 | +1.1914 | 10.85 | 17.80 | +6.95 |
 | hard | 24 | 1.5317 | 2.9487 | +1.4170 | 13.33 | 19.84 | +6.51 |
 
+### 7. 절대 경로 수정 위치
+
+- 추론 (`main.py`): 절대 경로를 쓰지 않습니다. 입출력 폴더는 `--input` / `--output` (기본값 `input/`, `output/`, 작업 폴더 기준)으로 바꾸고,
+  가중치 경로는 `configs/submission.yaml`의 `params.weights` (저장소 폴더 기준 상대 경로)에서 바꿉니다.
+- 학습 (`dl-main`): 데이터 폴더는 `scripts/train.py --data-root` 또는 환경 변수 `NRC_DATA_ROOT` (기본값 `data/noise_reduction_challenge`),
+  체크포인트 폴더는 `--ckpt-dir` (기본값 `outputs/ckpt/<설정 이름>`).
+  Colab 노트북의 절대 경로는 셀 2 (`/content/repo`), 셀 4 (`/content/drive/MyDrive/noise_reduction_challenge`, `/content/data`),
+  셀 5 (`CKPT_ROOT = /content/drive/MyDrive/nrc_ckpt`, `--data-root`)에서 바꿉니다.
+
 ## 저장소 구조
 
 - `main.py` — 제출용 실행 파일 (`input/` → `output/`)
 - `src/nrc/` — 신호 처리 구현 (STFT, 입출력, 지표, `methods/mmse_lsa.py` 등)
-- `configs/` — 방법별 설정 파일 (`submission.yaml` = `dsp_k.yaml`), `configs/sweeps/` 그리드 탐색 설정
+- `configs/` — 방법별 설정 파일 (`main`: `submission.yaml` = `dsp_k.yaml`; `r2-prep`: `submission.yaml` = `dl/gru_v5b_off.yaml`), `configs/sweeps/` 그리드 탐색 설정
+- `weights/` — 2차 챌린지 학습 가중치 (`r2-prep`: `gru_v5b.pt`)
 - `scripts/` — 평가 (`eval.py`), 그리드 탐색 (`sweep.py`), 점검 (`selfcheck.py`, `e2e_check.py`), 보고서·그림 생성
 - `docs/` — validation 결과, 제출 기록, 실험 문서, 참고 문헌, AI 활용 기록, 그림
 - `results/` — 실험 결과 기록 (`experiments.csv`)
@@ -217,7 +273,7 @@ GPU 없이 CPU만 사용합니다. validation 164개 파일 처리 시간 18.5�
 ```bash
 pip install -r requirements-dev.txt
 python scripts/selfcheck.py
-python scripts/e2e_check.py      # 입출력 형식, 새 clone, 새 pip venv, torch 미사용, 전통 기법 allow-list 점검
+python scripts/e2e_check.py      # 입출력 형식, output/ 파일 목록 = 입력 WAV 이름, 새 clone, 새 pip venv, 방법 allow-list (1차: torch 미사용)
 python scripts/eval.py --config configs/submission.yaml --split validation
 python scripts/report_val.py     # -> docs/validation_results.md
 ```
