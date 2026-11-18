@@ -1,12 +1,14 @@
-"""exp/r2-v6: compare gru_v6a_off / gru_v6b_off with gru_v5b_off from eval.py per-file CSVs.
+"""Round-2 model comparison (exp/r2-v6, reused for exp/r2-v7): candidates vs a reference from eval.py per-file CSVs.
 
 Reads outputs/<name>/eval_<split>.csv (validation, val_remix, validation level probes) and prints
 overall / per-SNR / per-difficulty PESQ and SNR, paired deltas vs gru_v5b_off (delta, SE, z),
 weak-5 category deltas, phase-headroom fraction and the round-2 promotion check.
-Usage: python scripts/r2_v6_compare.py > logs/r2_v6_compare.txt
+Usage: python scripts/r2_v6_compare.py > logs/r2_v6_compare.txt   (defaults = the exp/r2-v6 run)
+       python scripts/r2_v6_compare.py --cands gru_v7a_off gru_v7a_e300_off gru_v5b_s2_off            --headroom gru_v7a_off gru_v7a_e300_off > logs/r2_v7_compare.txt
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -16,11 +18,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from paired import paired_stats  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-REF = "gru_v5b_off"
-CANDS = ["gru_v6a_off", "gru_v6b_off"]
 WEAK5 = ["aircraft_cockpit", "factory", "broadband_noise", "destroyer_operations", "hf_channel"]
 HEADROOM = {"validation": 0.293, "val_remix": 0.261}  # clean phase on v5b magnitude (docs/round2_plan.md)
 GAINS = [-30, -20, -10, 0]
+VAL_GATE = 2.6962  # current r2-prep submission (gru_v5b_off) validation PESQ
 
 
 def load(name: str, tag: str) -> pd.DataFrame:
@@ -28,6 +29,12 @@ def load(name: str, tag: str) -> pd.DataFrame:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ref", default="gru_v5b_off")
+    ap.add_argument("--cands", nargs="+", default=["gru_v6a_off", "gru_v6b_off"])
+    ap.add_argument("--headroom", nargs="*", default=["gru_v6a_off"], help="models to report phase-headroom fraction for")
+    a = ap.parse_args()
+    REF, CANDS = a.ref, a.cands
     names = [REF] + CANDS
     res = {}
     for split in ("validation", "val_remix"):
@@ -44,7 +51,7 @@ def main() -> int:
             if n != REF:
                 st = paired_stats(dfs[REF].pesq, d.pesq.reindex(dfs[REF].index))
                 r.update(delta=st["d_mean"], se=st["d_se"], z=st["d_z"])
-                if n == "gru_v6a_off":
+                if n in a.headroom:
                     r["headroom_frac"] = st["d_mean"] / HEADROOM[split]
                 res[(n, split)] = r
             rows.append(r)
@@ -73,10 +80,10 @@ def main() -> int:
     for n in CANDS:
         val = res[(n, "validation")]["pesq"]
         vr = res[(n, "val_remix")]
-        c1 = round(val, 4) >= 2.6962
+        c1 = round(val, 4) >= VAL_GATE
         c2 = vr["delta"] > 0 and vr["z"] >= 2
         c3 = all(probe[n][g] >= probe[REF][g] - 0.02 for g in GAINS)
-        print(f"  {n}: val {val:.4f} >= 2.6962 {c1} | val_remix delta {vr['delta']:+.4f} z {vr['z']:+.2f} {c2} "
+        print(f"  {n}: val {val:.4f} >= {VAL_GATE} {c1} | val_remix delta {vr['delta']:+.4f} z {vr['z']:+.2f} {c2} "
               f"| probe {c3} -> {'PASS' if c1 and c2 and c3 else 'FAIL'}")
     return 0
 
