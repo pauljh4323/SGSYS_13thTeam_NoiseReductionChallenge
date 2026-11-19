@@ -67,6 +67,12 @@ Added 2026-11-12 from memory (dl-main had no references.md) — every field must
 | Parallel WaveGAN: a fast waveform generation model based on generative adversarial networks with multi-resolution spectrogram (ICASSP) | R. Yamamoto, E. Song, J.-M. Kim | 2020 | https://doi.org/10.1109/ICASSP40776.2020.9053795 | multi-resolution STFT loss term | pending (team must confirm) |
 | PyTorch: an imperative style, high-performance deep learning library (NeurIPS) | A. Paszke et al. | 2019 | https://arxiv.org/abs/1912.01703 | STFT/ISTFT, GRU, inference runtime (`torch==2.14.1`) | pending (team must confirm) |
 
+## Round 2 analysis: noise-type / shadow-filtering diagnosis (`scripts/r2_noise_analysis.py`, branch exp/r2-noise-analysis)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Reasons why current speech-enhancement algorithms do not improve speech intelligibility and suggested solutions (IEEE Trans. Audio, Speech, Lang. Process. 19(1), 47-56) | P. C. Loizou, G. Kim | 2011 | https://doi.org/10.1109/TASL.2010.2045180 (from memory — verify) | shadow filtering: the gru_v5b mask applied separately to the clean and the noise STFT to split the output into speech distortion and residual noise (analysis only, not in the submission) | from memory — verify; pending (team must confirm) |
+
 ## Software
 
 | title | authors | year | DOI / link | used for | verification |
