@@ -163,6 +163,18 @@ def ci95(x):
     return float(stats.t.ppf(0.975, len(x) - 1) * x.std(ddof=1) / np.sqrt(len(x)))
 
 
+def md(d, fmt):
+    """DataFrame -> GitHub markdown table (no tabulate dependency)."""
+    def cell(v):
+        if isinstance(v, (float, np.floating)):
+            return "" if not np.isfinite(v) else format(v, fmt)
+        return str(v)
+    cols = [str(c) for c in d.columns]
+    lines = ["| " + " | ".join(cols) + " |", "|" + "|".join(["---"] * len(cols)) + "|"]
+    lines += ["| " + " | ".join(cell(v) for v in r) + " |" for r in d.itertuples(index=False)]
+    return "\n".join(lines)
+
+
 def group_table(df, by, n_total, h_total):
     rows = []
     for key, g in df.groupby(by):
@@ -174,6 +186,7 @@ def group_table(df, by, n_total, h_total):
             "pesq_noisy": g.pesq_noisy.mean(), "pesq_irm": g.pesq_irm.mean(),
             "deficit_contrib": (PESQ_MAX - g.pesq).sum() / n_total,
             "headroom_mean": g.headroom.mean(), "headroom_share": g.headroom.sum() / h_total,
+            "headroom_wiener_share": g.headroom_wiener.sum() / df.attrs["hw_total"],
             "pesq_dist": g.pesq_dist.mean(), "pesq_resid": g.pesq_resid.mean(),
             "dist_drop": dist_drop, "resid_drop": res_drop,
             "dominant": "distortion" if dist_drop > res_drop else "residual",
@@ -199,6 +212,7 @@ def report(args):
     df["headroom"] = df.pesq_irm - df.pesq
     df["headroom_wiener"] = df.pesq_wiener - df.pesq
     n_total, h_total = len(df), df.headroom.sum()
+    df.attrs["hw_total"] = df.headroom_wiener.sum()
     p(f"code hash {hashes}; n = {n_total}; failed PESQ: {int(df.pesq.isna().sum())}")
 
     # reproduction of the recorded eval.py per-file results
@@ -215,7 +229,7 @@ def report(args):
     p("\n## Overall (pool and per source)")
     hdr = "| set | n | v5b PESQ ± CI | noisy | IRM oracle | Wiener (O4) | headroom IRM | dist-only PESQ | resid-only PESQ | dist drop | resid drop | resid dB | speech dB | SNR dB |"
     p(hdr)
-    p("|" + "---|" * hdr.count("|")[:-1] if False else "|" + "|".join(["---"] * 14) + "|")
+    p("|" + "|".join(["---"] * 14) + "|")
     for name, g in [("pool", df)] + list(df.groupby("source")):
         p(f"| {name} | {len(g)} | {g.pesq.mean():.4f} ± {ci95(g.pesq):.4f} | {g.pesq_noisy.mean():.3f} | "
           f"{g.pesq_irm.mean():.3f} | {g.pesq_wiener.mean():.3f} | {g.headroom.mean():+.3f} | {g.pesq_dist.mean():.3f} | "
@@ -227,10 +241,10 @@ def report(args):
 
     snr = group_table(df, "target_snr_db", n_total, h_total)
     p("\n## Per SNR")
-    p(snr.to_markdown(index=False, floatfmt=".3f"))
+    p(md(snr, ".3f"))
     diff = group_table(df, "noise_difficulty", n_total, h_total)
     p("\n## Per difficulty")
-    p(diff.to_markdown(index=False, floatfmt=".3f"))
+    p(md(diff, ".3f"))
 
     typ = group_table(df, "noise_category", n_total, h_total).sort_values("headroom_share", ascending=False)
     coll = df.groupby("noise_category").noise_collection.first()
@@ -239,22 +253,22 @@ def report(args):
     nd = df.groupby("noise_category")[nd_cols].mean()
     typ = typ.merge(nd, left_on="noise_category", right_index=True)
     p("\n## Per noise type, ranked by recoverable-headroom share")
-    p(typ.drop(columns=nd_cols).to_markdown(index=False, floatfmt=".3f"))
+    p(md(typ.drop(columns=nd_cols), ".3f"))
 
     ts = group_table(df, ["noise_category", "target_snr_db"], n_total, h_total)
     p("\n## Type x SNR headroom share (%)")
     piv = ts.pivot(index="noise_category", columns="target_snr_db", values="headroom_share") * 100
     piv = piv.reindex(typ.noise_category)
-    p(piv.to_markdown(floatfmt=".2f"))
+    p(md(piv.reset_index(), ".2f"))
     p("\n## Type x SNR mean headroom (IRM - v5b)")
     pivm = ts.pivot(index="noise_category", columns="target_snr_db", values="headroom_mean").reindex(typ.noise_category)
-    p(pivm.to_markdown(floatfmt=".3f"))
+    p(md(pivm.reset_index(), ".3f"))
     p("\n## Type x SNR n")
-    p(ts.pivot(index="noise_category", columns="target_snr_db", values="n").reindex(typ.noise_category)
-      .to_markdown(floatfmt=".0f"))
+    p(md(ts.pivot(index="noise_category", columns="target_snr_db", values="n").reindex(typ.noise_category)
+      .reset_index(), ".0f"))
 
     p("\n## Noise descriptors per type and Spearman correlation with per-type mean headroom (23 types)")
-    p(typ[["noise_category", "n", "headroom_mean"] + nd_cols].to_markdown(index=False, floatfmt=".3f"))
+    p(md(typ[["noise_category", "n", "headroom_mean"] + nd_cols], ".3f"))
     p("")
     p("| descriptor | rho vs type mean headroom | p | rho vs type headroom share | p | rho per file (n=492) | p |")
     p("|---|---|---|---|---|---|---|")
@@ -275,7 +289,7 @@ def report(args):
     # outputs
     (REPO_ROOT / "results").mkdir(exist_ok=True)
     keep = ["code_hash", "source", *META, "pesq_noisy", "pesq", "snr_db", "pesq_dist", "pesq_resid", "resid_db",
-            "speech_gain_db", "snr_dist_db", "pesq_irm", "snr_irm", "pesq_wiener", "snr_wiener", "headroom",
+            "speech_gain_db", "snr_dist_db", "pesq_irm", "snr_irm", "pesq_wiener", "snr_wiener", "headroom", "headroom_wiener",
             "maxdiff_shadow_sum", "maxdiff_shadow_sum_16bit", "mask_mean", *nd_cols]
     df[keep].to_csv(REPO_ROOT / "results" / "r2_noise_analysis_files.csv", index=False, float_format="%.6g")
     typ.to_csv(REPO_ROOT / "results" / "r2_noise_analysis_types.csv", index=False, float_format="%.6g")
@@ -285,11 +299,17 @@ def report(args):
 
     figs = REPO_ROOT / "docs" / "figures"
     figs.mkdir(parents=True, exist_ok=True)
-    plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False})
+    from matplotlib.colors import LinearSegmentedColormap
+    plt.rcParams.update({"font.size": 9, "axes.spines.top": False, "axes.spines.right": False,
+                         "figure.facecolor": "#fcfcfb", "axes.facecolor": "#fcfcfb", "text.color": "#0b0b0b",
+                         "axes.labelcolor": "#52514e", "xtick.color": "#52514e", "ytick.color": "#52514e",
+                         "axes.edgecolor": "#b5b4ad"})
+    blues = LinearSegmentedColormap.from_list(
+        "ramp_blue", ["#f0efec", "#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"])
     # 1) heat map: mean headroom per type x SNR, n annotated
     nmat = ts.pivot(index="noise_category", columns="target_snr_db", values="n").reindex(typ.noise_category)
     fig, ax = plt.subplots(figsize=(6.4, 8.2))
-    im = ax.imshow(pivm.values, cmap="Blues", aspect="auto", vmin=0)
+    im = ax.imshow(pivm.values, cmap=blues, aspect="auto", vmin=0)
     ax.set_xticks(range(pivm.shape[1]), [f"{c:g} dB" for c in pivm.columns])
     ylab = [f"{c} ({s*100:.1f}%)" for c, s in zip(typ.noise_category, typ.headroom_share)]
     ax.set_yticks(range(pivm.shape[0]), ylab)
@@ -299,7 +319,7 @@ def report(args):
             v, k = pivm.values[i, j], nmat.values[i, j]
             if np.isfinite(v):
                 ax.text(j, i, f"{v:.2f}\nn={k:.0f}", ha="center", va="center", fontsize=6.5,
-                        color="white" if v > 0.6 * vmax else "#1a1a1a")
+                        color="white" if v > 0.55 * vmax else "#0b0b0b")
     ax.spines[:].set_visible(False)
     ax.set_title("gru_v5b recoverable headroom: PESQ(oracle IRM) - PESQ(v5b)\n"
                  "validation + val_remix (n=492); rows ranked by total headroom share (in label)", fontsize=9)
@@ -311,8 +331,8 @@ def report(args):
     t2 = typ.sort_values("headroom_share", ascending=True)
     y = np.arange(len(t2))
     fig, ax = plt.subplots(figsize=(7.2, 7.6))
-    ax.barh(y + 0.2, t2.dist_drop, height=0.4, color="#2a6fdb", label="distortion only: 4.64 - PESQ(clean, s_hat)")
-    ax.barh(y - 0.2, t2.resid_drop, height=0.4, color="#e8833a", label="residual noise only: 4.64 - PESQ(clean, clean + n_hat)")
+    ax.barh(y + 0.2, t2.dist_drop, height=0.4, color="#2a78d6", label="distortion only: 4.64 - PESQ(clean, s_hat)")
+    ax.barh(y - 0.2, t2.resid_drop, height=0.4, color="#eb6834", label="residual noise only: 4.64 - PESQ(clean, clean + n_hat)")
     ax.set_yticks(y, [f"{c} (n={k})" for c, k in zip(t2.noise_category, t2.n)])
     ax.set_xlabel("mean PESQ drop from 4.64 (higher = worse)")
     ax.set_title("gru_v5b shadow filtering per noise type (validation + val_remix)\n"
