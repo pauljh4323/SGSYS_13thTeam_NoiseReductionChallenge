@@ -41,7 +41,7 @@ _METHOD_CACHE = {}
 
 
 def _get_method(name, params):
-    key = (name, tuple(sorted(params.items())))
+    key = (name, repr(sorted(params.items())))  # repr: params may hold a dict (gru_mask mask_post)
     if key not in _METHOD_CACHE:
         _METHOD_CACHE[key] = get_method(name, **params)
     return _METHOD_CACHE[key]
