@@ -1,0 +1,16 @@
+# gru_v5b + mask_post (exp/r2-mpost): rule-based SNR-adaptive mask strength on the model's mask, noisy input only.
+# SNR_est per file from the mask; gamma = 1.0 at SNR_est <= 0 dB, 1.25 at >= 10 dB, linear in between; M' = M^gamma.
+# Params from a train-subset grid search (400 stratified train files, 360 points; scripts/r2_mpost.py, docs/exp_r2_mpost.md).
+method: gru_mask
+params:
+  weights: weights/gru_v5b.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false
+  mask_post:
+    gamma_lo: 1.0
+    gamma_hi: 1.25
+    snr_lo: 0.0
+    snr_hi: 10.0
+    floor: 0.0
+    highpass_hz: 0.0
+    mode: file
