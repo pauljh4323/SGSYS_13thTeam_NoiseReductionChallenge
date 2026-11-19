@@ -1,0 +1,10 @@
+# Training-only extras for the differentiable PESQ loss (exp/r2-dpesq: scripts/train_dpesq.py, r2_dpesq_proxy.py, r2_dpesq_smoke.py).
+# Not used by main.py; never part of requirements.txt. Install WITHOUT dependencies:
+#     pip install --no-deps -r requirements-dpesq.txt
+# Why --no-deps: torch-pesq 0.1.2 declares torchaudio, whose last release (2.11.1) has no build for torch >= 2.12
+# (we pin torch 2.15.0). src/nrc/tpesq.py supplies the three torchaudio pieces torch-pesq uses (Resample at 16 kHz =
+# identity, Spectrogram = |torch.stft|^2, lfilter = exact FFT convolution with the impulse response), so torchaudio is
+# not needed. Its other dependencies (numpy, scipy, torch) are already pinned through requirements.txt / the conda env.
+torch-pesq==0.1.2      # differentiable PESQ approximation (audiolabs/torch-pesq, MIT)
+torchtyping==0.1.5     # imported by torch-pesq (type annotations only)
+typeguard==2.13.3      # imported by torch-pesq; torchtyping 0.1.5 needs typeguard < 3

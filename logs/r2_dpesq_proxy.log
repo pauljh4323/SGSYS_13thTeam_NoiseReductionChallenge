@@ -1,0 +1,37 @@
+r2_dpesq_proxy 2026-11-19 16:22 torch 2.14.1
+torch_pesq from torch_pesq; torchaudio stub: True
+lfilter shim power_filter: max|err| float64 1.34e-11, float32 7.29e-08 (max|y| 3.73e-01)
+lfilter shim pre_filter: max|err| float64 2.23e-14, float32 3.04e-07 (max|y| 1.46e+00)
+enhanced + loaded 1312 (file, system) pairs in 259.7s
+pesq 0.0.4: 110.8s
+torch-pesq MOS: 17.6s
+
+means (pesq 0.0.4 / torch-pesq MOS):
+  val_remix  dspv8  n 328  pesq 1.9221  tpesq 1.9078
+  val_remix  noisy  n 328  pesq 1.3620  tpesq 1.3467
+  val_remix  v5b    n 328  pesq 2.5170  tpesq 2.5034
+  validation noisy  n 164  pesq 1.3947  tpesq 1.3756
+  validation v5b    n 164  pesq 2.6962  tpesq 2.6824
+
+per-file correlation, torch-pesq MOS vs pesq 0.0.4 (Pearson / Spearman / n):
+  v5b                  0.9968 / 0.9962 / 492
+  noisy                0.9859 / 0.9766 / 492
+  dspv8 (val_remix)    0.9973 / 0.9971 / 328
+  v5b + noisy pooled   0.9973 / 0.9947 / 984
+
+paired-difference correlation, delta torch-pesq vs delta pesq (Pearson / Spearman / n):
+  v5b - noisy, all           0.9930 / 0.9963 / 492  (sign agreement 0.996; mean dpesq +1.2039, dtpesq +1.2067)
+  v5b - noisy, validation    0.9970 / 0.9958 / 164  (sign agreement 1.000; mean dpesq +1.3015, dtpesq +1.3068)
+  v5b - noisy, val_remix     0.9913 / 0.9960 / 328  (sign agreement 0.994; mean dpesq +1.1551, dtpesq +1.1567)
+  v5b - dspv8, val_remix     0.9954 / 0.9892 / 328  (sign agreement 0.991; mean dpesq +0.5949, dtpesq +0.5957)
+
+gradient of PesqLoss forward(ref, deg).mean() w.r.t. deg (float32):
+  (a) deg silent, ref speech         loss nan finite loss False finite grad False |grad| nan peak in 0.609
+  (b) ref silent, deg noisy speech   loss nan finite loss False finite grad False |grad| nan peak in 0.612
+  (c) both silent                    loss nan finite loss False finite grad False |grad| nan peak in 0.000
+  (d) normal 3 s (peak < 1)          loss 2.5782 finite loss True finite grad True |grad| 6.716e+00 peak in 0.612
+  (e) deg 1e-9 noise, ref speech     loss 5.5989 finite loss True finite grad True |grad| 7.066e+06 peak in 0.609
+  (f) ref 1e-9 noise, deg speech     loss 5.4564 finite loss True finite grad True |grad| 9.525e-01 peak in 0.612
+  -> only exact digital silence is non-finite (0/0 in the level alignment); training drops rows whose clean or estimate has max|x| < 1e-8 before the PESQ term (train_dpesq.pesq_term)
+
+GATE paired-difference Spearman (v5b - noisy, all) = 0.9963 vs 0.6: PASS

@@ -1,0 +1,43 @@
+﻿# gru_v8p1 (exp/r2-dpesq): fine-tune of gru_v5b with a differentiable PESQ loss (torch-pesq via nrc.tpesq) - v5b loss weights plus the PESQ term.
+# loss = 1.0 cmag + 0.5 MR-STFT + 0.3 (-SI-SDR) + lambda_pesq * mean(0.1 d_symm + 0.0309 d_asymm). Train: scripts/train_dpesq.py.
+# lambda_pesq: ||grad regression (v5b weights)|| / ||grad PESQ term|| at gru_v5b init (scripts/r2_dpesq_smoke.py, same in v8p1..3).
+# Inference: method/params (level norm off, like gru_v5b_off); model/train: training only.
+method: gru_mask
+params:
+  weights: weights/gru_v8p1.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: false
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  init_from: weights/gru_v5b.pt   # warm start (magnitude mask), fresh optimizer
+  epochs: 100
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 1.0
+  lambda_mrstft: 0.5
+  lambda_sisdr: 0.3
+  lambda_pesq: 0.32                # mean grad-norm ratio at gru_v5b init (0.3186, 8 batches; r2_dpesq_smoke.py)
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 20         # early stop: 20 epochs without a val PESQ gain
+  remix:                          # = gru_v5b
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_mode: mixture
+    p_wide: 0.5
+    gain_wide_db: [-30, 6]
+    gain_narrow_db: [-6, 3]
+    peak: 0.99

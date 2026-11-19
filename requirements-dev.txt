@@ -5,3 +5,5 @@ pystoi==0.4.1
 pandas==3.1.1
 tqdm==4.70.1
 matplotlib==3.11.2
+# Differentiable PESQ training extras (torch-pesq, torchtyping, typeguard): requirements-dpesq.txt, installed with
+# pip install --no-deps -r requirements-dpesq.txt (torch-pesq declares torchaudio, which has no build for torch 2.15).
