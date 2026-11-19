@@ -1,0 +1,9 @@
+1. pretrain exit 0; 1-step run exit 0, step 1 g_loss ['0.200085']
+   last.pt: epoch 1, step 1, torch_rng torch.uint8 (5056,), cuda_rng None, CUDA available False
+   old call torch.set_rng_state(int64 state) -> TypeError: RNG state must be a torch.ByteTensor
+2/3. plain: restored state == saved True; exit 0; resumed at [('1', '1')]; step 2 g_loss ['0.241859']; logged epoch/step ('2', '2') -> OK
+2/3. int64: restored state == saved True; exit 0; resumed at [('1', '1')]; step 2 g_loss ['0.241859']; logged epoch/step ('2', '2') -> OK
+warning: checkpoint has CUDA RNG states but CUDA is not available; skipped
+2/3. gpu_ckpt: restored state == saved True; exit 0; resumed at [('1', '1')]; step 2 g_loss ['0.241859']; logged epoch/step ('2', '2'); CUDA-skip warning True -> OK
+   step-2 losses identical across variants: True {'plain': '0.241859', 'int64': '0.241859', 'gpu_ckpt': '0.241859'}
+RESUME TEST PASS

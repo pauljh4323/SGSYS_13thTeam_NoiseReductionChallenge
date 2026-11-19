@@ -133,6 +133,33 @@ def d_step(disc, opt_d, replay, clean_t, enh_t, noisy_t, pesq_enh, pesq_noisy, r
     return loss.item(), pred[:clean_t.shape[0]].detach().mean().item()
 
 
+def _rng_byte(t):
+    """RNG state as the CPU uint8 tensor torch expects (torch.load with map_location="cuda" moves it to the GPU)."""
+    import torch
+    return torch.as_tensor(t).detach().cpu().to(torch.uint8)
+
+
+def restore_torch_rng(ck: dict) -> None:
+    """Restore the torch CPU / CUDA RNG states of a last.pt dict, whatever device or dtype they were loaded as.
+    CUDA states are restored only when CUDA is available (skipped with a warning otherwise, e.g. a GPU checkpoint
+    resumed on CPU); if the device count differs, the common devices are restored."""
+    import torch
+    torch.set_rng_state(_rng_byte(ck["torch_rng"]))
+    cuda = ck.get("cuda_rng")
+    if cuda is None:
+        return
+    if not torch.cuda.is_available():
+        print("warning: checkpoint has CUDA RNG states but CUDA is not available; skipped", flush=True)
+        return
+    states = [_rng_byte(t) for t in cuda]
+    n = min(len(states), torch.cuda.device_count())
+    if n != len(states):
+        print(f"warning: checkpoint has {len(states)} CUDA RNG states, {torch.cuda.device_count()} devices; "
+              f"restoring {n}", flush=True)
+    for i in range(n):
+        torch.cuda.set_rng_state(states[i], device=i)
+
+
 def _val_item(args) -> tuple[float, float]:
     clean, est = args
     pcm, _ = to_pcm16(est)
@@ -286,9 +313,7 @@ def main(argv=None) -> int:
             print(f"{last_path} is early-stopped (epoch {start_epoch}, best {best:.4f} ep {best_epoch}); nothing to do")
             return 0
         rng.bit_generator.state = ck["np_rng"]
-        torch.set_rng_state(ck["torch_rng"])
-        if device == "cuda" and ck.get("cuda_rng") is not None:
-            torch.cuda.set_rng_state_all(ck["cuda_rng"])
+        restore_torch_rng(ck)
         print(f"resumed from {last_path}: epoch {start_epoch}, step {step}, best {best:.4f} (ep {best_epoch}), "
               f"replay {len(replay)}")
     else:
