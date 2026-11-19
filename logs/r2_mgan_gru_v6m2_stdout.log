@@ -1,0 +1,17 @@
+data: train 1296 x 48000 samples, load 2.7s, device cuda, pesq jobs 2
+G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+D init from /content/drive/MyDrive/nrc_ckpt/mgan_d_pretrain/d_pretrain.pt (pretrain epochs 2, replay 512)
+G loss = 1.0 cmag + 0.2 MR-STFT + 0.0 (-SI-SDR) + 0.3 (D - 1)^2; lr G 1.0e-04 D 2.0e-04; 60 epochs x 81 steps
+epoch 1/60 step 81 g 0.156384 adv 0.101219 d 0.067592 D(enh) 0.6860 pesq_tr 2.9907 val_pesq 2.6614 val_snr 16.876 best 2.6614 (ep 1) [244.6s + val 14.4s, 3.019s/step]
+epoch 2/60 step 162 g 0.160622 adv 0.100359 d 0.067102 D(enh) 0.6870 pesq_tr 2.9104 val_pesq 2.6688 val_snr 16.852 best 2.6688 (ep 2) [240.4s + val 14.3s, 2.968s/step]
+epoch 3/60 step 243 g 0.158118 adv 0.095873 d 0.060906 D(enh) 0.6937 pesq_tr 2.9501 val_pesq 2.6680 val_snr 16.847 best 2.6688 (ep 2) [241.1s + val 14.5s, 2.976s/step]
+epoch 4/60 step 324 g 0.158477 adv 0.097094 d 0.059050 D(enh) 0.6911 pesq_tr 2.9463 val_pesq 2.6441 val_snr 16.832 best 2.6688 (ep 2) [238.1s + val 14.1s, 2.939s/step]
+epoch 5/60 step 405 g 0.168769 adv 0.123397 d 0.049730 D(enh) 0.6565 pesq_tr 2.8714 val_pesq 2.6294 val_snr 16.796 best 2.6688 (ep 2) [237.0s + val 13.9s, 2.926s/step]
+epoch 6/60 step 486 g 0.169800 adv 0.138150 d 0.043008 D(enh) 0.6409 pesq_tr 2.9078 val_pesq 2.5982 val_snr 16.732 best 2.6688 (ep 2) [231.9s + val 13.9s, 2.863s/step]
+epoch 7/60 step 567 g 0.168710 adv 0.143935 d 0.040311 D(enh) 0.6367 pesq_tr 2.9057 val_pesq 2.6057 val_snr 16.762 best 2.6688 (ep 2) [234.4s + val 13.9s, 2.894s/step]
+epoch 8/60 step 648 g 0.170330 adv 0.154006 d 0.037508 D(enh) 0.6309 pesq_tr 2.8939 val_pesq 2.5982 val_snr 16.736 best 2.6688 (ep 2) [238.5s + val 14.1s, 2.944s/step]
+epoch 9/60 step 729 g 0.173722 adv 0.156896 d 0.033555 D(enh) 0.6284 pesq_tr 2.8942 val_pesq 2.6247 val_snr 16.758 best 2.6688 (ep 2) [239.8s + val 14.5s, 2.961s/step]
+epoch 10/60 step 810 g 0.177817 adv 0.165598 d 0.031471 D(enh) 0.6206 pesq_tr 2.8773 val_pesq 2.6094 val_snr 16.746 best 2.6688 (ep 2) [239.2s + val 14.4s, 2.953s/step]
+epoch 11/60 step 891 g 0.177536 adv 0.169798 d 0.031400 D(enh) 0.6175 pesq_tr 2.8980 val_pesq 2.6032 val_snr 16.727 best 2.6688 (ep 2) [236.2s + val 13.7s, 2.916s/step]
+epoch 12/60 step 972 g 0.180955 adv 0.178476 d 0.031402 D(enh) 0.6113 pesq_tr 2.8667 val_pesq 2.6079 val_snr 16.744 best 2.6688 (ep 2) [238.3s + val 12.9s, 2.942s/step]
+epoch 13/60 step 1053 g 0.175557 adv 0.168625 d 0.031590 D(enh) 0.6230 pesq_tr 2.9226 val_pesq 2.5818 val_snr 16.704 best 2.6688 (ep 2) [235.3s + val 14.1s, 2.905s/step]

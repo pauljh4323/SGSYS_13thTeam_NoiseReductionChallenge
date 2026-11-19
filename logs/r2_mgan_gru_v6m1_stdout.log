@@ -1,0 +1,23 @@
+data: train 1296 x 48000 samples, load 3.5s, device cuda, pesq jobs 2
+G init from gru_v5b.pt (epoch 8, pesq 2.696154750701858); G 2,373,651 params, D 94,315 params
+D init from /content/drive/MyDrive/nrc_ckpt/mgan_d_pretrain/d_pretrain.pt (pretrain epochs 2, replay 512)
+G loss = 1.0 cmag + 0.5 MR-STFT + 0.3 (-SI-SDR) + 0.05 (D - 1)^2; lr G 1.0e-04 D 2.0e-04; 60 epochs x 81 steps
+epoch 1/60 step 81 g -4.829723 adv 0.099194 d 0.066760 D(enh) 0.6893 pesq_tr 2.9925 val_pesq 2.6932 val_snr 16.807 best 2.6932 (ep 1) [234.5s + val 14.3s, 2.895s/step]
+epoch 2/60 step 162 g -4.698728 adv 0.098908 d 0.065144 D(enh) 0.6891 pesq_tr 2.9132 val_pesq 2.6977 val_snr 16.792 best 2.6977 (ep 2) [236.0s + val 14.3s, 2.913s/step]
+epoch 3/60 step 243 g -4.713143 adv 0.099135 d 0.060821 D(enh) 0.6889 pesq_tr 2.9408 val_pesq 2.6879 val_snr 16.839 best 2.6977 (ep 2) [236.6s + val 14.3s, 2.921s/step]
+epoch 4/60 step 324 g -4.700378 adv 0.102743 d 0.057668 D(enh) 0.6835 pesq_tr 2.9499 val_pesq 2.6856 val_snr 16.826 best 2.6977 (ep 2) [237.3s + val 13.6s, 2.930s/step]
+epoch 5/60 step 405 g -4.596876 adv 0.129534 d 0.047908 D(enh) 0.6497 pesq_tr 2.8908 val_pesq 2.6855 val_snr 16.819 best 2.6977 (ep 2) [240.2s + val 15.4s, 2.965s/step]
+epoch 6/60 step 486 g -4.699657 adv 0.147560 d 0.039657 D(enh) 0.6306 pesq_tr 2.9494 val_pesq 2.6867 val_snr 16.810 best 2.6977 (ep 2) [246.4s + val 14.9s, 3.042s/step]
+epoch 7/60 step 567 g -4.687449 adv 0.162699 d 0.037296 D(enh) 0.6174 pesq_tr 2.9392 val_pesq 2.6858 val_snr 16.816 best 2.6977 (ep 2) [233.3s + val 14.1s, 2.881s/step]
+epoch 8/60 step 648 g -4.756494 adv 0.167314 d 0.034172 D(enh) 0.6181 pesq_tr 2.9387 val_pesq 2.6869 val_snr 16.834 best 2.6977 (ep 2) [229.7s + val 13.8s, 2.835s/step]
+epoch 9/60 step 729 g -4.703217 adv 0.175090 d 0.030400 D(enh) 0.6107 pesq_tr 2.9365 val_pesq 2.6819 val_snr 16.840 best 2.6977 (ep 2) [230.4s + val 13.8s, 2.844s/step]
+epoch 10/60 step 810 g -4.672004 adv 0.187333 d 0.028254 D(enh) 0.5989 pesq_tr 2.9222 val_pesq 2.6905 val_snr 16.848 best 2.6977 (ep 2) [227.4s + val 13.8s, 2.807s/step]
+epoch 11/60 step 891 g -4.721097 adv 0.188678 d 0.028826 D(enh) 0.5992 pesq_tr 2.9335 val_pesq 2.6724 val_snr 16.866 best 2.6977 (ep 2) [229.7s + val 13.0s, 2.836s/step]
+epoch 12/60 step 972 g -4.648651 adv 0.198779 d 0.029146 D(enh) 0.5916 pesq_tr 2.8989 val_pesq 2.6861 val_snr 16.839 best 2.6977 (ep 2) [235.0s + val 14.1s, 2.901s/step]
+epoch 13/60 step 1053 g -4.741124 adv 0.189598 d 0.028040 D(enh) 0.6032 pesq_tr 2.9500 val_pesq 2.6747 val_snr 16.875 best 2.6977 (ep 2) [233.3s + val 14.0s, 2.881s/step]
+epoch 14/60 step 1134 g -4.633224 adv 0.201321 d 0.026565 D(enh) 0.5913 pesq_tr 2.9131 val_pesq 2.6788 val_snr 16.863 best 2.6977 (ep 2) [242.8s + val 14.6s, 2.998s/step]
+epoch 15/60 step 1215 g -4.698653 adv 0.199772 d 0.026681 D(enh) 0.5936 pesq_tr 2.9093 val_pesq 2.6797 val_snr 16.884 best 2.6977 (ep 2) [237.3s + val 14.2s, 2.930s/step]
+epoch 16/60 step 1296 g -4.672102 adv 0.203993 d 0.024805 D(enh) 0.5898 pesq_tr 2.9253 val_pesq 2.6815 val_snr 16.869 best 2.6977 (ep 2) [243.2s + val 14.8s, 3.003s/step]
+epoch 17/60 step 1377 g -4.657967 adv 0.205281 d 0.026101 D(enh) 0.5891 pesq_tr 2.8949 val_pesq 2.6841 val_snr 16.855 best 2.6977 (ep 2) [241.0s + val 14.5s, 2.975s/step]
+early stop: no val PESQ gain for 15 val points
+done: best val PESQ 2.6977 at epoch 2; weights /content/drive/MyDrive/nrc_ckpt/gru_v6m1/best.pt
