@@ -1,9 +1,11 @@
-# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v5b_off.yaml verbatim:
-# gru_v5b (BiGRU magnitude mask, 2.37M params, trained from scratch on the train split only; dl-main),
-# inference with level norm off. dl-main: val PESQ 2.6962 (0/5/10/15 dB 1.953/2.410/2.702/3.083), val_remix 2.5170.
-# Round-1 submission (dsp-v7, mmse_lsa) stays on main.
+# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v8p2.yaml (method/params verbatim):
+# gru_v8p2 = gru_v5b (BiGRU magnitude mask, 2.37M params) fine-tuned with a differentiable PESQ loss
+# (0.2 cmag + 0.32 torch-pesq; branch exp/r2-dpesq, scripts/train_dpesq.py; train split only), inference with level norm off
+# (level norm ON tested: -30 dB probe +0.064 < 0.1, not adopted). val PESQ 3.3983 / SNR 4.48 dB, val_remix 3.2378.
+# Fallback: gru_v5b (configs/dl/gru_v5b_off.yaml, weights/gru_v5b.pt; val PESQ 2.6962 / SNR 16.81 dB) - copy its
+# method/params here to revert. Round-1 submission (dsp-v7, mmse_lsa) stays on main.
 method: gru_mask
 params:
-  weights: weights/gru_v5b.pt   # resolved against the repo root, not the cwd
+  weights: weights/gru_v8p2.pt   # resolved against the repo root, not the cwd
   device: cpu
   level_norm: false

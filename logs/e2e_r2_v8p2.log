@@ -1,0 +1,59 @@
+ROUND 2: allowed methods ['gru_mask', 'mmse_lsa', 'noisy', 'wiener']
+PASS (compliance) round 2: submission method 'gru_mask' in ['gru_mask', 'mmse_lsa', 'noisy', 'wiener']
+PASS (a) copied 164 validation noisy wavs
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\nrc_wt_r2prep\main.py --input D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\input --output D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output
+main.py: processed=164 failed=0 clipped_samples=0 total=25.3s -> D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output
+PASS (a) main.py failed=0
+PASS (a): same filenames/count (164/164)
+PASS (a): sr/length/channels/subtype preserved
+PASS (a): output/ holds exactly the input WAV names (164 entries)
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\nrc_wt_r2prep\scripts\eval.py --config D:\2_CLASS\nrc_wt_r2prep\configs\submission.yaml --split validation --pred-dir D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output --jobs 4 --notes e2e main.py outputs
+submission (gru_mask) | validation n=164 | pred-dir D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output | jobs=4 | 21.1s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 164       0     3.3983    0.5643      2.0036  2.4172 0.9065  4.4813       -5.1529
+
+$ git clone --quiet --no-hardlinks D:\2_CLASS\nrc_wt_r2prep D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\clone
+$ git rev-parse --short HEAD
+clone HEAD ef16c9a
+PASS (b) clone has no data/
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\clone\main.py --input D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\input --output D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_clone
+main.py: processed=164 failed=0 clipped_samples=0 total=26.7s -> D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_clone
+PASS (b) clone main.py failed=0
+PASS (b): same filenames/count (164/164)
+PASS (b): sr/length/channels/subtype preserved
+PASS (b): output/ holds exactly the input WAV names (164 entries)
+PASS (a)==(b) bit-identical (164 files, 0 differ)
+$ D:\miniconda3\envs\nrc\python.exe -m venv D:\2_CLASS\nrc_wt_r2prep\outputs\venv_ci
+$ D:\2_CLASS\nrc_wt_r2prep\outputs\venv_ci\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\clone\requirements.txt
+venv: pip install 193 s, size 812 MB
+$ D:\2_CLASS\nrc_wt_r2prep\outputs\venv_ci\Scripts\python.exe -m pip freeze
+venv packages: cffi==2.1.1 filelock==4.3.0 fsspec==2026.9.0 Jinja2==3.1.6 MarkupSafe==3.0.4 mpmath==1.3.0 networkx==3.7 numpy==2.5.4 pycparser==3.12 PyYAML==6.0.3 scipy==1.18.1 setuptools==84.2.1 soundfile==0.14.0 sympy==1.14.0 torch==2.15.0+cpu typing_extensions==4.16.0
+PASS (d) torch_pesq / torchaudio not importable in the venv (found: none)
+PASS (d) src/nrc/tpesq.py not in the clone
+$ D:\2_CLASS\nrc_wt_r2prep\outputs\venv_ci\Scripts\python.exe D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\clone\main.py --input D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\input --output D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_venv
+main.py: processed=164 failed=0 clipped_samples=0 total=17.5s -> D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_venv
+PASS (d) fresh pip venv: clone main.py failed=0
+PASS (d): same filenames/count (164/164)
+PASS (d): sr/length/channels/subtype preserved
+PASS (d): output/ holds exactly the input WAV names (164 entries)
+PASS (a)==(d) fresh pip venv bit-identical (164 files, 0 differ)
+PASS (d) venv deleted
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\nrc_wt_r2prep\main.py --input D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\input --output D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_cwd
+main.py: processed=164 failed=0 clipped_samples=0 total=24.1s -> D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\output_cwd
+PASS (c) main.py from cwd=outputs/ failed=0
+PASS (a)==(c) bit-identical (164 files, 0 differ)
+PASS (c): output/ holds exactly the input WAV names (164 entries)
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\nrc_wt_r2prep\main.py --input D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\extra_input --output D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\extra_output
+main.py: processed=2 failed=0 clipped_samples=0 total=2.7s -> D:\2_CLASS\nrc_wt_r2prep\outputs\e2e\extra_output
+PASS (extra) main.py failed=0
+PASS (extra): same filenames/count (2/2)
+PASS (extra): sr/length/channels/subtype preserved
+PASS (extra): output/ holds exactly the input WAV names (3 entries)
+PASS (extra) short_1p7s.wav enhanced (not passthrough): 16000 Hz, 1 ch, 27200 frames
+PASS (extra) sub/stereo44k.WAV enhanced (not passthrough): 44100 Hz, 2 ch, 132300 frames
+SKIP (compliance) torch-free probe: round 2 allows torch
+
+E2E PASSED: 0 failing check(s)
+exit rc=0
