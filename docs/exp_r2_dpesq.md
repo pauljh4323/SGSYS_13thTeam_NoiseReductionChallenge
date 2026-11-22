@@ -121,3 +121,36 @@ Local CPU cost: 6.6-7.2 s/step, of which the PESQ term's forward+backward w.r.t.
 Files: src/nrc/tpesq.py, scripts/train_dpesq.py, scripts/r2_dpesq_proxy.py, scripts/r2_dpesq_smoke.py,
 configs/dl/gru_v8p{1,2,3}.yaml, requirements-dpesq.txt, notebooks/colab_train.ipynb (queue), logs/r2_dpesq_proxy.log,
 logs/r2_dpesq_proxy_files.csv, logs/r2_dpesq_smoke.log (force-added).
+
+## Results (2026-11-22; Colab best.pt -> weights/gru_v8pN.pt; eval.py at e42d531 / 3679106)
+gru_v8p3 is partial: its Colab session ended at epoch 17 (best so far). It is re-queued and resumes from Drive `last.pt`.
+Paired deltas are vs gru_v5b_off. Full tables: logs/r2_dpesq_compare.txt (scripts/r2_v6_compare.py).
+
+| model | val PESQ | val SNR | val d (z) | val_remix PESQ | val_remix SNR | val_remix d (z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| gru_v5b_off | 2.6962 | 16.81 | - | 2.5170 | 15.45 | - | 2.614/2.670/2.684/2.696 | ref |
+| gru_v8p1 | 2.7849 | 16.85 | +0.089 (13.9) | 2.6189 | 15.46 | +0.102 (23.5) | 2.709/2.761/2.775/2.785 | PASS |
+| **gru_v8p2** | **3.3983** | 4.48 | +0.702 (27.0) | **3.2378** | 4.31 | +0.721 (35.1) | 2.736/3.203/3.378/3.398 | PASS |
+| gru_v8p3 (ep 17) | 3.0447 | 9.43 | +0.349 (16.3) | 2.8904 | 8.59 | +0.373 (23.6) | 2.839/3.000/3.041/3.045 | PASS |
+
+Top-5 types (validation / val_remix delta vs v5b): v8p2 broadband_noise +0.996 / +1.007, aircraft_cockpit +0.921 / +0.911,
+machine +0.742 / +0.773, wind +0.636 / +0.599, alarm_siren +0.441 / +0.490. v8p3: +0.561/+0.632, +0.500/+0.494,
++0.325/+0.338, +0.301/+0.309, +0.235/+0.312.
+SNR is traded for PESQ: the PESQ term alone does not constrain level or phase. v8p2's SNR is 4.5 dB, against 16.8 dB for v5b
+and 9.6 dB for the noisy input. That is acceptable because the objective is PESQ-WB only.
+main.py CPU time on 164 validation files (logs/time_r2dpesq_*.log, sequential): v5b 58.4 s, v8p1 67.9 s, v8p2 63.0 s,
+v8p3 61.2 s. The same architecture is used throughout, so the differences come from machine load.
+
+### Level normalisation for gru_v8p2 (configs/dl/gru_v8p2_lnrb.yaml; ON = gru_v1_lnrb range_boost; logs/eval_gru_v8p2_lnrb_*)
+| set | OFF | ON | paired d (SE, z) |
+|---|---|---|---|
+| validation | 3.3983 | 3.3988 | +0.0005 (0.0004, 1.29) |
+| val_remix | 3.2378 | 3.2384 | +0.0005 (0.0005, 1.05) |
+| probe -30 dB | 2.7360 | 2.7995 | +0.0636 (0.0090, 7.03) |
+| probe -20 dB | 3.2034 | 3.2156 | +0.0122 |
+| probe -10 dB | 3.3776 | 3.3752 | -0.0025 |
+| probe 0 dB | 3.3983 | 3.3988 | +0.0005 |
+Adoption rule: val and val_remix d >= -0.003 (met), and the -30 dB probe must gain >= 0.1. It gained +0.064, so the rule
+is not met. **Decision: level norm OFF** (configs/dl/gru_v8p2.yaml).
+
+### Queue (Colab, 2026-11-22): gru_v8p3 (resume), gru_v8p2x (init gru_v8p2, fresh Adam 5e-5, 200 ep, patience 30).
