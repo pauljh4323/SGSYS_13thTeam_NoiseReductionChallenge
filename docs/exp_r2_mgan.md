@@ -97,21 +97,21 @@ notebooks/colab_train.ipynb (queue), logs/r2_mgan_smoke.log (force-added).
 ## Result (2026-11-19, Colab T4): closed, no promotion
 Source: the Colab train logs (validation every epoch, full validation split, pesq 0.0.4). No full eval.py run was made on
 validation / val_remix, so there are no rows in results/experiments.csv. Logs (force-added):
-logs/r2_mgan_d_pretrain_log.csv / _stdout.log, logs/r2_mgan_gru_v6m{1,2}_train_log.csv / _stdout.log.
-The gru_v6m3 log is pending: it was not in the downloaded Drive copy (nrc_ckpt/gru_v6m3 on Drive).
+logs/r2_mgan_d_pretrain_log.csv / _stdout.log, logs/r2_mgan_gru_v6m{1,2}_train_log.csv / _stdout.log,
+logs/train_log_v6m3.csv (added 2026-11-22 on exp/r2-dpesq; train log only, no stdout copy).
 
 | config | best epoch | best val PESQ | vs gru_v5b 2.6962 | log |
 |---|---|---|---|---|
 | gru_v6m1 | 2 | 2.6977 | +0.0015 (one epoch, within seed noise) | 17 epochs, early stop |
 | gru_v6m2 | 2 | 2.6688 | -0.0274 | 13 epochs in the downloaded copy (no early_stop row) |
-| gru_v6m3 | 2 | 2.6502 | -0.0460 | pending |
+| gru_v6m3 | 2 | 2.6502 | -0.0460 | 17 epochs, early stop (ep 17 val 2.6163) |
 
 Diagnosis: the generator exploited the discriminator.
 - The D pretrain never learned PESQ. corr_d_pesq, the correlation between D(enhanced) and the true PESQ target over an epoch,
   was 0.0017 after epoch 1 and -0.0794 after epoch 2.
 - In G+D training, D rated the enhanced output 0.69 at epochs 1-3, which corresponds to PESQ 1 + 3.5 * 0.69 = 3.41. The true
   train PESQ of those batches was 2.91-2.99.
-- Over training, D(enh) fell to 0.59 for m1 and 0.61-0.62 for m2, while D(clean) rose from 0.68 to 0.84. The true train PESQ
+- Over training, D(enh) fell to 0.59 for m1, 0.61-0.62 for m2 and 0.60 for m3 (D(clean) 0.62 -> 0.83, train PESQ 2.88 -> 2.86), while D(clean) rose from 0.68 to 0.84. The true train PESQ
   stayed flat (m1 2.99 -> 2.89-2.95) and val PESQ went down after epoch 2 in every variant.
 - So the adversarial term mostly measured D's own miscalibration, not PESQ. The best epoch is the second warm-start epoch, and
   that is noise around gru_v5b.

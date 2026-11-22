@@ -33,6 +33,8 @@ def main() -> int:
     ap.add_argument("--ref", default="gru_v5b_off")
     ap.add_argument("--cands", nargs="+", default=["gru_v6a_off", "gru_v6b_off"])
     ap.add_argument("--headroom", nargs="*", default=["gru_v6a_off"], help="models to report phase-headroom fraction for")
+    ap.add_argument("--types", nargs="+", default=WEAK5,
+                    help="noise categories for the per-type delta block (default weak-5; exp/r2-dpesq: top-5 headroom types)")
     a = ap.parse_args()
     REF, CANDS = a.ref, a.cands
     names = [REF] + CANDS
@@ -61,8 +63,8 @@ def main() -> int:
             for s, g in dfs[REF].groupby("target_snr_db"):
                 st = paired_stats(g.pesq, dfs[n].pesq.reindex(g.index))
                 print(f"  {n} {s:>5g} dB n={st['d_n']:3d} {st['d_mean']:+.4f} SE {st['d_se']:.4f} z {st['d_z']:+.2f}")
-        print(f"\n[{split}] weak-5 categories: n, {REF} PESQ, delta per candidate")
-        for c in WEAK5:
+        print(f"\n[{split}] categories {' '.join(a.types)}: n, {REF} PESQ, delta per candidate")
+        for c in a.types:
             idx = dfs[REF].index[dfs[REF].noise_category == c]
             line = f"  {c:22s} n={len(idx):3d} v5b {dfs[REF].pesq[idx].mean():.4f}"
             for n in CANDS:
