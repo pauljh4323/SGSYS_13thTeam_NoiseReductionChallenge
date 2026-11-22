@@ -1,0 +1,7 @@
+# gru_v8p2 weights (Colab, branch exp/r2-dpesq configs/dl/gru_v8p2.yaml: gru_v5b + 0.2 cmag + 0.32 torch-pesq loss,
+# lr 5e-5, seed 0, best epoch 99), inference with level norm off. Training config and code stay on exp/r2-dpesq.
+method: gru_mask
+params:
+  weights: weights/gru_v8p2.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: false
