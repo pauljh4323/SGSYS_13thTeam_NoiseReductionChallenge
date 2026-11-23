@@ -1,0 +1,19 @@
+gru_v8p3 (gru_mask) | validation n=164 | in-memory 16-bit | jobs=1 | 141.4s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 164       0     3.4154    0.5606      2.0207  1.8054 0.9049  4.0763       -5.5579
+
+[by target_snr_db]
+ target_snr_db  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+        0.0000 15       0     2.7936    0.6453      1.7140 -0.5335 0.8451  3.3612        3.3612
+        5.0000 38       0     3.2020    0.6031      1.9838  2.7394 0.8956  4.8967       -0.1033
+       10.0000 55       0     3.4604    0.4427      2.1029  1.5971 0.9080  3.8979       -6.1021
+       15.0000 56       0     3.6826    0.4203      2.0472  2.0025 0.9243  3.8863      -11.1137
+
+[by noise_difficulty]
+noise_difficulty  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+            easy 99       0     3.3327    0.6100      2.0216  2.0731 0.9006  4.4231       -3.8093
+            hard 24       0     3.5729    0.4715      2.0412  3.7126 0.9136  4.6995       -8.6338
+        moderate 41       0     3.5228    0.4445      2.0066  0.0424 0.9103  2.8740       -7.9796
+ok rc=0

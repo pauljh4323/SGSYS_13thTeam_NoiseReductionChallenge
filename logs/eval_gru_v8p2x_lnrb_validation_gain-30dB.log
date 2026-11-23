@@ -1,0 +1,20 @@
+gru_v8p2x_lnrb (gru_mask) | validation n=164 | in-memory 16-bit | PROBE input-gain -30 dB | jobs=1 | 269.5s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 164       0     2.6796    0.6614      1.2849  0.0383 0.8820  0.0847       -0.1934
+
+[by target_snr_db]
+ target_snr_db  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+        0.0000 15       0     2.2328    0.6137      1.1532 -1.0102 0.8142  0.0773       -0.1974
+        5.0000 38       0     2.5628    0.6456      1.3447  0.9316 0.8696  0.0924       -0.1855
+       10.0000 55       0     2.6913    0.6832      1.3338 -0.0365 0.8865  0.0858       -0.1927
+       15.0000 56       0     2.8671    0.6019      1.2317 -0.2137 0.9043  0.0805       -0.1985
+
+[by noise_difficulty]
+noise_difficulty  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+            easy 99       0     2.6545    0.7131      1.3433  0.3009 0.8764  0.0884       -0.1894
+            hard 24       0     2.8748    0.6050      1.3431  0.8792 0.8963  0.0931       -0.1859
+        moderate 41       0     2.6261    0.5470      1.1100 -1.0880 0.8872  0.0709       -0.2076
+(probe run: not appended to results/experiments.csv)
+ok rc=0

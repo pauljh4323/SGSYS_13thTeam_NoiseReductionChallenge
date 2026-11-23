@@ -154,3 +154,41 @@ Adoption rule: val and val_remix d >= -0.003 (met), and the -30 dB probe must ga
 is not met. **Decision: level norm OFF** (configs/dl/gru_v8p2.yaml).
 
 ### Queue (Colab, 2026-11-22): gru_v8p3 (resume), gru_v8p2x (init gru_v8p2, fresh Adam 5e-5, 200 ep, patience 30).
+
+## Results 2026-11-23: full gru_v8p3 and gru_v8p2x vs the submission gru_v8p2 (eval.py at b472c83, 16-bit, --jobs 1)
+Training (Colab; logs/train_log_v8p3.csv, logs/train_log_v8p2x.csv; all checkpoints load with weights_only=True):
+- gru_v8p3 (PESQ term only): resumed from epoch 17, ran to 100 without early stop. Best epoch 99: val 3.4154, val SNR 4.08 dB,
+  train64 3.9467 (gap 0.531). The epoch-17 checkpoint is kept as weights/gru_v8p3_e17.pt (configs/dl/gru_v8p3_e17.yaml;
+  its 2026-11-22 eval files were renamed to *_e17).
+- gru_v8p2x (continues v8p2, fresh Adam): 200 epochs without early stop, still rising slowly. Best epoch 194: val 3.4875,
+  val SNR 2.91 dB, train64 4.0555 (gap 0.568).
+- No non-finite PESQ-loss steps. Eval: 0 PESQ failures, 0 clipped samples, no NaN in PESQ/SNR in any of the 24 new runs.
+
+Paired deltas are vs gru_v8p2 (OFF). ON = range_boost level norm as in gru_v8p2_lnrb. Full tables, per-SNR deltas and
+top-5 types: logs/r2_dpesq_compare_v8p2ref.txt; ON vs OFF: logs/r2_dpesq_compare_gru_v8p3_onoff.txt, logs/r2_dpesq_compare_gru_v8p2x_onoff.txt.
+
+| model | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| gru_v8p2 (submission) | 3.3983 | 2.785/3.182/3.448/3.661 | 4.48 | - | 3.2378 | - | 2.736/3.203/3.378/3.398 | ref |
+| gru_v8p2 ON | 3.3988 | 2.785/3.183/3.448/3.662 | 4.49 | +0.0005 (0.0004, 1.29) | 3.2384 | +0.0005 (0.0005, 1.05) | 2.800/3.216/3.375/3.399 | FAIL (z) |
+| gru_v8p3 OFF | 3.4154 | 2.794/3.202/3.460/3.683 | 4.08 | +0.0171 (0.0033, 5.11) | 3.2567 | +0.0189 (0.0022, 8.52) | **2.707**/3.189/3.385/3.415 | FAIL (-30 dB) |
+| gru_v8p3 ON | 3.4157 | 2.794/3.203/3.460/3.683 | 4.09 | +0.0175 (0.0033, 5.27) | 3.2573 | +0.0194 (0.0023, 8.59) | 2.737/3.192/3.382/3.416 | rule PASS, ON not adoptable |
+| gru_v8p2x OFF | **3.4875** | 2.868/3.258/3.536/3.761 | 2.91 | +0.0892 (0.0101, 8.81) | **3.3450** | +0.1072 (0.0089, 12.10) | **2.640**/3.194/3.437/3.488 | FAIL (-30 dB) |
+| gru_v8p2x ON | 3.4875 | 2.868/3.258/3.536/3.761 | 2.91 | +0.0892 (0.0101, 8.80) | 3.3451 | +0.1072 (0.0089, 12.07) | **2.680**/3.205/3.438/3.488 | FAIL (-30 dB) |
+
+Probe floor = v8p2 - 0.02 = 2.716/3.183/3.358/3.378. Level norm ON vs OFF (same model): v8p3 val +0.0004, val_remix +0.0006,
+-30 dB +0.030; v8p2x val -0.0000, val_remix +0.0001, -30 dB +0.040. Both are below the +0.1 adoption bar, so ON is not
+eligible for either model.
+Top-5 types (validation / val_remix delta vs v8p2): v8p2x broadband_noise +0.056/+0.061, aircraft_cockpit +0.056/+0.060,
+machine +0.099/+0.118, wind +0.174/+0.196, alarm_siren +0.041/+0.073. v8p3: +0.003/+0.016, +0.023/+0.012, +0.032/+0.037,
++0.031/+0.017, +0.001/+0.007.
+main.py CPU time on 164 validation files: v8p3 72.9 s, v8p2x 73.7 s. That is the same architecture as v8p2 (63.0 s on 2026-11-22),
+so the difference is machine load.
+
+**Decision: no promotion; r2-prep stays at gru_v8p2.** The only blocker is the -30 dB input-level probe. v8p2x gains
++0.09 val and +0.11 val_remix (z 12) but loses 0.097 at -30 dB (0.077 below the floor). The longer PESQ fine-tune trades
+robustness at very low input levels for in-range gains. v8p3 ON passes the three-part rule, but ON may only be chosen
+with a +0.1 gain at -30 dB, and it gains +0.030.
+Possible next steps (not run): a level-norm variant with a stronger boost for very quiet inputs, re-tuned so that it gains
+at least +0.1 at -30 dB without costing val/val_remix; or v8p2x-style training with wider low-gain augmentation
+(gain_wide_db lower bound below -30 dB).

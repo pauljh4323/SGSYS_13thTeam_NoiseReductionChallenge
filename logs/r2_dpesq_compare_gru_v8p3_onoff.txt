@@ -1,0 +1,67 @@
+
+===== validation =====
+model          gru_v8p3  gru_v8p3_lnrb
+n              164.0000       164.0000
+failed           0.0000         0.0000
+pesq             3.4154         3.4157
+snr_db           4.0763         4.0864
+pesq@0           2.7936         2.7941
+pesq@5           3.2020         3.2025
+pesq@10          3.4604         3.4603
+pesq@15          3.6826         3.6832
+pesq_easy        3.3327         3.3335
+pesq_hard        3.5729         3.5731
+pesq_moderate    3.5228         3.5223
+delta               NaN         0.0004
+se                  NaN         0.0002
+z                   NaN         1.5128
+
+[validation] per-SNR paired deltas vs gru_v8p3 (delta / SE / z)
+  gru_v8p3_lnrb     0 dB n= 15 +0.0004 SE 0.0003 z +1.35
+  gru_v8p3_lnrb     5 dB n= 38 +0.0006 SE 0.0003 z +1.79
+  gru_v8p3_lnrb    10 dB n= 55 -0.0001 SE 0.0004 z -0.23
+  gru_v8p3_lnrb    15 dB n= 56 +0.0006 SE 0.0005 z +1.20
+
+[validation] categories broadband_noise aircraft_cockpit machine wind alarm_siren: n, gru_v8p3 PESQ, delta per candidate
+  broadband_noise        n= 10 ref 3.0529 | gru_v8p3_lnrb +0.0000 (SE 0.0002)
+  aircraft_cockpit       n= 14 ref 3.2598 | gru_v8p3_lnrb +0.0003 (SE 0.0003)
+  machine                n= 34 ref 3.3657 | gru_v8p3_lnrb -0.0006 (SE 0.0006)
+  wind                   n= 26 ref 3.1963 | gru_v8p3_lnrb +0.0013 (SE 0.0008)
+  alarm_siren            n= 23 ref 3.8708 | gru_v8p3_lnrb +0.0006 (SE 0.0004)
+
+===== val_remix =====
+model          gru_v8p3  gru_v8p3_lnrb
+n              328.0000       328.0000
+failed           0.0000         0.0000
+pesq             3.2567         3.2573
+snr_db           3.9709         3.9799
+pesq@0           2.6544         2.6555
+pesq@5           3.1465         3.1471
+pesq@10          3.4800         3.4808
+pesq@15          3.7434         3.7431
+pesq_easy        3.2944         3.2953
+pesq_hard        3.2263         3.2254
+pesq_moderate    3.1835         3.1840
+delta               NaN         0.0006
+se                  NaN         0.0005
+z                   NaN         1.0872
+
+[val_remix] per-SNR paired deltas vs gru_v8p3 (delta / SE / z)
+  gru_v8p3_lnrb     0 dB n= 82 +0.0011 SE 0.0020 z +0.56
+  gru_v8p3_lnrb     5 dB n= 79 +0.0006 SE 0.0003 z +1.85
+  gru_v8p3_lnrb    10 dB n= 88 +0.0008 SE 0.0004 z +1.76
+  gru_v8p3_lnrb    15 dB n= 79 -0.0003 SE 0.0002 z -1.44
+
+[val_remix] categories broadband_noise aircraft_cockpit machine wind alarm_siren: n, gru_v8p3 PESQ, delta per candidate
+  broadband_noise        n= 20 ref 3.2754 | gru_v8p3_lnrb +0.0003 (SE 0.0003)
+  aircraft_cockpit       n= 28 ref 2.8878 | gru_v8p3_lnrb +0.0005 (SE 0.0004)
+  machine                n= 68 ref 3.1026 | gru_v8p3_lnrb +0.0005 (SE 0.0005)
+  wind                   n= 52 ref 3.0694 | gru_v8p3_lnrb +0.0020 (SE 0.0012)
+  alarm_siren            n= 46 ref 3.7913 | gru_v8p3_lnrb -0.0020 (SE 0.0030)
+
+===== level probe (validation, input gain dB) =====
+  gru_v8p3     -30:2.7065 -20:3.1892 -10:3.3846 +0:3.4154
+  gru_v8p3_lnrb -30:2.7369 -20:3.1916 -10:3.3817 +0:3.4157
+
+===== round-2 promotion check =====
+  gru_v8p3_lnrb: val 3.4157 >= 3.3983 True | val_remix delta +0.0006 z +1.09 False | probe True -> FAIL
