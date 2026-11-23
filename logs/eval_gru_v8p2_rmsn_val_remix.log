@@ -1,0 +1,19 @@
+gru_v8p2_rmsn (gru_mask) | val_remix n=328 | in-memory 16-bit | jobs=1 | 557.7s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 328       0     3.2396    0.6782      1.8776  2.0351 0.8879  3.0806       -4.4194
+
+[by target_snr_db]
+ target_snr_db  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+        0.0000 82       0     2.6435    0.6471      1.5181  1.0693 0.8260  2.1563        2.1563
+        5.0000 79       0     3.1314    0.6000      1.9438  1.7465 0.8792  2.8265       -2.1735
+       10.0000 88       0     3.4594    0.5026      2.0416  2.4343 0.9110  3.5044       -6.4957
+       15.0000 79       0     3.7215    0.4204      2.0018  2.8813 0.9349  3.8222      -11.1778
+
+[by noise_difficulty]
+noise_difficulty   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+            easy 198       0     3.2798    0.6878      1.9475  2.6251 0.8930  3.3477       -4.3038
+            hard  48       0     3.2148    0.7557      1.8910  3.9754 0.8828  3.8298       -3.3577
+        moderate  82       0     3.1569    0.6032      1.7010 -0.5254 0.8784  1.9973       -5.3198
+ok rc=0

@@ -192,3 +192,51 @@ with a +0.1 gain at -30 dB, and it gains +0.030.
 Possible next steps (not run): a level-norm variant with a stronger boost for very quiet inputs, re-tuned so that it gains
 at least +0.1 at -30 dB without costing val/val_remix; or v8p2x-style training with wider low-gain augmentation
 (gain_wide_db lower bound below -30 dB).
+
+## Results 2026-11-23 (2): level mode rms_norm (eval.py at c9a25c7, 16-bit, --jobs 1; logs/eval_*_rmsn_*)
+Queued on Colab (not yet trained): **gru_v8p2y** = v8p2x continued (init weights/gru_v8p2x.pt, fresh Adam 5e-5, 200 ep,
+patience 30), with the input gain augmentation widened from the gru_v5b mixture (p 0.5 U[-30, +6] dB, else U[-6, +3] dB)
+to a single U[-40, +6] dB draw for every sample (clean and noise scaled together, peak guard 0.99). Smoke: logs/r2_dpesq_v8p2y_smoke.log.
+
+rms_norm (src/nrc/methods/gru_mask.py, `level_norm: true, level_mode: rms_norm, target_rms`):
+- g = target_rms / max(rms(noisy), 1e-6), using the whole-file RMS. The model runs on g * noisy.
+- The output stays at that level, with no inverse gain. If its peak is above 0.99, the whole output is scaled down to 0.99.
+- target_rms = 0.079130 (-22.03 dBFS), the median whole-file RMS of the 1296 train noisy files (scripts/rms_target.py,
+  logs/rms_target.log).
+- Level norm off is bit-identical to b472c83: checked on 4 validation files, for OFF and range_boost alike.
+- Because the gain makes the model input level-invariant, the four probe levels give the same score.
+- 0 PESQ failures and 0 clipped samples in all 18 runs.
+- main.py CPU time on 164 validation files: 23.5 / 23.9 / 25.4 s (v8p2 / v8p3 / v8p2x), measured on a lighter machine load.
+
+Paired deltas are vs the submission gru_v8p2 OFF. Tables: logs/r2_dpesq_compare_rmsn.txt, plus rms_norm vs OFF in
+logs/r2_dpesq_compare_gru_v8p{3,2x}_rmsn_vs_off.txt.
+
+| model x level | val PESQ | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|
+| v8p2 OFF (submission) | 3.3983 | 4.48 | - | 3.2378 | - | 2.736/3.203/3.378/3.398 | ref |
+| v8p2 lnrb | 3.3988 | 4.49 | +0.0005 (0.0004, 1.29) | 3.2384 | +0.0005 (0.0005, 1.05) | 2.800/3.216/3.375/3.399 | FAIL (z) |
+| v8p2 rms_norm | 3.4003 | 3.32 | +0.0020 (0.0018, 1.11) | 3.2396 | +0.0017 (0.0011, 1.58) | 3.400 x4 | FAIL (z) |
+| v8p3 OFF | 3.4154 | 4.08 | +0.0171 (0.0033, 5.11) | 3.2567 | +0.0189 (0.0022, 8.52) | 2.707/3.189/3.385/3.415 | FAIL (-30) |
+| v8p3 lnrb | 3.4157 | 4.09 | +0.0175 (0.0033, 5.27) | 3.2573 | +0.0194 (0.0023, 8.59) | 2.737/3.192/3.382/3.416 | PASS |
+| v8p3 rms_norm | 3.4163 | 3.03 | +0.0180 (0.0033, 5.40) | 3.2581 | +0.0203 (0.0024, 8.59) | 3.416 x4 | PASS |
+| v8p2x OFF | 3.4875 | 2.91 | +0.0892 (0.0101, 8.81) | 3.3450 | +0.1072 (0.0089, 12.10) | 2.640/3.194/3.437/3.488 | FAIL (-30) |
+| v8p2x lnrb | 3.4875 | 2.91 | +0.0892 (0.0101, 8.80) | 3.3451 | +0.1072 (0.0089, 12.07) | 2.680/3.205/3.438/3.488 | FAIL (-30) |
+| **v8p2x rms_norm** | **3.4867** | 2.24 | +0.0884 (0.0102, 8.68) | **3.3453** | +0.1075 (0.0090, 11.94) | **3.487 x4** | **PASS** |
+
+Per SNR, validation @0/5/10/15 dB: v8p2x rms_norm 2.865/3.261/3.536/3.758, against 2.785/3.182/3.448/3.661 for v8p2 OFF.
+Per difficulty, validation easy/moderate/hard: 3.401/3.585/3.672, against 3.313/3.501/3.575.
+On val_remix the same columns are 3.378/3.260/3.354, against 3.277/3.157/3.215.
+
+rms_norm vs OFF on the same model:
+| model | validation | val_remix | -30 dB probe |
+|---|---|---|---|
+| v8p3 | +0.0009 (z 0.73) | +0.0014 (z 1.25) | +0.71 |
+| v8p2x | -0.0008 (z -0.63) | +0.0003 (z 0.30) | +0.85 |
+
+In range, rms_norm is neutral. Its only effect is to remove the low-level failure.
+SNR falls (2.24 dB for v8p2x) because the output is not rescaled to the input level. This is accepted: the objective is
+PESQ-WB only, and the output level is free.
+
+Rule (unchanged): val >= 3.3983, val_remix d vs v8p2 OFF > 0 with z >= 2, and every probe >= floor 2.716/3.183/3.358/3.378.
+Three pairs pass: v8p3 lnrb, v8p3 rms_norm and v8p2x rms_norm. **The highest val PESQ among them is gru_v8p2x + rms_norm
+(3.4867) -> promoted to r2-prep** (configs/dl/gru_v8p2x_rmsn.yaml).

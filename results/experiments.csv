@@ -111,3 +111,9 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-23,b472c83,gru_v8p2x_lnrb,gru_mask,3.3451,2.7684,3.2392,3.5471,3.8244,-0.289,split=val_remix n=328 failed=0 snr=2.846 stoi=0.8878 clipped=0 src=mem16
 2026-11-23,b472c83,gru_v8p3_lnrb,gru_mask,3.4157,2.7941,3.2025,3.4603,3.6832,1.819,split=validation n=164 failed=0 snr=4.086 stoi=0.9050 clipped=0 src=mem16
 2026-11-23,b472c83,gru_v8p3_lnrb,gru_mask,3.2573,2.6555,3.1471,3.4808,3.7431,1.453,split=val_remix n=328 failed=0 snr=3.980 stoi=0.8860 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p2_rmsn,gru_mask,3.4003,2.7826,3.1852,3.4486,3.6642,2.497,split=validation n=164 failed=0 snr=3.322 stoi=0.9067 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p2_rmsn,gru_mask,3.2396,2.6435,3.1314,3.4594,3.7215,2.035,split=val_remix n=328 failed=0 snr=3.081 stoi=0.8879 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p3_rmsn,gru_mask,3.4163,2.7901,3.2060,3.4616,3.6822,1.889,split=validation n=164 failed=0 snr=3.034 stoi=0.9052 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p3_rmsn,gru_mask,3.2581,2.6599,3.1494,3.4799,3.7408,1.524,split=val_remix n=328 failed=0 snr=2.835 stoi=0.8864 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p2x_rmsn,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=mem16
+2026-11-23,c9a25c7,gru_v8p2x_rmsn,gru_mask,3.3453,2.7686,3.2404,3.5469,3.8244,-0.261,split=val_remix n=328 failed=0 snr=2.085 stoi=0.8880 clipped=0 src=mem16
