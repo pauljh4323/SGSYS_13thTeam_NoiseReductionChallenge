@@ -1,0 +1,23 @@
+17:44:42 eval ens_e1 validation
+17:46:21 eval ens_e1 val_remix
+17:49:45 probe ens_e1 -30 dB
+17:51:28 probe ens_e1 -20 dB
+17:53:16 probe ens_e1 -10 dB
+17:55:14 probe ens_e1 0 dB
+17:57:35 eval ens_e1g validation
+17:59:39 eval ens_e1g val_remix
+18:03:29 probe ens_e1g -30 dB
+18:06:45 probe ens_e1g -20 dB
+18:09:56 probe ens_e1g -10 dB
+18:12:02 probe ens_e1g 0 dB
+18:14:10 eval ens_e2 validation
+18:17:59 eval ens_e2 val_remix
+18:25:27 probe ens_e2 -30 dB
+18:29:07 probe ens_e2 -20 dB
+18:32:40 probe ens_e2 -10 dB
+18:36:09 probe ens_e2 0 dB
+18:39:23 time gru_v8p2x_rmsn
+18:40:12 time ens_e1
+18:41:31 time ens_e1g
+18:42:54 time ens_e2
+18:44:52 ALL DONE

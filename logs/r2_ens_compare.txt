@@ -1,0 +1,84 @@
+
+===== validation =====
+model          gru_v8p2x_rmsn   ens_e1  ens_e1g   ens_e2
+n                    164.0000 164.0000 164.0000 164.0000
+failed                 0.0000   0.0000   0.0000   0.0000
+clipped                0.0000   0.0000   0.0000   0.0000
+pesq                   3.4867   3.4672   3.4760   3.4478
+snr_db                 2.2399   2.6343   2.5282   2.8611
+pesq@0                 2.8645   2.8487   2.8520   2.8307
+pesq@5                 3.2607   3.2595   3.2639   3.2381
+pesq@10                3.5361   3.5112   3.5201   3.4944
+pesq@15                3.7581   3.7306   3.7438   3.7097
+pesq_easy              3.4013   3.3873   3.3966   3.3648
+pesq_hard              3.6717   3.6206   3.6358   3.6092
+pesq_moderate          3.5846   3.5704   3.5743   3.5538
+delta                     NaN  -0.0194  -0.0106  -0.0388
+se                        NaN   0.0060   0.0039   0.0075
+z                         NaN  -3.2616  -2.7345  -5.1965
+
+[validation] per-SNR paired deltas vs gru_v8p2x_rmsn (delta / SE / z)
+  ens_e1        0 dB n= 15 -0.0158 SE 0.0137 z -1.16
+  ens_e1        5 dB n= 38 -0.0012 SE 0.0141 z -0.08
+  ens_e1       10 dB n= 55 -0.0249 SE 0.0109 z -2.29
+  ens_e1       15 dB n= 56 -0.0274 SE 0.0092 z -2.98
+  ens_e1g       0 dB n= 15 -0.0125 SE 0.0120 z -1.05
+  ens_e1g       5 dB n= 38 +0.0032 SE 0.0092 z +0.35
+  ens_e1g      10 dB n= 55 -0.0160 SE 0.0072 z -2.23
+  ens_e1g      15 dB n= 56 -0.0142 SE 0.0055 z -2.59
+  ens_e2        0 dB n= 15 -0.0338 SE 0.0172 z -1.96
+  ens_e2        5 dB n= 38 -0.0226 SE 0.0194 z -1.17
+  ens_e2       10 dB n= 55 -0.0417 SE 0.0134 z -3.12
+  ens_e2       15 dB n= 56 -0.0484 SE 0.0108 z -4.49
+
+===== val_remix =====
+model          gru_v8p2x_rmsn   ens_e1  ens_e1g   ens_e2
+n                    328.0000 328.0000 328.0000 328.0000
+failed                 0.0000   0.0000   0.0000   0.0000
+clipped                0.0000   0.0000   0.0000   0.0000
+pesq                   3.3453   3.3184   3.3300   3.2937
+snr_db                 2.0851   2.4551   2.3536   2.6608
+pesq@0                 2.7686   2.7287   2.7434   2.7024
+pesq@5                 3.2404   3.2116   3.2271   3.1874
+pesq@10                3.5469   3.5302   3.5404   3.5071
+pesq@15                3.8244   3.8015   3.8076   3.7761
+pesq_easy              3.3784   3.3546   3.3671   3.3316
+pesq_hard              3.3539   3.2978   3.3176   3.2732
+pesq_moderate          3.2603   3.2432   3.2478   3.2143
+delta                     NaN  -0.0269  -0.0153  -0.0516
+se                        NaN   0.0056   0.0037   0.0071
+z                         NaN  -4.7620  -4.0993  -7.2847
+
+[val_remix] per-SNR paired deltas vs gru_v8p2x_rmsn (delta / SE / z)
+  ens_e1        0 dB n= 82 -0.0399 SE 0.0109 z -3.67
+  ens_e1        5 dB n= 79 -0.0287 SE 0.0103 z -2.78
+  ens_e1       10 dB n= 88 -0.0167 SE 0.0148 z -1.13
+  ens_e1       15 dB n= 79 -0.0229 SE 0.0067 z -3.41
+  ens_e1g       0 dB n= 82 -0.0252 SE 0.0072 z -3.48
+  ens_e1g       5 dB n= 79 -0.0133 SE 0.0055 z -2.42
+  ens_e1g      10 dB n= 88 -0.0065 SE 0.0100 z -0.65
+  ens_e1g      15 dB n= 79 -0.0169 SE 0.0054 z -3.11
+  ens_e2        0 dB n= 82 -0.0662 SE 0.0140 z -4.74
+  ens_e2        5 dB n= 79 -0.0530 SE 0.0133 z -3.99
+  ens_e2       10 dB n= 88 -0.0397 SE 0.0175 z -2.27
+  ens_e2       15 dB n= 79 -0.0483 SE 0.0102 z -4.76
+
+===== level probe (validation, input gain dB) =====
+                  -30    -20    -10     0 
+gru_v8p2x_rmsn 3.4867 3.4867 3.4867 3.4867
+ens_e1         3.4672 3.4672 3.4672 3.4672
+ens_e1g        3.4760 3.4760 3.4760 3.4760
+ens_e2         3.4478 3.4478 3.4478 3.4478
+
+===== main.py CPU time (164 validation files, same batch) =====
+  gru_v8p2x_rmsn   total   40.3 s  (0.246 s/file, n=164)
+  ens_e1           total   71.9 s  (0.438 s/file, n=164)
+  ens_e1g          total   75.7 s  (0.462 s/file, n=164)
+  ens_e2           total  111.2 s  (0.678 s/file, n=164)
+
+===== round-2 rule vs gru_v8p2x_rmsn: val >= 3.4867, val_remix d > 0 and z >= 2.0, probe >= 3.467 =====
+  ens_e1     val 3.4672 [FAIL]  val_remix d -0.0269 (SE 0.0056, z -4.76) [FAIL]  probe min 3.4672 [ok]  -> FAIL
+  ens_e1g    val 3.4760 [FAIL]  val_remix d -0.0153 (SE 0.0037, z -4.10) [FAIL]  probe min 3.4760 [ok]  -> FAIL
+  ens_e2     val 3.4478 [FAIL]  val_remix d -0.0516 (SE 0.0071, z -7.28) [FAIL]  probe min 3.4478 [FAIL]  -> FAIL
+
+winner: none (submission unchanged)

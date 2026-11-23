@@ -1,0 +1,19 @@
+ens_e1g (gru_ens) | validation n=164 | in-memory 16-bit | PROBE input-gain -30 dB | jobs=1 | 188.3s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 164       0     3.4760    0.5608      2.0814  1.0082 0.9086  2.5282        2.2500
+
+[by target_snr_db]
+ target_snr_db  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+        0.0000 15       0     2.8520    0.6481      1.7724 -0.6668 0.8495  1.9122        1.6375
+        5.0000 38       0     3.2639    0.6036      2.0458  1.9551 0.8984  2.8213        2.5434
+       10.0000 55       0     3.5201    0.4383      2.1626  0.7971 0.9119  2.4803        2.2019
+       15.0000 56       0     3.7438    0.4234      2.1085  1.0215 0.9281  2.5412        2.2623
+
+[by noise_difficulty]
+noise_difficulty  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+            easy 99       0     3.3966    0.6184      2.0855  1.2841 0.9039  2.6852        2.4074
+            hard 24       0     3.6358    0.4518      2.1042  2.4342 0.9175  2.9294        2.6505
+        moderate 41       0     3.5743    0.4318      2.0582 -0.4930 0.9146  1.9142        1.6357
+(probe run: not appended to results/experiments.csv)

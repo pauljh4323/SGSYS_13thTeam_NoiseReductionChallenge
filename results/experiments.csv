@@ -82,3 +82,9 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-23,4b6ca11,submission,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=pred | e2e main.py outputs
 2026-11-23,4b6ca11,submission,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=pred | main.py outputs (gru_v8p2x rms_norm)
 2026-11-23,4b6ca11,submission,gru_mask,3.3453,2.7686,3.2404,3.5469,3.8244,-0.261,split=val_remix n=328 failed=0 snr=2.085 stoi=0.8880 clipped=0 src=pred | main.py outputs (gru_v8p2x rms_norm)
+2026-11-23,851d5c2,ens_e1,gru_ens,3.4672,2.8487,3.2595,3.5112,3.7306,1.363,split=validation n=164 failed=0 snr=2.634 stoi=0.9088 clipped=0 src=mem16
+2026-11-23,851d5c2,ens_e1,gru_ens,3.3184,2.7287,3.2116,3.5302,3.8015,1.001,split=val_remix n=328 failed=0 snr=2.455 stoi=0.8899 clipped=0 src=mem16
+2026-11-23,851d5c2,ens_e1g,gru_ens,3.4760,2.8520,3.2639,3.5201,3.7438,1.008,split=validation n=164 failed=0 snr=2.528 stoi=0.9086 clipped=0 src=mem16
+2026-11-23,851d5c2,ens_e1g,gru_ens,3.3300,2.7434,3.2271,3.5404,3.8076,0.627,split=val_remix n=328 failed=0 snr=2.354 stoi=0.8898 clipped=0 src=mem16
+2026-11-23,851d5c2,ens_e2,gru_ens,3.4478,2.8307,3.2381,3.4944,3.7097,1.841,split=validation n=164 failed=0 snr=2.861 stoi=0.9088 clipped=0 src=mem16
+2026-11-23,851d5c2,ens_e2,gru_ens,3.2937,2.7024,3.1874,3.5071,3.7761,1.439,split=val_remix n=328 failed=0 snr=2.661 stoi=0.8899 clipped=0 src=mem16

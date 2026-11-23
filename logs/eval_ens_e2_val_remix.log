@@ -1,0 +1,18 @@
+ens_e2 (gru_ens) | val_remix n=328 | in-memory 16-bit | jobs=1 | 438.2s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 328       0     3.2937    0.6747      1.9318  1.4395 0.8899  2.6608       -4.8392
+
+[by target_snr_db]
+ target_snr_db  n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+        0.0000 82       0     2.7024    0.6598      1.5770  0.5084 0.8280  1.8383        1.8383
+        5.0000 79       0     3.1874    0.6010      1.9998  1.2397 0.8815  2.4781       -2.5219
+       10.0000 88       0     3.5071    0.4948      2.0893  1.8369 0.9130  3.0525       -6.9475
+       15.0000 79       0     3.7761    0.3946      2.0564  2.1630 0.9368  3.2608      -11.7392
+
+[by noise_difficulty]
+noise_difficulty   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+            easy 198       0     3.3316    0.6873      1.9993  2.0729 0.8947  2.8958       -4.7557
+            hard  48       0     3.2732    0.7489      1.9493  3.0576 0.8844  3.2838       -3.9037
+        moderate  82       0     3.2143    0.5942      1.7585 -1.0371 0.8815  1.7286       -5.5885
