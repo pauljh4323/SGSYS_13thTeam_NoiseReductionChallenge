@@ -35,6 +35,26 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-23: r2-prep submission -> gru_v8p2x + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2x continues gru_v8p2 with the same loss. It starts from the v8p2 weights with a fresh Adam 5e-5 and runs
+  200 epochs (best 194). Branch exp/r2-dpesq.
+- Level mode rms_norm (new in src/nrc/methods/gru_mask.py):
+  - g = target_rms / max(rms(noisy), 1e-6), over the whole file. The model runs on g * noisy.
+  - The output stays at that level (no inverse gain). If its peak is above 0.99, the whole output is scaled to 0.99.
+  - target_rms 0.079130 (-22.03 dBFS) is the train noisy median (scripts/rms_target.py).
+  - With level norm off, the output is bit-identical to before.
+- eval.py at c9a25c7: val PESQ 3.4867 / SNR 2.24 dB, val_remix 3.3453 / 2.09 dB.
+  - Paired d vs gru_v8p2: val +0.0884 (z 8.7), val_remix +0.1075 (z 11.9).
+  - Probe -30/-20/-10/0 dB: 3.487 each. The input is level-invariant; v8p2x OFF scores 2.640 at -30 dB.
+  - main.py outputs at 4b6ca11 give the same numbers. e2e passes for round 2 (fresh torch 2.15.0 venv, bit-identical).
+- Round-2 rule over 9 model x level pairs (v8p2/v8p3/v8p2x x OFF/lnrb/rms_norm): v8p3 lnrb, v8p3 rms_norm and v8p2x
+  rms_norm pass. v8p2x rms_norm has the highest val PESQ. Details are in docs/exp_r2_dpesq.md (exp/r2-dpesq).
+- The promotion brings weights/gru_v8p2x.pt, configs/dl/gru_v8p2x{,_rmsn}.yaml, the rms_norm code and scripts/rms_target.py.
+- Fallbacks: gru_v8p2 (configs/dl/gru_v8p2.yaml) and gru_v5b (configs/dl/gru_v5b_off.yaml).
+- Still training on Colab: gru_v8p2y (continues v8p2x with input gain U[-40, +6] dB on every sample). Promote it only if it
+  passes the same rule and beats gru_v8p2x + rms_norm.
+
 ## Status 2026-11-18: r2_diag conclusions and gru_v6 prep (branch exp/r2-v6, from exp/r2-diag)
 
 r2_diag (docs/r2_diag.md): every validation noise_code also occurs in train (validation is a seen-noise test); gru_v5b is
@@ -105,7 +125,7 @@ epoch 8.
   outputs bit for bit. torch-pesq, torchaudio and src/nrc/tpesq.py stay training-only: they are not in requirements.txt, and
   e2e (d) checks that they cannot be imported.
 - Fallback: gru_v5b (configs/dl/gru_v5b_off.yaml, weights/gru_v5b.pt).
-- Still training on Colab: gru_v8p3 (resume) and gru_v8p2x (continues v8p2, 200 epochs). Promote either only if it passes the round-2 rule and beats v8p2.
+- (2026-11-22) Still training on Colab then: gru_v8p3 (resume) and gru_v8p2x; both evaluated 2026-11-23 (above).
 
 ## Open questions (confirm from the round-2 notice)
 

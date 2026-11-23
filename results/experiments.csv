@@ -117,3 +117,6 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-23,c9a25c7,gru_v8p3_rmsn,gru_mask,3.2581,2.6599,3.1494,3.4799,3.7408,1.524,split=val_remix n=328 failed=0 snr=2.835 stoi=0.8864 clipped=0 src=mem16
 2026-11-23,c9a25c7,gru_v8p2x_rmsn,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=mem16
 2026-11-23,c9a25c7,gru_v8p2x_rmsn,gru_mask,3.3453,2.7686,3.2404,3.5469,3.8244,-0.261,split=val_remix n=328 failed=0 snr=2.085 stoi=0.8880 clipped=0 src=mem16
+2026-11-23,4b6ca11,submission,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=pred | e2e main.py outputs
+2026-11-23,4b6ca11,submission,gru_mask,3.4867,2.8645,3.2607,3.5361,3.7581,0.039,split=validation n=164 failed=0 snr=2.240 stoi=0.9069 clipped=0 src=pred | main.py outputs (gru_v8p2x rms_norm)
+2026-11-23,4b6ca11,submission,gru_mask,3.3453,2.7686,3.2404,3.5469,3.8244,-0.261,split=val_remix n=328 failed=0 snr=2.085 stoi=0.8880 clipped=0 src=pred | main.py outputs (gru_v8p2x rms_norm)
