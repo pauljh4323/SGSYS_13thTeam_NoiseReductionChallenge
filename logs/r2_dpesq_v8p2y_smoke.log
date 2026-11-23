@@ -1,0 +1,6 @@
+data: train 1296 x 48000 samples, val 3, train subset 3, load 57.6s, device cpu, pesq jobs 1
+init from gru_v8p2x.pt (epoch 194, pesq 3.4875004538675634); 2,373,651 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 200 epochs x 81 steps
+  step 1: loss 0.319418 (cmag 0.03108 mrstft nan sisdr nan pesq 0.97875) tpesq_mos 3.8790 dropped 0 [7.012s]
+epoch 1/200 step 1 loss 0.319418 l_pesq 0.978755 tpesq_mos 3.8790 train64 3.4486 val_pesq 3.1573 (gap 0.2913) val_snr 2.398 best 3.1573 (ep 1) [7.0s + val 3.1s, 7.038s/step]
+done: best val PESQ 3.1573 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\1ae047e6-f41d-465e-8077-9fa4443fc801\scratchpad\v8p2y_smoke\best.pt
