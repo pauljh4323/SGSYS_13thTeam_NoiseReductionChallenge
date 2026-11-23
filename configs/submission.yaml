@@ -1,14 +1,16 @@
-# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v8p2x_rmsn.yaml (method/params verbatim):
-# gru_v8p2x = gru_v8p2 continued for 200 epochs with the same differentiable-PESQ loss (0.2 cmag + 0.32 torch-pesq;
-# init weights/gru_v8p2.pt, fresh Adam 5e-5, best epoch 194; branch exp/r2-dpesq, scripts/train_dpesq.py; train split only).
+# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v8p2y_rmsn.yaml (method/params verbatim):
+# gru_v8p2y = gru_v8p2x continued with the same differentiable-PESQ loss (0.2 cmag + 0.32 torch-pesq; init
+# weights/gru_v8p2x.pt, fresh Adam 5e-5, input gain augmentation U[-40, +6] dB on every sample, best epoch 153 of 183,
+# early stop; branch exp/r2-dpesq, scripts/train_dpesq.py, configs/dl/gru_v8p2y.yaml; train split only).
 # Level mode rms_norm: the input is scaled to target_rms = 0.079130 (median whole-file RMS of the train noisy files,
 # scripts/rms_target.py) before the model; the output stays at that level (no inverse gain; peak capped at 0.99).
-# val PESQ 3.4867 / SNR 2.24 dB, val_remix 3.3453; level probe -30/-20/-10/0 dB 3.487 each.
-# Fallbacks (copy their method/params here to revert): gru_v8p2 (configs/dl/gru_v8p2.yaml, level norm off; val 3.3983 /
-# 4.48 dB) and gru_v5b (configs/dl/gru_v5b_off.yaml; val 2.6962 / 16.81 dB). Round-1 submission (dsp-v7) stays on main.
+# val PESQ 3.5077 / SNR 1.88 dB, val_remix 3.3633; level probe -30/-20/-10/0 dB 3.508 each (docs/exp_r2_dpesq.md).
+# Fallbacks (copy their method/params here to revert): gru_v8p2x + rms_norm (configs/dl/gru_v8p2x_rmsn.yaml; val 3.4867 /
+# 2.24 dB), gru_v8p2 (configs/dl/gru_v8p2.yaml, level norm off; val 3.3983 / 4.48 dB) and gru_v5b
+# (configs/dl/gru_v5b_off.yaml; val 2.6962 / 16.81 dB). Round-1 submission (dsp-v7) stays on main.
 method: gru_mask
 params:
-  weights: weights/gru_v8p2x.pt  # resolved against the repo root, not the cwd
+  weights: weights/gru_v8p2y.pt  # resolved against the repo root, not the cwd
   device: cpu
   level_norm: true
   level_mode: rms_norm

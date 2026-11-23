@@ -35,6 +35,19 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-23 (2): r2-prep submission -> gru_v8p2y + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2y continues gru_v8p2x with the same loss (fresh Adam 5e-5, 200 epochs max, patience 30). Only the input gain
+  augmentation changed: one U[-40, +6] dB gain on every sample, original pairs included. Early stop at epoch 183; best 153.
+- eval.py at 2c2ba06 (16-bit, --jobs 1): with rms_norm, val PESQ 3.5077 / SNR 1.88 dB, val_remix 3.3633 / 1.79 dB.
+  - Paired d vs gru_v8p2x + rms_norm: val +0.0210 (z 5.6), val_remix +0.0180 (z 5.7). Positive at every SNR on both sets.
+  - Probe -30/-20/-10/0 dB: 3.508 each (floor 3.467).
+  - Level norm OFF: 2.607/3.181/3.449/3.508. The wider augmentation did not make the model level-robust; rms_norm stays.
+- Round-2 rule passed (docs/exp_r2_dpesq.md, exp/r2-dpesq). The promotion brings weights/gru_v8p2y.pt and
+  configs/dl/gru_v8p2y{,_rmsn}.yaml; no code change.
+- Fallbacks: gru_v8p2x + rms_norm (configs/dl/gru_v8p2x_rmsn.yaml), gru_v8p2 (configs/dl/gru_v8p2.yaml) and gru_v5b
+  (configs/dl/gru_v5b_off.yaml).
+
 ## Status 2026-11-23: r2-prep submission -> gru_v8p2x + level mode rms_norm (tag r2-ready moved)
 
 - gru_v8p2x continues gru_v8p2 with the same loss. It starts from the v8p2 weights with a fresh Adam 5e-5 and runs
