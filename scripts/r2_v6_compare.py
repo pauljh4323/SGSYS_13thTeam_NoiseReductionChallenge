@@ -35,6 +35,8 @@ def main() -> int:
     ap.add_argument("--headroom", nargs="*", default=["gru_v6a_off"], help="models to report phase-headroom fraction for")
     ap.add_argument("--types", nargs="+", default=WEAK5,
                     help="noise categories for the per-type delta block (default weak-5; exp/r2-dpesq: top-5 headroom types)")
+    ap.add_argument("--val-gate", type=float, default=VAL_GATE,
+                    help="validation PESQ gate = current r2-prep submission (exp/r2-dpesq round 2: gru_v8p2 3.3983)")
     a = ap.parse_args()
     REF, CANDS = a.ref, a.cands
     names = [REF] + CANDS
@@ -66,7 +68,7 @@ def main() -> int:
         print(f"\n[{split}] categories {' '.join(a.types)}: n, {REF} PESQ, delta per candidate")
         for c in a.types:
             idx = dfs[REF].index[dfs[REF].noise_category == c]
-            line = f"  {c:22s} n={len(idx):3d} v5b {dfs[REF].pesq[idx].mean():.4f}"
+            line = f"  {c:22s} n={len(idx):3d} ref {dfs[REF].pesq[idx].mean():.4f}"
             for n in CANDS:
                 st = paired_stats(dfs[REF].pesq[idx], dfs[n].pesq.reindex(idx))
                 line += f" | {n} {st['d_mean']:+.4f} (SE {st['d_se']:.4f})"
@@ -82,10 +84,10 @@ def main() -> int:
     for n in CANDS:
         val = res[(n, "validation")]["pesq"]
         vr = res[(n, "val_remix")]
-        c1 = round(val, 4) >= VAL_GATE
+        c1 = round(val, 4) >= a.val_gate
         c2 = vr["delta"] > 0 and vr["z"] >= 2
         c3 = all(probe[n][g] >= probe[REF][g] - 0.02 for g in GAINS)
-        print(f"  {n}: val {val:.4f} >= {VAL_GATE} {c1} | val_remix delta {vr['delta']:+.4f} z {vr['z']:+.2f} {c2} "
+        print(f"  {n}: val {val:.4f} >= {a.val_gate} {c1} | val_remix delta {vr['delta']:+.4f} z {vr['z']:+.2f} {c2} "
               f"| probe {c3} -> {'PASS' if c1 and c2 and c3 else 'FAIL'}")
     return 0
 

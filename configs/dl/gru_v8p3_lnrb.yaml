@@ -1,0 +1,15 @@
+# gru_v8p3 weights + level norm ON: the inference-only range_boost level of gru_v8p2_lnrb (= gru_v1_lnrb / gru_v2b_lnrb, dl-main)
+# (train-split active p5..p95 [-27.88, -15.27] dBFS untouched, above cut to -15.27, below boosted to -19.60).
+# Level-norm OFF counterpart: configs/dl/gru_v8p3.yaml.
+method: gru_mask
+params:
+  weights: weights/gru_v8p3.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: true
+  level_measure: active
+  level_mode: range_boost
+  lo_dbfs: -27.88
+  hi_dbfs: -15.27
+  target_dbfs: -19.60
+  max_boost_db: 30.0
+  max_cut_db: 12.0
