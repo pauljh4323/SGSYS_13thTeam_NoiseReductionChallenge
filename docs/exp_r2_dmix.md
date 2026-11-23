@@ -3,7 +3,7 @@
 Date 2026-11-23. Branch exp/r2-dmix from r2-prep (tag r2-ready, a94e603). The training stack was brought over from
 exp/r2-dpesq @ 791e7fa in commit 6f66fb9; main.py output on 3 validation files is byte-identical and selfcheck is OK.
 main, dl-main and r2-prep are untouched. main.py, requirements.txt and the inference path are unchanged.
-This document covers the design and the CPU tests. There are no training or evaluation results yet.
+This document covers the design, the CPU tests and (at the end) the Colab training and evaluation results.
 
 ## Why
 The submission is gru_v8p2y + rms_norm (val 3.5077, val_remix 3.3633). Its train64 PESQ is 4.07, so the train/val gap
@@ -91,3 +91,53 @@ Settings shared by both configs:
 
 Files: src/nrc/data/remix.py, scripts/train_dpesq.py, configs/dl/gru_v8p2z{1,2}.yaml, tests/test_dmix.py,
 scripts/r2_dmix_smoke.py, logs/r2_dmix_smoke.log, notebooks/colab_train.ipynb.
+
+## Results 2026-11-23: gru_v8p2z1 / gru_v8p2z2 vs the submission gru_v8p2y + rms_norm (eval.py at a3e0005, 16-bit, --jobs 1)
+Training (Colab; logs/train_log_v8p2z{1,2}.csv; both best.pt load with weights_only=True; 0 non-finite PESQ-loss steps):
+
+| model | best epoch / run | train-log val | val SNR | train64 | gap (v8p2y 0.559) | curve |
+|---|---|---|---|---|---|---|
+| gru_v8p2z1 (rms_norm) | 140 / 170, early stop | 3.5215 | 1.80 | 4.140 | 0.619 | flat (last 20 ep mean 3.5165, previous 20 3.5160) |
+| gru_v8p2z2 (rms_norm + dmix) | 117 / 147, early stop | 3.5452 | 1.35 | 4.026 | **0.481** | flat (3.5371 vs 3.5390) |
+
+z1 fits train harder (gap widens 0.56 -> 0.62). With dynamic mixing (z2), train64 falls and val rises, so the gap
+narrows to 0.48. In other words, dynamic mixing regularises as intended.
+
+Evaluation: runner logs/run_r2_dmix.sh, 12 runs with 0 PESQ failures and 0 clipped samples; tables in
+logs/r2_dmix_compare.txt. Paired deltas are vs gru_v8p2y + rms_norm.
+
+| model | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| v8p2y rms_norm (submission) | 3.5077 | 2.904/3.281/3.555/3.776 | 1.88 | - | 3.3633 | - | 3.508 x4 | ref |
+| v8p2z1 | 3.5215 | 2.918/3.306/3.565/3.786 | 1.80 | +0.0138 (0.0029, 4.77) | 3.3843 | +0.0210 (0.0029, 7.26) | 3.522 x4 | PASS |
+| **v8p2z2** | **3.5452** | 2.906/3.313/3.597/3.823 | 1.35 | +0.0375 (0.0058, 6.46) | **3.4065** | +0.0432 (0.0039, 11.08) | **3.545 x4** | **PASS** |
+
+Per-SNR paired deltas at 0/5/10/15 dB:
+
+| model | validation | val_remix |
+|---|---|---|
+| z1 | +0.015/+0.024/+0.010/+0.010 (z 1.6/3.8/2.3/1.9) | +0.029/+0.020/+0.021/+0.015 (z 5.6/3.9/2.9/2.9) |
+| z2 | +0.003/+0.032/+0.042/+0.047 (z 0.1/2.4/5.3/4.6) | +0.047/+0.042/+0.056/+0.027 (z 7.4/4.6/7.6/3.3) |
+
+On validation, z2's 0 dB gain is flat (n 15, SE 0.024). On val_remix (n 82) the 0 dB gain is +0.047 at z 7.4.
+
+Per difficulty, validation easy/moderate/hard is 3.449/3.642/3.775 for z2 (submission 3.417/3.605/3.715). On
+val_remix it is 3.432/3.327/3.438 (3.390/3.283/3.392).
+
+Top-5 types (delta on validation / val_remix):
+
+| type | z1 | z2 |
+|---|---|---|
+| machine | +0.011 / +0.025 | +0.029 / +0.047 |
+| wind | +0.013 / +0.016 | +0.041 / +0.055 |
+| aircraft_cockpit | +0.008 / +0.014 | +0.049 / +0.054 |
+| broadband_noise | +0.018 / +0.015 | +0.047 / +0.055 |
+| alarm_siren | +0.005 / +0.027 | -0.013 (SE 0.017) / +0.014 |
+
+z2 reverses v8p2y's broadband_noise loss. Its only negative entry is alarm_siren on validation, which is within 1 SE.
+
+Caveat: the training checkpoint is selected on validation, and train-log val equals eval val (3.5215 / 3.5452), so val is
+mildly optimistic. val_remix is the held-out gate: z2 gains +0.043 there at z 11.1.
+
+Rule: val >= 3.5077, val_remix d > 0 with z >= 2, every probe >= 3.488. Both pass. **The highest val PESQ is gru_v8p2z2
+(3.5452), so it is promoted to r2-prep** (configs/dl/gru_v8p2z2.yaml; level mode rms_norm, target_rms 0.079130).
