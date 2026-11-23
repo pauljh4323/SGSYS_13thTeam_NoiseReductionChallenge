@@ -196,6 +196,13 @@ def main(argv=None) -> int:
         print(f"venv: pip install {time.perf_counter() - t0:.0f} s, size {size_mb:.0f} MB", flush=True)
         frozen = run([py, "-m", "pip", "freeze"], cwd=clone).split()
         print("venv packages: " + " ".join(frozen))
+        # training-only differentiable PESQ (torch-pesq, its torchaudio import, nrc.tpesq) must stay off the inference path
+        probe = subprocess.run([py, "-c", "import importlib.util as u; "
+                                "print(*[m for m in ('torch_pesq', 'torchaudio') if u.find_spec(m)])"],
+                               cwd=clone, capture_output=True, text=True)
+        check(probe.returncode == 0 and probe.stdout.strip() == "",
+              f"(d) torch_pesq / torchaudio not importable in the venv (found: {probe.stdout.strip() or 'none'})")
+        check(not (clone / "src" / "nrc" / "tpesq.py").exists(), "(d) src/nrc/tpesq.py not in the clone")
         check(run_main(clone / "main.py", inp, out_d, python=py) == 0,
               "(d) fresh pip venv: clone main.py failed=0")
         compare_to_inputs(inp, out_d, "(d)")

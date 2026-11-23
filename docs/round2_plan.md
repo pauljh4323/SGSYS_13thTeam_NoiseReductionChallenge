@@ -93,6 +93,19 @@ epoch 8.
 - v6a: about 30 min, close to gru_v5b. The CPU step cost is +9 %. Reference: the v3b T4 log, 15.4 s/epoch incl. val.
 - v6b: loader-bound on a standard 2-vCPU Colab runtime. About 0.5-0.65 s/batch, i.e. 40-55 s/epoch, plus about 10 s of
   feature work per val point and about 1 min of aux stats. Total about 75-100 min. With 8 vCPUs about 35 min.
+## Status 2026-11-22: r2-prep submission -> gru_v8p2 (differentiable-PESQ fine-tune; tag r2-ready moved)
+
+- gru_v8p2 = gru_v5b fine-tuned on Colab (branch exp/r2-dpesq, docs/exp_r2_dpesq.md) with
+  0.2 cmag + 0.32 torch-pesq PesqLoss (torchaudio pieces replaced by src/nrc/tpesq.py). Adam 5e-5, seed 0, best epoch 99 of 100.
+- eval.py (exp/r2-dpesq): val PESQ 3.3983 / SNR 4.48 dB, val_remix 3.2378 / 4.31 dB. Paired d vs gru_v5b: val +0.702 (z 27.0),
+  val_remix +0.721 (z 35.1). Probe -30/-20/-10/0 dB: 2.736/3.203/3.378/3.398. Round-2 rule PASS; highest val PESQ of v8p1/p2/p3.
+- SNR is deliberately traded for PESQ (objective is PESQ-WB only): 16.81 -> 4.48 dB.
+- Level norm ON (range_boost, gru_v8p2_lnrb): val +0.0005, val_remix +0.0005, -30 dB probe +0.064 (< 0.1 adoption bar). Kept OFF.
+- Promotion brings only weights/gru_v8p2.pt and configs. Inference code is unchanged; the r2-prep code reproduces the exp-branch
+  outputs bit for bit. torch-pesq, torchaudio and src/nrc/tpesq.py stay training-only: they are not in requirements.txt, and
+  e2e (d) checks that they cannot be imported.
+- Fallback: gru_v5b (configs/dl/gru_v5b_off.yaml, weights/gru_v5b.pt).
+- Still training on Colab: gru_v8p3 (resume) and gru_v8p2x (continues v8p2, 200 epochs). Promote either only if it passes the round-2 rule and beats v8p2.
 
 ## Open questions (confirm from the round-2 notice)
 
