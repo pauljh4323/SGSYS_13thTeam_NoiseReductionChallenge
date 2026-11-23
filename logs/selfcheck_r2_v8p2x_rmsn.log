@@ -1,0 +1,85 @@
+PASS identity len 48000: max err 1.39e-16 < 1e-8
+PASS identity len 48000: length preserved (48000)
+PASS wiener len 48000: length preserved (48000), finite
+PASS mmse_lsa[initial] noise len 48000: length preserved (48000), finite
+PASS mmse_lsa[initial] zeros len 48000: length preserved (48000), finite
+PASS mmse_lsa[initial] zeros len 48000: output all zero
+PASS mmse_lsa[mcra] noise len 48000: length preserved (48000), finite
+PASS mmse_lsa[mcra] zeros len 48000: length preserved (48000), finite
+PASS mmse_lsa[mcra] zeros len 48000: output all zero
+PASS mmse_lsa[quantile] noise len 48000: length preserved (48000), finite
+PASS mmse_lsa[quantile] zeros len 48000: length preserved (48000), finite
+PASS mmse_lsa[quantile] zeros len 48000: output all zero
+PASS mmse_lsa[quantile q=.1 b=1.5 s=5] noise len 48000: length, finite
+PASS mmse_lsa[quantile q=.1 b=1.5 s=5] zeros len 48000: length, finite
+PASS mmse_lsa[dsp-v5] len 48000: explicit new defaults bit-identical
+PASS mmse_lsa[dsp-v5] len 48000: beta 1e-7 equals LSA
+PASS mmse_lsa[beta -0.5] noise len 48000: length, finite
+PASS mmse_lsa[beta -0.5] zeros len 48000: length, finite
+PASS mmse_lsa[beta -0.5] zeros len 48000: output all zero
+PASS mmse_lsa[beta 1] noise len 48000: length, finite
+PASS mmse_lsa[beta 1] zeros len 48000: length, finite
+PASS mmse_lsa[beta 1] zeros len 48000: output all zero
+PASS mmse_lsa[pause 6/4/4] noise len 48000: length, finite
+PASS mmse_lsa[pause 6/4/4] zeros len 48000: length, finite
+PASS mmse_lsa[pause 6/4/4] zeros len 48000: output all zero
+PASS mmse_lsa[bias 1.25/1.5] noise len 48000: length, finite
+PASS mmse_lsa[bias 1.25/1.5] zeros len 48000: length, finite
+PASS mmse_lsa[bias 1.25/1.5] zeros len 48000: output all zero
+PASS mmse_lsa[dsp-v6] len 48000: explicit dsp-k defaults bit-identical
+PASS mmse_lsa[spp_mean 3/10] noise len 48000: length, finite
+PASS mmse_lsa[spp_mean 3/10] zeros len 48000: length, finite
+PASS mmse_lsa[spp_mean 3/10] zeros len 48000: output all zero
+PASS mmse_lsa[spp_mean+tv 16/1.5] noise len 48000: length, finite
+PASS mmse_lsa[spp_mean+tv 16/1.5] zeros len 48000: length, finite
+PASS mmse_lsa[spp_mean+tv 16/1.5] zeros len 48000: output all zero
+PASS mmse_lsa[initial+tv 8/1] noise len 48000: length, finite
+PASS mmse_lsa[initial+tv 8/1] zeros len 48000: length, finite
+PASS mmse_lsa[initial+tv 8/1] zeros len 48000: output all zero
+PASS spp_mean PSD noise len 48000: finite, > 0
+PASS tv_noise noise len 48000: finite, lambda_tv >= lambda_stat
+PASS spp_mean PSD zeros len 48000: finite, > 0
+PASS tv_noise zeros len 48000: finite, lambda_tv >= lambda_stat
+PASS identity len 47999: max err 1.67e-16 < 1e-8
+PASS identity len 47999: length preserved (47999)
+PASS wiener len 47999: length preserved (47999), finite
+PASS mmse_lsa[initial] noise len 47999: length preserved (47999), finite
+PASS mmse_lsa[initial] zeros len 47999: length preserved (47999), finite
+PASS mmse_lsa[initial] zeros len 47999: output all zero
+PASS mmse_lsa[mcra] noise len 47999: length preserved (47999), finite
+PASS mmse_lsa[mcra] zeros len 47999: length preserved (47999), finite
+PASS mmse_lsa[mcra] zeros len 47999: output all zero
+PASS mmse_lsa[quantile] noise len 47999: length preserved (47999), finite
+PASS mmse_lsa[quantile] zeros len 47999: length preserved (47999), finite
+PASS mmse_lsa[quantile] zeros len 47999: output all zero
+PASS mmse_lsa[quantile q=.1 b=1.5 s=5] noise len 47999: length, finite
+PASS mmse_lsa[quantile q=.1 b=1.5 s=5] zeros len 47999: length, finite
+PASS mmse_lsa[dsp-v5] len 47999: explicit new defaults bit-identical
+PASS mmse_lsa[dsp-v5] len 47999: beta 1e-7 equals LSA
+PASS mmse_lsa[beta -0.5] noise len 47999: length, finite
+PASS mmse_lsa[beta -0.5] zeros len 47999: length, finite
+PASS mmse_lsa[beta -0.5] zeros len 47999: output all zero
+PASS mmse_lsa[beta 1] noise len 47999: length, finite
+PASS mmse_lsa[beta 1] zeros len 47999: length, finite
+PASS mmse_lsa[beta 1] zeros len 47999: output all zero
+PASS mmse_lsa[pause 6/4/4] noise len 47999: length, finite
+PASS mmse_lsa[pause 6/4/4] zeros len 47999: length, finite
+PASS mmse_lsa[pause 6/4/4] zeros len 47999: output all zero
+PASS mmse_lsa[bias 1.25/1.5] noise len 47999: length, finite
+PASS mmse_lsa[bias 1.25/1.5] zeros len 47999: length, finite
+PASS mmse_lsa[bias 1.25/1.5] zeros len 47999: output all zero
+PASS mmse_lsa[dsp-v6] len 47999: explicit dsp-k defaults bit-identical
+PASS mmse_lsa[spp_mean 3/10] noise len 47999: length, finite
+PASS mmse_lsa[spp_mean 3/10] zeros len 47999: length, finite
+PASS mmse_lsa[spp_mean 3/10] zeros len 47999: output all zero
+PASS mmse_lsa[spp_mean+tv 16/1.5] noise len 47999: length, finite
+PASS mmse_lsa[spp_mean+tv 16/1.5] zeros len 47999: length, finite
+PASS mmse_lsa[spp_mean+tv 16/1.5] zeros len 47999: output all zero
+PASS mmse_lsa[initial+tv 8/1] noise len 47999: length, finite
+PASS mmse_lsa[initial+tv 8/1] zeros len 47999: length, finite
+PASS mmse_lsa[initial+tv 8/1] zeros len 47999: output all zero
+PASS spp_mean PSD noise len 47999: finite, > 0
+PASS tv_noise noise len 47999: finite, lambda_tv >= lambda_stat
+PASS spp_mean PSD zeros len 47999: finite, > 0
+PASS tv_noise zeros len 47999: finite, lambda_tv >= lambda_stat
+selfcheck: OK
