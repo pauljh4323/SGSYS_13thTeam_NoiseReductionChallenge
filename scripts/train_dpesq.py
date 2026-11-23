@@ -17,6 +17,7 @@ and makes validation + train64 match inference level_mode "rms_norm": each noisy
 g = target / max(rms, RMS_EPS) (float64, then float32) and each output is scaled down as a whole if its peak > 0.99.
 The config's inference params must then be level_mode rms_norm with the same target_rms. train.remix.p_dm > 0 turns
 on dynamic mixing (nrc.data.remix). Both unset: unchanged behaviour (bit-identical loss stream).
+train.remix.p_speed / p_eq (gru_v8p2z3a/b) turn on clean-side speed perturbation / random EQ (nrc.data.remix).
 """
 from __future__ import annotations
 
@@ -204,7 +205,10 @@ def main(argv=None) -> int:
     print(f"data options: rms_norm_target {rms_t} (train + val/train64), gain augmentation "
           f"{'off' if rms_t is not None else data.gain_mode + ' ' + str(data.gain_db)}, dynamic mixing p_dm {data.p_dm}"
           + (f" (snr {data.dm_snr_db} dB, p_second {data.dm_p_second}, rel {data.dm_second_rel_db} dB)"
-             if data.p_dm > 0 else ""), flush=True)
+             if data.p_dm > 0 else "")
+          + f", clean aug: speed p {data.p_speed}" + (f" {data.speed_range}" if data.p_speed > 0 else "")
+          + f", eq p {data.p_eq}" + (f" (low {data.eq_low_hz} Hz, high {data.eq_high_hz} Hz, gain {data.eq_gain_db} dB)"
+                                     if data.p_eq > 0 else ""), flush=True)
 
     model = GRUMask(**mcfg).to(device)
     if model.mask_type != "mag":

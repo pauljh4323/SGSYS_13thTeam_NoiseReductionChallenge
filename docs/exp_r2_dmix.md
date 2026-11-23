@@ -141,3 +141,76 @@ mildly optimistic. val_remix is the held-out gate: z2 gains +0.043 there at z 11
 
 Rule: val >= 3.5077, val_remix d > 0 with z >= 2, every probe >= 3.488. Both pass. **The highest val PESQ is gru_v8p2z2
 (3.5452), so it is promoted to r2-prep** (configs/dl/gru_v8p2z2.yaml; level mode rms_norm, target_rms 0.079130).
+
+## Second batch 2026-11-23: gru_v8p2z3a / gru_v8p2z3b (clean-side speaker augmentation). Colab prep
+Why: gru_v8p2z2 still has a train64-val gap of 0.48. Every validation noise recording also appears in train, but the
+validation speakers do not, so the remaining gap is most likely speaker mismatch. Dynamic mixing only varies the noise
+side. These two runs add clean-side diversity. The objective is PESQ-WB only.
+
+New `train.remix` options in src/nrc/data/remix.py. Defaults are off and make no RNG draws.
+- They are applied to the drawn clean utterance before mixing: in the dynamic-mixing branch, and in the remixed half
+  of the remix branch. Original pairs are never augmented, because their noisy signal is fixed.
+- The target is the augmented clean, and the SNR is set against it.
+
+| option | what it does | implementation |
+|---|---|---|
+| `p_speed`, `speed_range` (Ko et al. 2015) | With probability p_speed, the clean is resampled by f ~ U[0.9, 1.1], which changes tempo and pitch. The result is then randomly cropped (f < 1) or zero-padded at a random offset (f > 1) back to 48000 samples. | f is quantised to 1/200 (41 factors). scipy `resample_poly` with up/down = 200/round(200 f) and its own Kaiser FIR (`kaiserord` 80 dB, passband 0.95 and stopband 1.0 of the lower Nyquist). The 41 filters are cached, about 7 MB. scipy's default filter only gives about 16 dB just above the new Nyquist, so it is not used. Factor 1 returns an exact copy. |
+| `p_eq`, `eq_low_hz`, `eq_high_hz`, `eq_gain_db` | With probability p_eq, a low-shelf (corner U[150, 500] Hz) and a high-shelf (corner U[2, 5] kHz) are applied, gains each U[-6, +6] dB. The clean is then rescaled to its original RMS. | RBJ Audio-EQ-Cookbook shelving biquads, shelf slope S = 1, cascaded with `sosfilt` in float64. |
+
+Draw order per sample:
+1. Speed: 1 decision draw, then factor and offset.
+2. EQ: 1 decision draw, then 2 corners and 2 gains.
+
+| config | init | added to gru_v8p2z2 |
+|---|---|---|
+| gru_v8p2z3a | weights/gru_v8p2z2.pt (weights only, fresh Adam 5e-5) | p_speed 0.5, U[0.9, 1.1] |
+| gru_v8p2z3b | weights/gru_v8p2z2.pt (weights only, fresh Adam 5e-5) | p_speed 0.5 + p_eq 0.5 (150-500 Hz / 2-5 kHz, +-6 dB) |
+
+Everything else is as in gru_v8p2z2:
+- Loss 0.2 cmag + 0.32 torch-pesq, lr 5e-5.
+- p_dm 1.0, train-time rms_norm 0.079130.
+- Seed 0, 200 epochs, patience 30.
+- best.pt + last.pt, with train64 PESQ and gap logged.
+
+### CPU tests: PASS
+`python tests/test_caug.py` (synthetic):
+- Speed 1.0 and EQ gains 0 are identities, max |diff| 0.0.
+- A 1 kHz tone resampled by 1.1 / 0.9 peaks at 1100.0 / 900.0 Hz, with resampled lengths 43637 / 53334. The fitted
+  length is 48000.
+- A 7.8 kHz tone sped up by 1.1 (it would alias to 7.42 kHz) leaves a -75.9 dB residual.
+- Shelf gains are +-6 dB at the shelf end and half the gain at the corner.
+- EQ keeps the RMS.
+- Full pipeline (dynamic mixing + rms_norm + speed + EQ), 100 draws: SNR against the augmented clean is within 0.1 dB.
+- With the options off, samples and RNG state are identical.
+
+`tests/test_dmix.py` still passes.
+
+`python scripts/r2_caug_smoke.py --out <scratch>` uses real data (logs/r2_caug_smoke.log):
+
+| check | result |
+|---|---|
+| options off: RemixData vs pre-augmentation version (363c4e5), gru_v8p2z2 settings + rms_norm, 200 draws | identical samples + RNG state |
+| options off: gru_v8p2z2 training loss, 2 Adam steps from weights/gru_v8p2z2.pt | bitwise equal (0.4049389887, 0.3554138992) |
+| z3a / z3b, 100 real draws | length 48000, finite, SNR err 0.0000 dB, RMS rel err <= 3.2e-9; speed 43 / 56, EQ 0 / 56 |
+| loader time per batch of 16 (local CPU) | z2 13 ms, z3a 81 ms, z3b 101 ms |
+| z3a, 2 steps | finite (0.3689, 0.4482) |
+| z3b, 2 steps | finite (0.3919, 0.3698) |
+| best.pt (z3a, z3b) | loads with weights_only=True |
+
+### Estimated Colab T4 time
+- The gru_v8p2z2 Colab log (147 epochs) shows a median of 9.2 s training + 5.4 s validation/train64 per epoch,
+  about 14.5 s per epoch.
+- The augmentation runs on the CPU inside the training loop. Locally it adds 70 / 90 ms per batch, which is
+  +6 / +7 s per epoch over 81 steps. Assuming the Colab CPU is about 2x slower, that becomes about +11 / +15 s.
+- That gives about 26 s per epoch for z3a and 29 s for z3b.
+- **Up to about 1.5 h for z3a and 1.7 h for z3b** (200 epochs), less with an early stop. About 3.2 h for the
+  queue, plus about 5 min setup.
+
+Evaluation plan:
+1. Copy each best.pt to weights/gru_v8p2z3{a,b}.pt.
+2. Run eval.py on validation and val_remix and the level probe at a clean hash. Use paired deltas vs gru_v8p2z2 +
+   rms_norm.
+3. Apply the same rule as before: val >= 3.5452, val_remix d > 0 with z >= 2, every probe >= 3.525.
+
+Files: src/nrc/data/remix.py, scripts/train_dpesq.py (options line), configs/dl/gru_v8p2z3{a,b}.yaml,
+tests/test_caug.py, scripts/r2_caug_smoke.py, logs/r2_caug_smoke.log, notebooks/colab_train.ipynb.

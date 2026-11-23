@@ -20,18 +20,93 @@ exp/r2-dmix options (defaults: off, no extra random draws, so the stream above s
   shift, no sign flip); with probability dm_p_second a second noise k not in {i, j} (random shift) is added at
   U(dm_second_rel_db) dB relative to the first noise's power; the combined noise is scaled so that the SNR against
   the clean equals U(dm_snr_db); then the peak guard (and rms_norm if on). Neither changes the SNR.
+exp/r2-dmix clean-side augmentation (gru_v8p2z3a/b; defaults off = no draws). Applied to the drawn clean
+utterance before mixing, in the dynamic-mixing branch and the remix branch (not to original pairs, whose noisy is
+fixed); the target is the augmented clean and the SNR is set against it:
+- p_speed (Ko et al. 2015 speed perturbation): with probability p_speed, factor f ~ U(speed_range) (quantised to
+  1/200), polyphase resampling by up/down = 200/round(200 f) (scipy resample_poly with a Kaiser FIR: passband to
+  0.95, stopband >= 80 dB from 1.0 of the lower Nyquist, so nothing aliases above 8 kHz). Tempo and pitch both scale
+  by f. The result is randomly cropped (f < 1) or zero-padded at a random offset (f > 1) back to the original length.
+- p_eq (random EQ): with probability p_eq, an RBJ-cookbook low-shelf (corner U(eq_low_hz)) and high-shelf
+  (corner U(eq_high_hz)) biquad, shelf slope 1, gains each U(eq_gain_db) dB, cascaded (float64); the clean is then
+  rescaled to its original RMS.
 All randomness comes from the numpy Generator passed in, so batches are reproducible.
 """
 from __future__ import annotations
 
+from math import gcd
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.signal import firwin, kaiserord, resample_poly, sosfilt
 
 from ..io import read_row
 
 RMS_EPS = 1e-6   # = nrc.methods.gru_mask.RMS_EPS (rms_norm denominator floor)
+SPEED_DEN = 200   # speed factor resolution 1/200 (41 factors in [0.9, 1.1]; all filters cached, ~7 MB)
+SR = 16000
+
+
+def speed_resample(x: np.ndarray, factor: float) -> np.ndarray:
+    """Play x `factor` times faster (tempo and pitch): polyphase resampling to length ~len(x)/factor (float64).
+    Exact copy when the quantised factor is 1."""
+    up, down = SPEED_DEN, int(round(factor * SPEED_DEN))
+    g = gcd(up, down)
+    up, down = up // g, down // g
+    x = np.asarray(x, np.float64)
+    return x.copy() if up == down else resample_poly(x, up, down, window=_aa_filter(up, down))
+
+
+_AA_CACHE: dict = {}
+
+
+def _aa_filter(up: int, down: int) -> np.ndarray:
+    """Anti-aliasing/imaging low-pass for resample_poly at the upsampled rate: Kaiser FIR, stopband >= 80 dB from the
+    lower of the input/output Nyquists, passband to 0.95 of it (scipy's default filter only gives ~16 dB there)."""
+    key = (up, down)
+    if key not in _AA_CACHE:
+        m = max(up, down)
+        numtaps, beta = kaiserord(80.0, 0.05 / m)
+        numtaps |= 1  # odd: zero-phase delay compensation in resample_poly
+        _AA_CACHE[key] = firwin(numtaps, 0.975 / m, window=("kaiser", beta)) * up
+        if len(_AA_CACHE) > 256:  # bound for unusual speed_range values
+            _AA_CACHE.pop(next(iter(_AA_CACHE)))
+    return _AA_CACHE[key]
+
+
+def fit_length(y: np.ndarray, length: int, offset: int) -> np.ndarray:
+    """Crop y to `length` starting at `offset`, or zero-pad it with `offset` leading zeros."""
+    if y.size >= length:
+        return y[offset:offset + length]
+    out = np.zeros(length, y.dtype)
+    out[offset:offset + y.size] = y
+    return out
+
+
+def shelf_sos(kind: str, f0: float, gain_db: float, sr: int = SR) -> np.ndarray:
+    """RBJ Audio-EQ-Cookbook shelving biquad (shelf slope S = 1) as one normalised sos row."""
+    A = 10 ** (gain_db / 40)
+    w0 = 2 * np.pi * f0 / sr
+    cw, alpha = np.cos(w0), np.sin(w0) / 2 * np.sqrt(2.0)
+    sa = 2 * np.sqrt(A) * alpha
+    if kind == "low":
+        b = [A * ((A + 1) - (A - 1) * cw + sa), 2 * A * ((A - 1) - (A + 1) * cw), A * ((A + 1) - (A - 1) * cw - sa)]
+        a = [(A + 1) + (A - 1) * cw + sa, -2 * ((A - 1) + (A + 1) * cw), (A + 1) + (A - 1) * cw - sa]
+    elif kind == "high":
+        b = [A * ((A + 1) + (A - 1) * cw + sa), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - sa)]
+        a = [(A + 1) - (A - 1) * cw + sa, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - sa]
+    else:
+        raise ValueError(kind)
+    return np.array([[*(np.array(b) / a[0]), 1.0, a[1] / a[0], a[2] / a[0]]])
+
+
+def random_eq(x: np.ndarray, f_low: float, g_low: float, f_high: float, g_high: float) -> np.ndarray:
+    """Low-shelf + high-shelf cascade, output rescaled to the input RMS (float64)."""
+    x = np.asarray(x, np.float64)
+    y = sosfilt(np.vstack([shelf_sos("low", f_low, g_low), shelf_sos("high", f_high, g_high)]), x)
+    r_in, r_out = float(np.sqrt(np.mean(x ** 2))), float(np.sqrt(np.mean(y ** 2)))
+    return y * (r_in / r_out) if r_out > 0 else y
 
 
 class RemixData:
@@ -40,7 +115,9 @@ class RemixData:
                  peak: float = 0.99, gain_db_range=None, apply_to_original_pairs: bool | None = None,
                  gain_mode: str | None = None, p_wide: float = 0.5, gain_wide_db=(-30.0, 6.0),
                  gain_narrow_db=(-6.0, 3.0), rms_norm_target: float | None = None, p_dm: float = 0.0,
-                 dm_snr_db=(-5.0, 20.0), dm_p_second: float = 0.2, dm_second_rel_db=(-10.0, 0.0)):
+                 dm_snr_db=(-5.0, 20.0), dm_p_second: float = 0.2, dm_second_rel_db=(-10.0, 0.0),
+                 p_speed: float = 0.0, speed_range=(0.9, 1.1), p_eq: float = 0.0, eq_low_hz=(150.0, 500.0),
+                 eq_high_hz=(2000.0, 5000.0), eq_gain_db=(-6.0, 6.0)):
         self.rms_norm_target = None if rms_norm_target is None else float(rms_norm_target)
         if self.rms_norm_target is not None:
             if not self.rms_norm_target > 0:
@@ -57,6 +134,16 @@ class RemixData:
         for name, r in (("dm_snr_db", self.dm_snr_db), ("dm_second_rel_db", self.dm_second_rel_db)):
             if len(r) != 2 or r[0] > r[1]:
                 raise ValueError(f"{name} must be (lo, hi) with lo <= hi, got {r}")
+        self.p_speed, self.p_eq = float(p_speed), float(p_eq)
+        self.speed_range, self.eq_low_hz = tuple(speed_range), tuple(eq_low_hz)
+        self.eq_high_hz, self.eq_gain_db = tuple(eq_high_hz), tuple(eq_gain_db)
+        for name, r in (("speed_range", self.speed_range), ("eq_low_hz", self.eq_low_hz),
+                        ("eq_high_hz", self.eq_high_hz), ("eq_gain_db", self.eq_gain_db)):
+            if len(r) != 2 or r[0] > r[1]:
+                raise ValueError(f"{name} must be (lo, hi) with lo <= hi, got {r}")
+        if not (0.0 <= self.p_speed <= 1.0 and 0.0 <= self.p_eq <= 1.0) or self.speed_range[0] <= 0 \
+                or not (0 < self.eq_low_hz[0] and self.eq_high_hz[1] < SR / 2):
+            raise ValueError("p_speed/p_eq must be in [0, 1], speed > 0, shelf corners in (0, 8000) Hz")
         if not (0.0 <= self.p_dm <= 1.0 and 0.0 <= self.dm_p_second <= 1.0):
             raise ValueError(f"p_dm and dm_p_second must be in [0, 1], got {p_dm}, {dm_p_second}")
         if clean.shape != noisy.shape or clean.ndim != 2:
@@ -117,6 +204,23 @@ class RemixData:
         g = self.rms_norm_target / max(float(np.sqrt(np.mean(m64 ** 2))), RMS_EPS)
         return (c.astype(np.float64) * g).astype(np.float32), (m64 * g).astype(np.float32)
 
+    def _clean_aug(self, c: np.ndarray, rng: np.random.Generator, info: dict | None = None) -> np.ndarray:
+        """Speed perturbation then random EQ on a clean utterance (no draws and c returned as is when both off)."""
+        if self.p_speed > 0 and rng.random() < self.p_speed:
+            f = rng.uniform(*self.speed_range)
+            y = speed_resample(c, f)
+            off = int(rng.integers(abs(y.size - c.size) + 1))
+            c = fit_length(y, c.size, off)
+            if info is not None:
+                info["speed"] = round(f * SPEED_DEN) / SPEED_DEN
+        if self.p_eq > 0 and rng.random() < self.p_eq:
+            fl, fh = rng.uniform(*self.eq_low_hz), rng.uniform(*self.eq_high_hz)
+            gl, gh = rng.uniform(*self.eq_gain_db), rng.uniform(*self.eq_gain_db)
+            c = random_eq(c, fl, gl, fh, gh)
+            if info is not None:
+                info["eq"] = (fl, gl, fh, gh)
+        return c
+
     def _draw_other(self, rng: np.random.Generator, exclude: set) -> int:
         while True:
             j = int(rng.choice(self.noise_idx))
@@ -125,7 +229,7 @@ class RemixData:
 
     def _dm_sample(self, rng: np.random.Generator, info: dict | None) -> tuple[np.ndarray, np.ndarray]:
         i = int(rng.integers(len(self)))
-        c = self.clean[i].astype(np.float64)
+        c = self._clean_aug(self.clean[i].astype(np.float64), rng, info)
         j = self._draw_other(rng, {i})
         n = np.roll(self.noise[j], int(rng.integers(self.length))).astype(np.float64)
         k, rel = None, None
@@ -152,6 +256,8 @@ class RemixData:
             g = self._draw_gain(rng)
             return self._peak_guard(self.clean[i] * g, self.noisy[i] * g)
         c = self.clean[int(rng.integers(len(self)))]
+        if self.p_speed > 0 or self.p_eq > 0:
+            c = self._clean_aug(c.astype(np.float64), rng).astype(np.float32)
         n = self.noise[int(rng.choice(self.noise_idx))]
         n = np.roll(n, int(rng.integers(n.size))) * (1.0 if rng.random() < 0.5 else -1.0)
         pc, pn = float(np.mean(c.astype(np.float64) ** 2)), float(np.mean(n.astype(np.float64) ** 2))
