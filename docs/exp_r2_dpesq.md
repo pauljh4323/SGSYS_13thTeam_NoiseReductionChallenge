@@ -240,3 +240,31 @@ PESQ-WB only, and the output level is free.
 Rule (unchanged): val >= 3.3983, val_remix d vs v8p2 OFF > 0 with z >= 2, and every probe >= floor 2.716/3.183/3.358/3.378.
 Three pairs pass: v8p3 lnrb, v8p3 rms_norm and v8p2x rms_norm. **The highest val PESQ among them is gru_v8p2x + rms_norm
 (3.4867) -> promoted to r2-prep** (configs/dl/gru_v8p2x_rmsn.yaml).
+
+## Results 2026-11-23 (3): gru_v8p2y vs the submission gru_v8p2x + rms_norm (eval.py at 2c2ba06, 16-bit, --jobs 1)
+Training (Colab, logs/train_log_v8p2y.csv; weights/gru_v8p2y.pt loads with weights_only=True, checkpoint epoch 153):
+- gru_v8p2y = v8p2x continued (fresh Adam 5e-5) with one input gain U[-40, +6] dB on every sample.
+- Early stop at epoch 183 (30 epochs without a gain). Best epoch 153: train-log val 3.5081, val SNR 2.43 dB, train64 4.0666
+  (gap 0.559, same as v8p2x). Val rose 3.4775 (ep 1) -> 3.50 (ep ~150) and was flat afterwards (mean of the last 20 epochs 3.5019,
+  of the 20 before 3.5018).
+- Eval: 0 PESQ failures, 0 clipped samples in all 10 runs. Runner logs/run_r2_dpesq_v8p2y.sh; tables logs/r2_dpesq_compare_v8p2y.txt.
+
+Paired deltas are vs gru_v8p2x + rms_norm (current submission).
+
+| model x level | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| v8p2x rms_norm (submission) | 3.4867 | 2.865/3.261/3.536/3.758 | 2.24 | - | 3.3453 | - | 3.487 x4 | ref |
+| **v8p2y rms_norm** | **3.5077** | 2.904/3.281/3.555/3.776 | 1.88 | +0.0210 (0.0037, 5.62) | **3.3633** | +0.0180 (0.0032, 5.71) | **3.508 x4** | **PASS** |
+| v8p2x OFF | 3.4875 | - | 2.91 | - | 3.3450 | - | 2.640/3.194/3.437/3.488 | - |
+| v8p2y OFF | - | - | - | - | - | - | 2.607/3.181/3.449/3.508 | probe only |
+
+Per-SNR paired deltas: validation +0.039/+0.021/+0.019/+0.018 (z 3.6/2.9/3.3/2.5); val_remix +0.022/+0.016/+0.012/+0.023
+(z 3.7/3.6/2.3/2.6). Per difficulty, validation easy/moderate/hard 3.417/3.605/3.715 (sub 3.401/3.585/3.672).
+Top-5 types (validation / val_remix delta): machine +0.020/+0.023, wind +0.037/+0.044, aircraft_cockpit +0.007/+0.000,
+broadband_noise -0.016/-0.009, alarm_siren +0.023/+0.011.
+Level robustness of the model itself (OFF): the wider gain augmentation did not make it level-robust; -30 dB fell further
+(2.607 vs v8p2x 2.640) while 0 dB rose (3.508). The gain over v8p2x is in-range; rms_norm stays required.
+Caveat: the training checkpoint is selected on validation, so val is mildly optimistic; val_remix (+0.018, z 5.7) is the held-out gate.
+
+Rule: val >= 3.4867, val_remix d > 0 with z >= 2, every probe >= 3.467. **gru_v8p2y + rms_norm passes -> promoted to r2-prep**
+(configs/dl/gru_v8p2y_rmsn.yaml).
