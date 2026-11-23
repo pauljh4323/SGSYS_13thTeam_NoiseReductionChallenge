@@ -1,0 +1,44 @@
+# gru_v8p2z1 (exp/r2-dmix): continue gru_v8p2y with TRAIN-TIME rms_norm, matching the inference level mode.
+# Every training input (noisy) is scaled by g = target_rms / rms(noisy) (target_rms 0.079130 = inference value) and the
+# clean target by the same g; the gain augmentation is off. Remix as before: p_original 0.5, else a random clean +
+# random train noise (shift, sign) at SNR U[-5, 20] dB, peak <= 0.99 before rms_norm. Validation / train64 use rms_norm.
+# Init weights/gru_v8p2y.pt (weights only, fresh Adam lr 5e-5), same loss as gru_v8p2y, seed 0, 200 epochs,
+# patience 30. Inference: level_mode rms_norm (same target_rms). Train: scripts/train_dpesq.py.
+method: gru_mask
+params:
+  weights: weights/gru_v8p2z1.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: true
+  level_mode: rms_norm
+  target_rms: 0.079130
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  init_from: weights/gru_v8p2y.pt # continue gru_v8p2y: weights only, fresh optimizer
+  epochs: 200
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 0.2
+  lambda_mrstft: 0.0
+  lambda_sisdr: 0.0
+  lambda_pesq: 0.32
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 30         # early stop: 30 epochs without a val PESQ gain
+  rms_norm_target: 0.079130       # train-time rms_norm (= params.target_rms); gain augmentation off
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    peak: 0.99                    # peak guard before rms_norm

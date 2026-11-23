@@ -1,0 +1,48 @@
+# gru_v8p2z2 (exp/r2-dmix): gru_v8p2z1 (train-time rms_norm) + full dynamic mixing (Zeghidour & Grangier 2021).
+# Every sample (p_dm 1.0): random train clean + noise of a random other train file (random circular shift), with
+# probability 0.2 a second random noise at U[-10, 0] dB relative to the first, total noise scaled to SNR U[-5, 20] dB,
+# peak <= 0.99, then rms_norm (target_rms 0.079130). p_original / snr_db are unused at p_dm 1.0.
+# Init weights/gru_v8p2y.pt (weights only, fresh Adam lr 5e-5), same loss as gru_v8p2y, seed 0, 200 epochs,
+# patience 30. Inference: level_mode rms_norm (same target_rms). Train: scripts/train_dpesq.py.
+method: gru_mask
+params:
+  weights: weights/gru_v8p2z2.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: true
+  level_mode: rms_norm
+  target_rms: 0.079130
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  init_from: weights/gru_v8p2y.pt # continue gru_v8p2y: weights only, fresh optimizer
+  epochs: 200
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 0.2
+  lambda_mrstft: 0.0
+  lambda_sisdr: 0.0
+  lambda_pesq: 0.32
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 30         # early stop: 30 epochs without a val PESQ gain
+  rms_norm_target: 0.079130       # train-time rms_norm (= params.target_rms); gain augmentation off
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    peak: 0.99                    # peak guard before rms_norm
+    p_dm: 1.0                     # dynamic mixing for every sample
+    dm_snr_db: [-5, 20]           # SNR against the total noise
+    dm_p_second: 0.2              # probability of a second noise
+    dm_second_rel_db: [-10, 0]    # second noise level relative to the first

@@ -12,6 +12,11 @@ epoch aborts). Adam, constant lr, grad clip. Every val_every epochs: val PESQ (p
 mixtures) so the train/val gap is visible. Checkpoints in --ckpt-dir: best.pt (inference weights only, loads with
 weights_only=True), last.pt (full state incl. RNG, every epoch; resume via train_mgan.restore_torch_rng),
 train_log.csv (one row per epoch). Early stop after patience_val_points val points without a val PESQ gain.
+exp/r2-dmix: train.rms_norm_target (gru_v8p2z1/z2) turns on train-time rms_norm in RemixData (gain augmentation off)
+and makes validation + train64 match inference level_mode "rms_norm": each noisy file is scaled by
+g = target / max(rms, RMS_EPS) (float64, then float32) and each output is scaled down as a whole if its peak > 0.99.
+The config's inference params must then be level_mode rms_norm with the same target_rms. train.remix.p_dm > 0 turns
+on dynamic mixing (nrc.data.remix). Both unset: unchanged behaviour (bit-identical loss stream).
 """
 from __future__ import annotations
 
@@ -28,8 +33,10 @@ import numpy as np
 from _common import REPO_ROOT, load_config
 
 from nrc.io import load_manifest, read_row, resolve_data_root, stratified_subset
-from train import _atomic_save, loss_weights
-from train_mgan import g_regression, restore_torch_rng, validate
+from train import _atomic_save, _enhance_batch, loss_weights
+from train_mgan import _val_item, g_regression, restore_torch_rng, validate
+
+from nrc.methods.gru_mask import OUT_PEAK, RMS_EPS
 
 LOG_FIELDS = ("epoch", "step", "loss", "l_cmag", "l_mrstft", "l_sisdr", "l_pesq", "tpesq_mos", "pesq_rows_dropped",
               "pesq_nonfinite", "train64_pesq", "val_pesq", "val_snr", "gap", "val_failed", "lr", "epoch_s", "val_s",
@@ -99,6 +106,46 @@ def calibrate(model, loss_fn, data, rng, lw_ref: dict, bs: int, n_batches: int, 
     return {"reg": reg, "pesq": pq, "ratio": reg / pq, "lambda": float(np.mean(reg / pq))}
 
 
+def rms_norm_rows(noisy64: np.ndarray, target: float) -> np.ndarray:
+    """Per file, as methods.gru_mask.enhance (level_mode rms_norm): (x * target / max(rms(x), RMS_EPS)) -> float32."""
+    out = np.empty(noisy64.shape, np.float32)
+    for r, x in enumerate(noisy64):
+        rms = float(np.sqrt(np.mean(np.asarray(x, dtype=np.float64) ** 2)))
+        out[r] = (x * (float(target) / max(rms, RMS_EPS))).astype(np.float32)
+    return out
+
+
+def enhance_rmsn(model, noisy_n: np.ndarray, device, batch) -> np.ndarray:
+    """Model on rms-normalised inputs (rms_norm_rows); each output scaled down as a whole if its peak > OUT_PEAK."""
+    model.eval()
+    est = _enhance_batch(model, noisy_n, device, batch)
+    model.train()
+    pk = np.abs(est).max(axis=1)
+    for r in np.flatnonzero(pk > OUT_PEAK):
+        est[r] = est[r] * (OUT_PEAK / pk[r])
+    return est
+
+
+def validate_rmsn(model, val, device, batch, pool) -> tuple[float, float, int]:
+    """train_mgan.validate on rms-normalised inputs with the inference output peak cap (= level_mode rms_norm)."""
+    est = enhance_rmsn(model, val["noisy"], device, batch)
+    res = np.array(list(pool.map(_val_item, zip(val["clean"], est), chunksize=4)), float)
+    p, s = res[:, 0], res[:, 1]
+    ok = np.isfinite(p)
+    return (float(p[ok].mean()) if ok.any() else float("nan")), float(np.nanmean(s)), int((~ok).sum())
+
+
+def rms_target(cfg: dict) -> float | None:
+    """train.rms_norm_target, checked against the inference params (level_mode rms_norm, same target_rms)."""
+    t = cfg["train"].get("rms_norm_target")
+    if t is None:
+        return None
+    t, pr = float(t), cfg.get("params", {})
+    if not (pr.get("level_norm") and pr.get("level_mode") == "rms_norm" and float(pr.get("target_rms", -1)) == t):
+        raise ValueError(f"train.rms_norm_target {t} needs params level_norm true, level_mode rms_norm, target_rms {t}")
+    return t
+
+
 def _fmt(v, nd=6):
     return "" if v is None or not np.isfinite(v) else f"{v:.{nd}f}"
 
@@ -135,15 +182,29 @@ def main(argv=None) -> int:
     root = resolve_data_root(args.data_root)
     t0 = time.perf_counter()
     train_df = load_manifest(root, "train")
-    data = RemixData.from_manifest(root, train_df, REPO_ROOT / "logs" / "noise_check.csv", **tcfg.get("remix", {}))
+    rms_t = rms_target(cfg)
+    remix_kw = dict(tcfg.get("remix", {}))
+    if rms_t is not None:
+        remix_kw["rms_norm_target"] = rms_t
+    data = RemixData.from_manifest(root, train_df, REPO_ROOT / "logs" / "noise_check.csv", **remix_kw)
+    run_val = validate if rms_t is None else validate_rmsn
 
     def load_set(df):
+        if rms_t is not None:
+            d = {k: np.stack([read_row(root, r, k).astype(np.float64) for _, r in df.iterrows()])
+                 for k in ("clean", "noisy")}
+            d["noisy"] = rms_norm_rows(d["noisy"], rms_t)
+            return d
         return {k: np.stack([read_row(root, r, k).astype(np.float32 if k == "noisy" else np.float64)
                              for _, r in df.iterrows()]) for k in ("clean", "noisy")}
     val = load_set(stratified_subset(load_manifest(root, "validation"), args.val_subset))
     tr64 = load_set(stratified_subset(train_df, args.train_subset))
     print(f"data: train {len(data)} x {data.length} samples, val {len(val['clean'])}, train subset "
           f"{len(tr64['clean'])}, load {time.perf_counter() - t0:.1f}s, device {device}, pesq jobs {args.pesq_jobs}")
+    print(f"data options: rms_norm_target {rms_t} (train + val/train64), gain augmentation "
+          f"{'off' if rms_t is not None else data.gain_mode + ' ' + str(data.gain_db)}, dynamic mixing p_dm {data.p_dm}"
+          + (f" (snr {data.dm_snr_db} dB, p_second {data.dm_p_second}, rel {data.dm_second_rel_db} dB)"
+             if data.p_dm > 0 else ""), flush=True)
 
     model = GRUMask(**mcfg).to(device)
     if model.mask_type != "mag":
@@ -225,8 +286,8 @@ def main(argv=None) -> int:
             failed, val_s = "", 0.0
             if (epoch + 1) % val_every == 0 or epoch + 1 == epochs or stop:
                 tv = time.perf_counter()
-                pesq_v, snr_v, failed = validate(model, val, device, vb, pool)
-                tr_v, _, _ = validate(model, tr64, device, vb, pool)
+                pesq_v, snr_v, failed = run_val(model, val, device, vb, pool)
+                tr_v, _, _ = run_val(model, tr64, device, vb, pool)
                 val_s = time.perf_counter() - tv
                 if math.isfinite(pesq_v):
                     if pesq_v > best:
