@@ -1,0 +1,45 @@
+# gru_v8p2y (exp/r2-dpesq): level-robust continuation of gru_v8p2x (val 3.4875, val_remix +0.107 vs v8p2, but the
+# -30 dB input-level probe fell to 2.640 < 2.716 floor). Same loss as v8p2/v8p2x, init from weights/gru_v8p2x.pt
+# (weights only, fresh Adam lr 5e-5), 200 epochs, patience 30.
+# Changed vs v8p2x: input gain augmentation. Old (v8p2x = gru_v5b): gain_mode mixture, p=0.5 U[-30, +6] dB else
+# U[-6, +3] dB. New: one uniform U[-40, +6] dB gain for every sample (original pairs included), applied to clean and
+# noise together (mixture and target scaled alike), then the peak guard rescales both so that |mix| <= 0.99.
+# Inference: method/params (level norm off); model/train: training only. Train: scripts/train_dpesq.py.
+method: gru_mask
+params:
+  weights: weights/gru_v8p2y.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: false
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 0
+  init_from: weights/gru_v8p2x.pt # continue gru_v8p2x: weights only, fresh optimizer
+  epochs: 200
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 0.2
+  lambda_mrstft: 0.0
+  lambda_sisdr: 0.0
+  lambda_pesq: 0.32                # mean grad-norm ratio at gru_v5b init (0.3186, 8 batches; r2_dpesq_smoke.py)
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 30         # early stop: 30 epochs without a val PESQ gain
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    gain_mode: uniform            # one gain U(gain_db) per sample (was: mixture of [-30, 6] / [-6, 3])
+    gain_db: [-40, 6]
+    apply_to_original_pairs: true # original (clean, noisy) pairs take the gain too
+    peak: 0.99                    # peak guard: clean and mix rescaled together if |mix| > 0.99
