@@ -1,0 +1,10 @@
+# Round-2 output-level ensemble (exp/r2-ens, method gru_ens in src/nrc/methods/gru_mask.py): every member gru_mask model
+# computes its mask on the same |STFT(g * noisy)|, g = target_rms / rms(noisy) (rms_norm, target_rms = 0.079130, train noisy
+# median); masks combined by arithmetic mean, applied to the complex STFT, ISTFT; output kept at the normalised level (peak cap 0.99).
+# E1 = {gru_v8p2x, gru_v8p3}, equal weights (fixed in advance, not tuned).
+method: gru_ens
+params:
+  weights: [weights/gru_v8p2x.pt, weights/gru_v8p3.pt]   # resolved against the repo root, not the cwd
+  combine: mean
+  device: cpu
+  target_rms: 0.079130

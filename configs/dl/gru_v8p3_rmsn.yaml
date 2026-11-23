@@ -1,0 +1,12 @@
+# gru_v8p3 weights + level mode rms_norm (inference only): the model runs on g * noisy with
+# g = target_rms / rms(noisy) (whole-file RMS, eps 1e-6), and the output stays at that normalised level (no inverse
+# gain; whole output scaled down to peak 0.99 if it exceeds it). target_rms = median whole-file RMS of the 1296 train
+# noisy files (scripts/rms_target.py, logs/rms_target.log: 0.079130 = -22.03 dBFS).
+# Level-norm OFF counterpart: configs/dl/gru_v8p3.yaml.
+method: gru_mask
+params:
+  weights: weights/gru_v8p3.pt   # resolved against the repo root, not the cwd
+  device: cpu
+  level_norm: true
+  level_mode: rms_norm
+  target_rms: 0.079130

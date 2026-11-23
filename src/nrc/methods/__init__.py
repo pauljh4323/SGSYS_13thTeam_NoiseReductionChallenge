@@ -11,6 +11,7 @@ from . import gru_mask, mmse_lsa, noisy, wiener
 
 _REGISTRY = {
     "gru_mask": gru_mask.enhance,  # round 2 (DL); torch is imported lazily on first call
+    "gru_ens": gru_mask.enhance_ensemble,  # round 2: mask-averaged ensemble of gru_mask models (rms_norm)
     "mmse_lsa": mmse_lsa.enhance,
     "noisy": noisy.enhance,
     "wiener": wiener.enhance,

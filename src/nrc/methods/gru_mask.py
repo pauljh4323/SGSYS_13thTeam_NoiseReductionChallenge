@@ -144,3 +144,52 @@ def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: 
     with torch.inference_mode():
         y = model(torch.from_numpy((x * scale).astype(np.float32))[None].to(device))[0]
     return y.cpu().double().numpy() / scale
+
+
+COMBINES = ("mean", "geo")
+
+
+def enhance_ensemble(noisy, sr: int = 16000, weights: list | tuple = (), combine: str = "mean",
+                     device: str = "cpu", target_rms: float | None = None):
+    """Output-level ensemble of N gru_mask models (same STFT, level mode rms_norm only).
+
+    The input is scaled by g = target_rms / max(rms(x), RMS_EPS) exactly as in enhance(...,
+    level_mode="rms_norm"); every model computes its mask on the same |STFT(g * x)|; the masks are
+    combined ("mean": arithmetic mean; "geo": geometric mean exp(mean(log m))) and applied to the
+    complex STFT; ISTFT; output kept at the normalised level, whole output scaled down if peak > 0.99.
+    N = 1 applies that model's mask unchanged (bit-identical to enhance(..., level_mode="rms_norm"))."""
+    if sr != 16000:
+        raise ValueError(f"gru_ens expects 16 kHz input, got {sr}")
+    if isinstance(weights, str) or len(weights) < 1:
+        raise ValueError(f"gru_ens needs a non-empty list of weights, got {weights!r}")
+    if combine not in COMBINES:
+        raise ValueError(f"combine must be one of {COMBINES}, got {combine!r}")
+    if target_rms is None or not float(target_rms) > 0:
+        raise ValueError(f"gru_ens needs target_rms > 0, got {target_rms!r}")
+    import torch
+    from torch import nn
+    models = [_model(w, device) for w in weights]
+    ref = models[0]
+    for m in models[1:]:
+        if (m.n_fft, m.hop) != (ref.n_fft, ref.hop):
+            raise ValueError("gru_ens members must share n_fft and hop")
+    x = as_waveform(noisy)
+    rms = float(np.sqrt(np.mean(np.asarray(x, dtype=np.float64) ** 2)))
+    gain = float(target_rms) / max(rms, RMS_EPS)
+    with torch.inference_mode():
+        wave = torch.from_numpy((x * gain).astype(np.float32))[None].to(device)
+        n = wave.shape[-1]  # same padding / STFT / ISTFT path as GRUMask.forward
+        xp = wave if n > ref.n_fft else nn.functional.pad(wave, (0, ref.n_fft + 1 - n))
+        spec = ref.stft(xp)
+        mag = spec.abs()
+        masks = [m.mask(mag) for m in models]
+        if len(masks) == 1:
+            mask = masks[0]
+        elif combine == "mean":
+            mask = torch.stack(masks).mean(dim=0)
+        else:
+            mask = torch.exp(torch.stack([torch.log(mk) for mk in masks]).mean(dim=0))
+        y = ref.istft(mask * spec, length=xp.shape[-1])[..., :n][0]
+    y = y.cpu().double().numpy()
+    pk = float(np.max(np.abs(y))) if y.size else 0.0
+    return y * (OUT_PEAK / pk) if pk > OUT_PEAK else y
