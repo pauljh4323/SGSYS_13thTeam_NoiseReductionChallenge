@@ -1,0 +1,4 @@
+train noisy files: 1296
+RMS p5 / median / p95: 0.029567 / 0.079130 / 0.137290
+median dBFS: -22.03
+target_rms: 0.079130

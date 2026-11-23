@@ -14,6 +14,8 @@ FRAME = 512             # 32 ms at 16 kHz, for the "active" level measure
 SILENCE_DBFS = -80.0    # at or below this measured level the input is left unscaled (g = 0)
 TARGET_DBFS = {"active": -19.60, "rms": -22.03}  # train-split noisy medians (scripts/level_stats.py)
 RANGE_DBFS = {"active": (-27.88, -15.27), "rms": (-30.58, -17.25)}  # train-split p5 / p95
+RMS_EPS = 1e-6          # rms_norm: denominator floor (-120 dBFS)
+OUT_PEAK = 0.99         # rms_norm: output peak cap (whole output scaled down if exceeded)
 
 
 def measure_level_dbfs(x, measure: str = "active") -> float:
@@ -96,16 +98,30 @@ def _model(weights: str, device: str):
 def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: str = "cpu",
             level_norm: bool = False, level_measure: str = "active", target_dbfs: float | None = None,
             max_boost_db: float = 30.0, max_cut_db: float = 12.0, level_mode: str = "target",
-            lo_dbfs: float | None = None, hi_dbfs: float | None = None):
+            lo_dbfs: float | None = None, hi_dbfs: float | None = None, target_rms: float | None = None):
     """level_norm: scale x by g dB before the model, undo it after.
     level_mode "target": g = clamp(target - level); "range": g moves the level only as far as the
     nearest edge of [lo_dbfs, hi_dbfs] (g = 0 inside it); "range_boost": as "range" above hi, but
-    below lo boosts to target_dbfs (train median). All clamped by max_boost/max_cut."""
+    below lo boosts to target_dbfs (train median). All clamped by max_boost/max_cut.
+    level_mode "rms_norm": g = target_rms / max(rms(x), RMS_EPS) (whole-file RMS, linear, no clamp;
+    target_rms = train noisy median, scripts/rms_target.py); the model runs on g * x and the output is
+    returned at that normalised level (no inverse gain), scaled down as a whole if its peak > 0.99."""
     if sr != 16000:
         raise ValueError(f"gru_mask expects 16 kHz input, got {sr}")
     import torch
     x = as_waveform(noisy)
     g = 0.0
+    if level_norm and level_mode == "rms_norm":
+        if target_rms is None or not float(target_rms) > 0:
+            raise ValueError(f"level_mode 'rms_norm' needs target_rms > 0, got {target_rms!r}")
+        rms = float(np.sqrt(np.mean(np.asarray(x, dtype=np.float64) ** 2)))
+        gain = float(target_rms) / max(rms, RMS_EPS)
+        model = _model(weights, device)
+        with torch.inference_mode():
+            y = model(torch.from_numpy((x * gain).astype(np.float32))[None].to(device))[0]
+        y = y.cpu().double().numpy()
+        pk = float(np.max(np.abs(y))) if y.size else 0.0
+        return y * (OUT_PEAK / pk) if pk > OUT_PEAK else y
     if level_norm:
         if level_measure not in TARGET_DBFS:
             raise ValueError(f"level_measure must be 'active' or 'rms', got {level_measure!r}")
@@ -122,7 +138,7 @@ def enhance(noisy, sr: int = 16000, weights: str = "weights/gru_v1.pt", device: 
             target = TARGET_DBFS[level_measure] if target_dbfs is None else float(target_dbfs)
             g = level_gain_range_boost_db(x, level_measure, lo, hi, target, max_boost_db, max_cut_db)
         else:
-            raise ValueError(f"level_mode must be 'target', 'range' or 'range_boost', got {level_mode!r}")
+            raise ValueError(f"level_mode must be 'target', 'range', 'range_boost' or 'rms_norm', got {level_mode!r}")
     scale = 10.0 ** (g / 20.0)  # g = 0 -> scale exactly 1.0 -> bit-identical to level_norm off
     model = _model(weights, device)
     with torch.inference_mode():
