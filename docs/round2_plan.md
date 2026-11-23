@@ -35,6 +35,27 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-23 (3): r2-prep submission -> gru_v8p2z2 + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2z2 continues gru_v8p2y with the same loss (fresh Adam 5e-5, 200 epochs max, patience 30) and changes the data:
+  - Train-time rms_norm: the same g = 0.079130 / rms(noisy) as at inference, applied to noisy and clean. The gain
+    augmentation is off.
+  - Full dynamic mixing (Zeghidour & Grangier 2021): every sample is a random train clean plus the noise of another
+    random train file. With p 0.2 a second noise is added. SNR U[-5, 20] dB.
+  - Early stop at epoch 147; best epoch 117. Train64-val gap 0.48 (v8p2y 0.56).
+- eval.py at a3e0005 (exp/r2-dmix, 16-bit, --jobs 1): val PESQ 3.5452 / SNR 1.35 dB, val_remix 3.4065 / 1.29 dB.
+  - Paired d vs gru_v8p2y + rms_norm: val +0.0375 (z 6.5), val_remix +0.0432 (z 11.1).
+  - Probe -30/-20/-10/0 dB: 3.545 each (floor 3.488).
+  - Sibling gru_v8p2z1 (train-time rms_norm only) also passed: val 3.5215, val_remix +0.0210 (z 7.3). It has the lower
+    val, so it is not promoted.
+- main.py outputs: validation 3.5452 at c00b1a8 (e2e PASSED ROUND 2: fresh pip venv torch 2.15.0+cpu, bit-identical,
+  torch_pesq not importable, flat output/); val_remix 3.4065 at 30ed53d.
+- Round-2 rule passed (docs/exp_r2_dmix.md, exp/r2-dmix). The promotion brings weights/gru_v8p2z2.pt and
+  configs/dl/gru_v8p2z2.yaml, with no inference-code change. The training code (src/nrc/data/remix.py p_dm,
+  rms_norm_target) stays on exp/r2-dmix.
+- Fallbacks: gru_v8p2y + rms_norm (configs/dl/gru_v8p2y_rmsn.yaml), gru_v8p2x + rms_norm (configs/dl/gru_v8p2x_rmsn.yaml)
+  and gru_v5b (configs/dl/gru_v5b_off.yaml).
+
 ## Status 2026-11-23 (2): r2-prep submission -> gru_v8p2y + level mode rms_norm (tag r2-ready moved)
 
 - gru_v8p2y continues gru_v8p2x with the same loss (fresh Adam 5e-5, 200 epochs max, patience 30). Only the input gain
