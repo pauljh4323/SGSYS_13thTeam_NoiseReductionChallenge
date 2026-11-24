@@ -35,6 +35,32 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-24: r2-prep submission -> gru_v8p2z3b + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2z3b continues gru_v8p2z2 with the same loss, full dynamic mixing and train-time rms_norm (weights only, fresh
+  Adam 5e-5, 200 epochs max, patience 30). It adds clean-side (speaker) augmentation before mixing; the target is the
+  augmented clean:
+  - Speed perturbation (Ko et al. 2015): p 0.5, factor U[0.9, 1.1], anti-aliased polyphase resampling, cropped or
+    padded back to the length.
+  - Random EQ: p 0.5, RBJ low-shelf (corner U[150, 500] Hz) + high-shelf (corner U[2, 5] kHz), gains U[-6, +6] dB,
+    RMS kept.
+  - Ran all 200 epochs (no early stop); best epoch 179, still rising slowly. Train64-val gap 0.40 (z2 0.48).
+- eval.py at 798ee67 (exp/r2-dmix, 16-bit, --jobs 1): val PESQ 3.6063 / SNR 1.28 dB, val_remix 3.4628 / 1.23 dB.
+  - Paired d vs gru_v8p2z2 + rms_norm: val +0.0612 (z 11.8), val_remix +0.0562 (z 11.9).
+  - Probe -30/-20/-10/0 dB: 3.606 each (floor 3.525).
+  - All 5 validation speakers and the top-5 noise types gain on both sets (smallest: speaker040 on val_remix +0.025).
+  - Sibling gru_v8p2z3a (speed only) also passed: val 3.5828, val_remix +0.0306 (z 8.8). It has the lower val, so it
+    is not promoted.
+- main.py outputs: validation 3.6063 at fa36ee6 (e2e PASSED ROUND 2: fresh pip venv torch 2.15.0+cpu, bit-identical,
+  torch_pesq not importable, flat output/); val_remix 3.4628 at ccc60ca.
+- Round-2 rule passed (docs/exp_r2_dmix.md, exp/r2-dmix). The promotion brings weights/gru_v8p2z3b.pt and
+  configs/dl/gru_v8p2z3b.yaml, with no inference-code change. The augmentation code (src/nrc/data/remix.py p_speed,
+  p_eq) stays on exp/r2-dmix.
+- Fallbacks: gru_v8p2z2 + rms_norm (configs/dl/gru_v8p2z2.yaml), gru_v8p2y + rms_norm (configs/dl/gru_v8p2y_rmsn.yaml)
+  and gru_v5b (configs/dl/gru_v5b_off.yaml).
+- main.py CPU time today: 58.3 s on validation in the fresh venv (179.6 s on val_remix in the dev env). The host was
+  under load; the same architecture took 18.1 s on 2026-11-23.
+
 ## Status 2026-11-23 (3): r2-prep submission -> gru_v8p2z2 + level mode rms_norm (tag r2-ready moved)
 
 - gru_v8p2z2 continues gru_v8p2y with the same loss (fresh Adam 5e-5, 200 epochs max, patience 30) and changes the data:
