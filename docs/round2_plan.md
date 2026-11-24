@@ -35,6 +35,28 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-25: r2-prep submission -> gru_v8p2z3d + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2z3d continues gru_v8p2z3b with the same loss, full dynamic mixing and train-time rms_norm (weights only,
+  fresh Adam 5e-5, 200 epochs max, patience 30, seed 2). The clean-side augmentation is stronger:
+  - Speed perturbation p 0.7, factor U[0.85, 1.15] (z3b: p 0.5, U[0.9, 1.1]).
+  - Random EQ p 0.7, gains U[-9, +9] dB (z3b: p 0.5, +-6 dB); same shelf corners, RMS kept.
+  - Early stop at epoch 169; best epoch 139. Train64-val gap 0.37 (z3b 0.40).
+- eval.py at 9f321a6 (exp/r2-dmix, 16-bit, --jobs 1): val PESQ 3.6359 / SNR 1.24 dB, val_remix 3.4868 / 1.19 dB.
+  - Paired d vs gru_v8p2z3b + rms_norm: val +0.0296 (z 4.7), val_remix +0.0240 (z 7.2).
+  - Probe -30/-20/-10/0 dB: 3.636 each (floor 3.586).
+  - All 5 validation speakers and the top-5 noise types are >= 0 on both sets (smallest: aircraft_cockpit
+    +0.000 on val, within 1 SE).
+  - Sibling gru_v8p2z3c (continue z3b, same augmentation, seed 1) also passed: val 3.6136, val_remix +0.0077 (z 4.1).
+    It has the lower val, so it is not promoted.
+- main.py outputs at 609785a: validation 3.6359 (e2e PASSED ROUND 2: fresh pip venv torch 2.15.0+cpu, bit-identical,
+  torch_pesq not importable, flat output/); val_remix 3.4868.
+- Round-2 rule passed (docs/exp_r2_dmix.md, exp/r2-dmix). The promotion brings weights/gru_v8p2z3d.pt and
+  configs/dl/gru_v8p2z3d.yaml, with no inference-code change.
+- Fallbacks: gru_v8p2z3b + rms_norm (configs/dl/gru_v8p2z3b.yaml), gru_v8p2z2 + rms_norm (configs/dl/gru_v8p2z2.yaml)
+  and gru_v5b (configs/dl/gru_v5b_off.yaml).
+- main.py CPU time: 17.7 s on validation in the fresh venv, 26.1 s in the dev env, 47.3 s on val_remix.
+
 ## Status 2026-11-24: r2-prep submission -> gru_v8p2z3b + level mode rms_norm (tag r2-ready moved)
 
 - gru_v8p2z3b continues gru_v8p2z2 with the same loss, full dynamic mixing and train-time rms_norm (weights only, fresh
