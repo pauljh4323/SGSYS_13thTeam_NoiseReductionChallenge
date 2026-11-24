@@ -275,3 +275,59 @@ val_remix is the held-out gate: z3b gains +0.056 there at z 11.9.
 
 Rule: val >= 3.5452, val_remix d > 0 with z >= 2, every probe >= 3.525. Both pass. **The highest val PESQ is gru_v8p2z3b
 (3.6063), so it is promoted to r2-prep** (configs/dl/gru_v8p2z3b.yaml; level mode rms_norm, target_rms 0.079130).
+
+## Third batch 2026-11-24: gru_v8p2z3c / gru_v8p2z3d (continuing the submission gru_v8p2z3b). Colab prep
+Why: gru_v8p2z3b ran all 200 epochs and was still rising slowly (25-epoch block means 3.580 / 3.586 / 3.591 / 3.595 /
+3.600, best epoch 179). Its gap of 0.40 is the smallest so far, and the clean-side augmentation gave the largest gain
+of the batch. Two follow-ups, both init from weights/gru_v8p2z3b.pt (weights only, fresh Adam 5e-5), everything else
+as gru_v8p2z3b (loss, full dynamic mixing, train-time rms_norm 0.079130), seed 0, 200 epochs, patience 30:
+
+| config | speed perturbation | random EQ |
+|---|---|---|
+| gru_v8p2z3c (continuation) | p 0.5, U[0.9, 1.1] | p 0.5, gains U[-6, +6] dB |
+| gru_v8p2z3d (stronger) | p 0.7, U[0.85, 1.15] | p 0.7, gains U[-9, +9] dB |
+
+EQ corners are unchanged (low-shelf U[150, 500] Hz, high-shelf U[2, 5] kHz).
+
+Filter bank: U[0.85, 1.15] has 61 factors at 1/200 steps. That needs 60 cached Kaiser FIRs (11.2 MB; [0.9, 1.1]:
+40, 7.4 MB), well inside the 256-filter cache bound. The bank builds in 1.7 s on first use. No code change was
+needed beyond the comment in src/nrc/data/remix.py.
+
+Note: z3c restarts the seed-0 batch stream, so its sample sequence repeats z3b's from epoch 1. Only the starting
+weights differ.
+
+### CPU tests: PASS
+`python tests/test_caug.py`:
+- 1 kHz tone x 1.15 / 0.85 peaks at 1150.0 / 850.0 Hz.
+- 7.8 kHz tone x 1.15 leaves a -76.9 dB residual.
+- U[0.85, 1.15] builds 60 filters.
+- The pipeline at z3d settings, 100 draws:
+  - SNR against the augmented clean is within 0.1 dB.
+  - Speed 59/100, all in [0.855, 1.150].
+  - EQ 76/100, max |gain| 9.00 dB.
+- With the options off, samples and RNG state are identical.
+
+`tests/test_dmix.py` still passes.
+
+1-step CPU test (logs/r2_caug2_smoke.log): `train_dpesq.py --max-steps 1 --val-subset 3 --train-subset 3`
+
+| config | step-1 loss | exit | best.pt |
+|---|---|---|---|
+| z3c | 0.3636, finite | 0 | loads with weights_only=True |
+| z3d | 0.4262, finite | 0 | loads with weights_only=True |
+
+The data-options line confirms each config's settings.
+
+Notebook: notebooks/colab_train.ipynb queue [gru_v8p2z3c, gru_v8p2z3d], init check on weights/gru_v8p2z3b.pt.
+- Resume: Run all again resumes from last.pt.
+- Fail-loud: a failed run raises with the config name and stops the queue.
+
+### Estimated Colab T4 time
+- The z3a/z3b Colab logs show a median of 19.4 s training + 18.9 s validation/train64, about 38 s per epoch. The
+  earlier estimate of 26-29 s was low.
+- **About 2.1 h for z3c and about 2.2 h for z3d** (200 epochs), less with an early stop.
+- About 4.3 h for the queue, plus about 5 min setup. This may need two sessions; resume handles that.
+
+Evaluation plan: same as for z3a/z3b, against gru_v8p2z3b + rms_norm.
+- Gate: val >= 3.6063, val_remix d > 0 with z >= 2, every probe >= 3.586.
+- Plus per-speaker and top-5 type deltas.

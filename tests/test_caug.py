@@ -45,7 +45,7 @@ def test_eq_identity():
 def test_tone_and_length():
     t = np.arange(L) / SR
     x = np.sin(2 * np.pi * 1000 * t)
-    for f in (1.1, 0.9):
+    for f in (1.1, 0.9, 1.15, 0.85):  # 0.85 / 1.15 = gru_v8p2z3d range ends
         y = speed_resample(x, f)
         assert abs(y.size - L / f) <= 1, (y.size, L / f)
         out = fit_length(y, L, (abs(y.size - L)) // 2)
@@ -59,10 +59,24 @@ def test_no_alias():
     """Speed-up 1.1 of a 7.8 kHz tone (would land at 8.58 kHz, aliasing to 7.42 kHz): removed by the low-pass."""
     t = np.arange(L) / SR
     x = np.sin(2 * np.pi * 7800 * t)
-    y = speed_resample(x, 1.1)
-    rms_ratio = float(np.sqrt(np.mean(y[1000:-1000] ** 2)) / np.sqrt(np.mean(x ** 2)))
-    assert rms_ratio < 1e-3, rms_ratio
-    print(f"7.8 kHz tone x 1.1 (above new Nyquist): residual {20 * np.log10(rms_ratio):.1f} dB")
+    for f in (1.1, 1.15):  # 1.15 (gru_v8p2z3d): would land at 8.97 kHz, aliasing to 7.03 kHz
+        y = speed_resample(x, f)
+        rms_ratio = float(np.sqrt(np.mean(y[1000:-1000] ** 2)) / np.sqrt(np.mean(x ** 2)))
+        assert rms_ratio < 1e-3, rms_ratio
+        print(f"7.8 kHz tone x {f} (above new Nyquist): residual {20 * np.log10(rms_ratio):.1f} dB")
+
+
+def test_wide_filter_bank():
+    """gru_v8p2z3d range [0.85, 1.15]: every quantised factor builds a filter (60 + identity) within the cache bound."""
+    from nrc.data import remix as R
+    R._AA_CACHE.clear()
+    x = np.zeros(L)
+    for k in range(170, 231):
+        y = speed_resample(x, k / 200)
+        assert abs(y.size - L * 200 / k) <= 1
+    n, mb = len(R._AA_CACHE), sum(v.nbytes for v in R._AA_CACHE.values()) / 1e6
+    assert n == 60, n
+    print(f"speed U[0.85, 1.15]: 61 factors, {n} cached filters, {mb:.1f} MB")
 
 
 def test_shelf_gains():
@@ -100,6 +114,26 @@ def test_eq_rms_and_pipeline():
     assert 30 < n_speed < 70 and 30 < n_eq < 70, (n_speed, n_eq)
     print(f"pipeline (dmix + rms_norm + speed + EQ), 100 draws: lengths OK, SNR vs augmented clean < 0.1 dB, "
           f"speed {n_speed}/100, EQ {n_eq}/100")
+    # gru_v8p2z3d settings: p 0.7, speed U[0.85, 1.15], EQ gains U[-9, +9] dB
+    d = RemixData(clean, noisy, p_dm=1.0, rms_norm_target=0.07913, p_speed=0.7, speed_range=(0.85, 1.15),
+                  p_eq=0.7, eq_gain_db=(-9.0, 9.0))
+    rng, n_speed, n_eq, speeds, gains = np.random.default_rng(0), 0, 0, [], []
+    for _ in range(100):
+        info = {}
+        c, m = d.sample(rng, info)
+        assert c.shape == (L,) and np.all(np.isfinite(c)) and np.all(np.isfinite(m))
+        cc, mm = c.astype(np.float64), m.astype(np.float64)
+        assert abs(10 * np.log10(np.sum(cc ** 2) / np.sum((mm - cc) ** 2)) - info["snr_db"]) < 0.1
+        if "speed" in info:
+            n_speed += 1
+            speeds.append(info["speed"])
+        if "eq" in info:
+            n_eq += 1
+            gains += [info["eq"][1], info["eq"][3]]  # info["eq"] = (f_low, g_low, f_high, g_high)
+    assert 0.85 <= min(speeds) and max(speeds) <= 1.15 and 55 < n_speed < 85 and 55 < n_eq < 85, (n_speed, n_eq)
+    assert max(abs(g) for g in gains) <= 9.0 and max(abs(g) for g in gains) > 6.0
+    print(f"pipeline z3d settings, 100 draws: SNR < 0.1 dB, speed {n_speed}/100 in [{min(speeds):.3f}, "
+          f"{max(speeds):.3f}], EQ {n_eq}/100, max |gain| {max(abs(g) for g in gains):.2f} dB")
 
 
 def test_off_no_draws():

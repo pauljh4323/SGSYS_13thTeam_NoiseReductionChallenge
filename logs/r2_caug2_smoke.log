@@ -1,0 +1,19 @@
+# exp/r2-dmix 1-step CPU test for gru_v8p2z3c / gru_v8p2z3d (2026-11-24, d4ac78a + uncommitted configs)
+== gru_v8p2z3c: train_dpesq.py --max-steps 1 --val-subset 3 --train-subset 3
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 1.0 (snr (-5, 20) dB, p_second 0.2, rel (-10, 0) dB), clean aug: speed p 0.5 (0.9, 1.1), eq p 0.5 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-6, 6) dB)
+init from gru_v8p2z3b.pt (epoch 179, pesq 3.60631566949007); 2,373,651 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 200 epochs x 81 steps
+  step 1: loss 0.363639 (cmag 0.08297 mrstft nan sisdr nan pesq 1.08451) tpesq_mos 3.7438 dropped 0 [7.645s]
+epoch 1/200 step 1 loss 0.363639 l_pesq 1.084513 tpesq_mos 3.7438 train64 3.4855 val_pesq 3.3934 (gap 0.0921) val_snr 1.813 best 3.3934 (ep 1) [8.0s + val 10.4s, 8.015s/step]
+done: best val PESQ 3.3934 at epoch 1; weights <scratch>/ck_gru_v8p2z3c/best.pt
+exit 0
+best.pt weights_only OK: epoch 1 pesq 3.3934 tensors 34
+== gru_v8p2z3d: train_dpesq.py --max-steps 1 --val-subset 3 --train-subset 3
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 1.0 (snr (-5, 20) dB, p_second 0.2, rel (-10, 0) dB), clean aug: speed p 0.7 (0.85, 1.15), eq p 0.7 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-9, 9) dB)
+init from gru_v8p2z3b.pt (epoch 179, pesq 3.60631566949007); 2,373,651 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 200 epochs x 81 steps
+  step 1: loss 0.426175 (cmag 0.08190 mrstft nan sisdr nan pesq 1.28061) tpesq_mos 3.5165 dropped 0 [6.114s]
+epoch 1/200 step 1 loss 0.426175 l_pesq 1.280613 tpesq_mos 3.5165 train64 3.4908 val_pesq 3.3987 (gap 0.0921) val_snr 1.793 best 3.3987 (ep 1) [6.4s + val 7.8s, 6.449s/step]
+done: best val PESQ 3.3987 at epoch 1; weights <scratch>/ck_gru_v8p2z3d/best.pt
+exit 0
+best.pt weights_only OK: epoch 1 pesq 3.3987 tensors 34
