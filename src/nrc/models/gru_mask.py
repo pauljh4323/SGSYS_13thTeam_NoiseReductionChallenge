@@ -23,7 +23,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-MAX_PARAMS = 5_000_000
+MAX_PARAMS = 6_000_000  # 5M until gru_v8p2z4w (H 384, 5.03M params, ~19 MiB; budget < 50 MB weights)
 FRONT_ENDS = ("none", "conv2d")
 CONV_NORMS = ("group", "batch")
 MASK_TYPES = ("mag", "crm")

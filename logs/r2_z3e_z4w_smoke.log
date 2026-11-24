@@ -1,0 +1,22 @@
+=== gru_v8p2z3e
+data: train 1296 x 48000 samples, val 3, train subset 3, load 41.2s, device cpu, pesq jobs 16
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 1.0 (snr (-5, 20) dB, p_second 0.2, rel (-10, 0) dB), clean aug: speed p 0.8 (0.8, 1.2), eq p 0.8 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-12, 12) dB)
+init from gru_v8p2z3d.pt (epoch 139, pesq 3.635940448540013); 2,373,651 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 200 epochs x 81 steps
+  step 1: loss 0.365619 (cmag 0.10473 mrstft nan sisdr nan pesq 1.07710) tpesq_mos 3.7675 dropped 0 [1.817s]
+epoch 1/200 step 1 loss 0.365619 l_pesq 1.077103 tpesq_mos 3.7675 train64 3.5796 val_pesq 3.4338 (gap 0.1458) val_snr 1.728 best 3.4338 (ep 1) [1.9s + val 2.4s, 1.913s/step]
+done: best val PESQ 3.4338 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\4d274a43-9607-4ece-b532-138cddea82ec\scratchpad\ck_gru_v8p2z3e\best.pt
+exit 0
+=== gru_v8p2z4w
+data: train 1296 x 48000 samples, val 3, train subset 3, load 1.7s, device cpu, pesq jobs 16
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 1.0 (snr (-5, 20) dB, p_second 0.2, rel (-10, 0) dB), clean aug: speed p 0.7 (0.85, 1.15), eq p 0.7 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-9, 9) dB)
+init from gru_v8p2z3d_w384.pt (epoch 0, pesq None); 5,033,363 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 200 epochs x 81 steps
+  step 1: loss 0.391459 (cmag 0.08239 mrstft nan sisdr nan pesq 1.17182) tpesq_mos 3.6318 dropped 0 [2.536s]
+epoch 1/200 step 1 loss 0.391459 l_pesq 1.171818 tpesq_mos 3.6318 train64 3.5327 val_pesq 3.4371 (gap 0.0956) val_snr 1.728 best 3.4371 (ep 1) [2.6s + val 2.5s, 2.601s/step]
+done: best val PESQ 3.4371 at epoch 1; weights C:\TEMPFO~1\claude\7489c7b55ae4d1fe\4d274a43-9607-4ece-b532-138cddea82ec\scratchpad\ck_gru_v8p2z4w\best.pt
+exit 0
+=== main.py inference (configs with params of gru_v8p2z4w.yaml; 20 stratified validation files; local CPU, 4 threads)
+z3d (H 256, weights/gru_v8p2z3d.pt):          processed=20 failed=0 clipped_samples=0 total=4.5s / 4.6s (two runs)
+z4w (H 384, 1-step best.pt, 5,033,363 params): processed=20 failed=0 clipped_samples=0 total=4.8s / 4.9s (two runs), ~0.24 s/file
+best.pt weights_only=True: z3e {'hidden': 256} 9.07 MiB; z4w {'hidden': 384} 19.21 MiB

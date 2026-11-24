@@ -45,7 +45,8 @@ from ..io import read_row
 
 RMS_EPS = 1e-6   # = nrc.methods.gru_mask.RMS_EPS (rms_norm denominator floor)
 SPEED_DEN = 200   # speed factor resolution 1/200: 41 factors in [0.9, 1.1] (40 cached filters, ~7 MB),
-#                   61 in [0.85, 1.15] (gru_v8p2z3d; 60 filters, ~11 MB); cache bound 256 filters
+#                   61 in [0.85, 1.15] (gru_v8p2z3d; 60 filters, ~11 MB), 81 in [0.80, 1.20] (gru_v8p2z3e;
+#                   80 filters, 14.4 MiB, built in 0.5 s); cache bound 256 filters
 SR = 16000
 
 

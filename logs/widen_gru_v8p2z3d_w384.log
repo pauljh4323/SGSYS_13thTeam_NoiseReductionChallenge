@@ -1,0 +1,5 @@
+src weights/gru_v8p2z3d.pt: hidden 256, 2,373,651 params; widened hidden 384: 5,033,363 params; saved weights/gru_v8p2z3d_w384.pt (19.21 MiB), reloads with weights_only=True: {'n_fft': 512, 'hop': 128, 'hidden': 384, 'layers': 2, 'front_end': 'conv2d'}
+structure: 1,048,832 weights from new units, non-zero 0
+equivalence: 20 validation files, max |widened - source| = 1.416e-07 (median 4.470e-08), tol 1e-05 -> PASS
+gradient step 1: |grad| outgoing weights of new units 5.830e-04, incoming 0.000e+00 (0 expected: outputs muted); after 1 Adam step (lr 5e-5): outgoing 7.530e-04, incoming 4.216e-05
+widen_gru: PASS

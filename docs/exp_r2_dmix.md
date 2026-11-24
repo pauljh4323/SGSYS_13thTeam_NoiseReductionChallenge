@@ -394,3 +394,69 @@ val_remix is the held-out gate: z3d gains +0.024 there at z 7.2.
 
 Rule: val >= 3.6063, val_remix d > 0 with z >= 2, every probe >= 3.586. Both pass. **The highest val PESQ is gru_v8p2z3d
 (3.6359), so it is promoted to r2-prep** (configs/dl/gru_v8p2z3d.yaml; level mode rms_norm, target_rms 0.079130).
+
+## Fourth batch 2026-11-25: gru_v8p2z3e (stronger clean-side augmentation) / gru_v8p2z4w (widened BiGRU). Colab prep
+Why: starting from z3b's train64-val gap of 0.404, continuing with the same augmentation (z3c) left it at 0.410, while
+stronger augmentation (z3d) narrowed it to 0.371. Stronger clean-side augmentation keeps helping; longer training alone
+does not. z3e pushes the augmentation further.
+z4w tests capacity: with stronger regularisation in place, a wider model may use it. The objective is PESQ-WB only.
+Both continue the submission gru_v8p2z3d. Fresh Adam lr 5e-5, 0.2 cmag + 0.32 torch-pesq, full dynamic mixing,
+train-time rms_norm 0.079130, 200 epochs, patience 30, best.pt + last.pt, train64 PESQ and gap logged.
+
+| config | init | model | speed perturbation | random EQ | seed |
+|---|---|---|---|---|---|
+| gru_v8p2z3e | weights/gru_v8p2z3d.pt | as z3d (H 256, 2,373,651 params) | p 0.8, U[0.80, 1.20] | p 0.8, gains U[-12, +12] dB | 3 |
+| gru_v8p2z4w | weights/gru_v8p2z3d_w384.pt (z3d widened) | BiGRU H 384, 5,033,363 params | as z3d (p 0.7, U[0.85, 1.15]) | as z3d (p 0.7, +-9 dB) | 4 |
+
+Filter bank (z3e): U[0.80, 1.20] has 81 factors at 1/200 steps, so 80 cached Kaiser FIRs (14.4 MiB, built in 0.5 s; z3d
+60 filters, 10.7 MiB). This is inside the existing 256-filter cache bound, so only the comment in src/nrc/data/remix.py changed.
+
+### Net2Net widening (Chen et al. 2016): src/nrc/models/net2net.py, scripts/widen_gru.py
+For each GRU layer and direction, units 0..255 keep z3d's weights. Units 256..383 are new:
+- Incoming weights (input and recurrent rows of every gate r/z/n) are random, N(0, 1e-2^2), seed 4.
+- Biases are the mean of the old bias block of the same gate (b_ih and b_hh separately).
+- Every weight FROM a new unit is 0. This covers GRU recurrent columns into old units, layer-1 GRU input columns from new
+  units of either direction, and the output head (Linear 2H -> 257).
+- The input projection (Linear 1040 -> H), whose output size depends on H, is treated the same way: new rows are random
+  with the mean bias, and their columns into old layer-0 units are 0.
+- The widened layout of a bidirectional output is [fwd old, fwd new, bwd old, bwd new].
+
+`python scripts/widen_gru.py` (logs/widen_gru_v8p2z3d_w384.log): PASS
+
+| check | result |
+|---|---|
+| widened checkpoint | weights/gru_v8p2z3d_w384.pt, 5,033,363 params, 19.21 MiB, loads with weights_only=True |
+| weights from new units | 1,048,832, all exactly 0 |
+| output vs z3d, 20 stratified validation files, inference path (rms_norm) | max abs diff 1.4e-7 (median 4.5e-8), tol 1e-5 |
+| gradient, step 1 (MSE on 4 val pairs) | outgoing weights of new units 5.8e-4 (non-zero); incoming 0 (expected: their outputs are muted) |
+| gradient after one Adam step (lr 5e-5) | incoming weights of new units 4.2e-5 (non-zero), so the new units start learning |
+
+This is a zero-outgoing variant of Net2WiderNet, not its unit replication with split outgoing weights: replication
+keeps copies symmetric unless noise is added, and here the new units start as fresh random features.
+GRUMask.MAX_PARAMS was raised from 5M to 6M for H 384 (the round-2 budget is weights < 50 MB; z4w is 19.2 MiB). Older
+configs are unaffected. Inference is config- and checkpoint-driven (load_weights builds the model from the
+checkpoint's model_cfg), so there is no code path specific to one run.
+
+### CPU tests: PASS (logs/r2_z3e_z4w_smoke.log)
+`train_dpesq.py --max-steps 1 --val-subset 3 --train-subset 3 --device cpu --threads 4`
+
+| config | data-options line | step-1 loss | CPU s/step | best.pt |
+|---|---|---|---|---|
+| z3e | speed p 0.8 (0.8, 1.2), eq p 0.8 gain (-12, 12) dB | 0.3656, finite | 1.82 | 9.07 MiB, loads with weights_only=True |
+| z4w | speed p 0.7 (0.85, 1.15), eq p 0.7 gain (-9, 9) dB; 5,033,363 params | 0.3915, finite | 2.54 | 19.21 MiB, loads with weights_only=True |
+
+main.py with z4w params and the 1-step H-384 best.pt on 20 validation files: processed 20, failed 0, clipped 0,
+4.8 / 4.9 s (z3d 4.5 / 4.6 s), so about 0.24 s per file on the local CPU.
+
+### Estimated Colab T4 time
+The z3d Colab log shows a median of 23.5 s training + 20.5 s validation/train64 per epoch, about 44 s.
+- z3e: slightly more resampling and EQ work on the CPU, **about 45 s per epoch, up to about 2.5 h** (200 epochs).
+- z4w: one training step takes 1.40x z3d's on the CPU, so **about 54 s per epoch, up to about 3.0 h**.
+- About 5.5 h for the queue, plus about 5 min setup. Expect two sessions; resume handles that. last.pt for z4w is about 58 MB.
+
+Notebook: notebooks/colab_train.ipynb queue [gru_v8p2z3e, gru_v8p2z4w]. It checks the init weights gru_v8p2z3d.pt and
+gru_v8p2z3d_w384.pt, resumes from last.pt and is fail-loud.
+
+Evaluation plan: as before, against gru_v8p2z3d + rms_norm.
+- Gate: val >= 3.6359, val_remix d > 0 with z >= 2, every probe >= 3.616.
+- Also check per-speaker and top-5 type deltas, the gap vs 0.371, and CPU time of main.py on the full validation set (< 180 s).
