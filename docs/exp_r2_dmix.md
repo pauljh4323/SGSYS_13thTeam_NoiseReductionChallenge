@@ -332,3 +332,65 @@ Notebook: notebooks/colab_train.ipynb queue [gru_v8p2z3c, gru_v8p2z3d], init che
 Evaluation plan: same as for z3a/z3b, against gru_v8p2z3b + rms_norm.
 - Gate: val >= 3.6063, val_remix d > 0 with z >= 2, every probe >= 3.586.
 - Plus per-speaker and top-5 type deltas.
+
+## Results 2026-11-25: gru_v8p2z3c / gru_v8p2z3d vs the submission gru_v8p2z3b + rms_norm (eval.py at 9f321a6, 16-bit, --jobs 1)
+Training (Colab; logs/train_log_v8p2z3{c,d}.csv; both best.pt load with weights_only=True; 0 non-finite PESQ-loss steps):
+
+| model | best epoch / run | train-log val | val SNR | train64 | gap (z3b 0.404) | curve |
+|---|---|---|---|---|---|---|
+| gru_v8p2z3c (continue z3b, same aug, seed 1) | 51 / 81, early stop | 3.6136 | 1.27 | 4.023 | 0.410 | flat (25-epoch block means 3.601/3.606/3.608/3.605) |
+| gru_v8p2z3d (speed p 0.7 U[0.85, 1.15], EQ p 0.7 +-9 dB, seed 2) | 139 / 169, early stop | 3.6359 | 1.24 | 4.007 | **0.371** | flattening (block means 3.606 -> 3.631; last 20 ep mean 3.6310, previous 20 3.6305) |
+
+Continuing with the same augmentation (z3c) adds little and the gap does not narrow. Stronger clean-side augmentation
+(z3d) keeps train64 flat while val rises, so the gap narrows again (0.404 -> 0.371).
+
+Evaluation: runner logs/run_r2_cont.sh, 12 runs with 0 PESQ failures and 0 clipped samples. Tables are in
+logs/r2_cont_compare.txt (scripts/r2_v6_compare.py --speakers). Paired deltas are vs gru_v8p2z3b + rms_norm.
+
+| model | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| v8p2z3b rms_norm (submission) | 3.6063 | 2.988/3.375/3.658/3.879 | 1.28 | - | 3.4628 | - | 3.606 x4 | ref |
+| v8p2z3c | 3.6136 | 2.997/3.387/3.671/3.877 | 1.27 | +0.0072 (0.0029, 2.52) | 3.4704 | +0.0077 (0.0019, 4.10) | 3.614 x4 | PASS |
+| **v8p2z3d** | **3.6359** | 2.985/3.419/3.697/3.898 | 1.24 | +0.0296 (0.0063, 4.74) | **3.4868** | +0.0240 (0.0034, 7.15) | **3.636 x4** | **PASS** |
+
+Per-SNR paired deltas at 0/5/10/15 dB:
+
+| model | validation | val_remix |
+|---|---|---|
+| z3c | +0.010/+0.012/+0.013/-0.002 (z 0.8/1.6/2.9/-0.5) | +0.014/+0.010/+0.005/+0.002 (z 3.1/2.3/1.6/0.8) |
+| z3d | -0.002/+0.044/+0.039/+0.019 (z -0.1/3.3/3.7/3.5) | +0.024/+0.025/+0.025/+0.022 (z 2.9/3.6/4.3/3.9) |
+
+On validation, z3d's 0 dB delta is flat (n 15, SE 0.041). On val_remix (n 82) it is +0.024 at z 2.9.
+
+Per difficulty, validation easy/moderate/hard is 3.547/3.722/3.857 for z3d (submission 3.511/3.705/3.833). On
+val_remix it is 3.512/3.411/3.511 (3.492/3.381/3.483).
+
+Top-5 types (delta on validation / val_remix):
+
+| type | z3c | z3d |
+|---|---|---|
+| machine | +0.005 / +0.009 | +0.018 / +0.034 |
+| wind | +0.009 / +0.006 | +0.045 / +0.040 |
+| aircraft_cockpit | +0.009 / +0.007 | +0.000 (SE 0.040) / +0.007 (SE 0.013) |
+| broadband_noise | +0.009 / -0.002 (SE 0.006) | +0.058 / +0.007 (SE 0.011) |
+| alarm_siren | +0.018 / +0.012 | +0.037 / +0.013 |
+
+Per speaker (delta on validation / val_remix):
+
+| speaker | z3c | z3d |
+|---|---|---|
+| speaker007 | +0.015 / +0.010 | +0.016 / +0.017 |
+| speaker015 | +0.008 / +0.005 | +0.059 / +0.021 |
+| speaker016 | +0.015 / +0.019 | +0.038 / +0.061 |
+| speaker037 | -0.002 (SE 0.005) / +0.001 | +0.028 / +0.014 |
+| speaker040 | +0.002 / +0.006 | +0.007 (SE 0.007) / +0.012 (SE 0.007) |
+
+z3d gains for every speaker on both sets. The largest gain is again for speaker016, the lowest-scoring validation
+speaker. z3d's weakest entries (aircraft_cockpit on both sets, broadband_noise on val_remix, speaker040) are positive
+but within 1-2 SE; no entry is negative. z3c's only negatives are within 1 SE.
+
+Caveat: as before, the checkpoint is selected on validation (train-log val = eval val), so val is mildly optimistic.
+val_remix is the held-out gate: z3d gains +0.024 there at z 7.2.
+
+Rule: val >= 3.6063, val_remix d > 0 with z >= 2, every probe >= 3.586. Both pass. **The highest val PESQ is gru_v8p2z3d
+(3.6359), so it is promoted to r2-prep** (configs/dl/gru_v8p2z3d.yaml; level mode rms_norm, target_rms 0.079130).
