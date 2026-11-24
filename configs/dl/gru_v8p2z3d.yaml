@@ -1,0 +1,55 @@
+# gru_v8p2z3d (exp/r2-dmix): gru_v8p2z3b continued with stronger clean-side (speaker) augmentation: speed perturbation
+# (Ko et al. 2015) with p 0.7 and factor U[0.85, 1.15] (61 factors at 1/200 steps; the anti-aliasing filter bank grows to
+# 60 cached FIRs, ~11 MB), random EQ with p 0.7 and gains U[-9, +9] dB (corners as gru_v8p2z3b: low-shelf
+# U[150, 500] Hz, high-shelf U[2, 5] kHz, RMS kept). Everything else = gru_v8p2z3b (loss, lr, full dynamic mixing,
+# train-time rms_norm). Init weights/gru_v8p2z3b.pt (weights only, fresh Adam lr 5e-5), seed 2, 200 epochs,
+# patience 30. Inference: level_mode rms_norm (target_rms 0.079130). Train: scripts/train_dpesq.py.
+method: gru_mask
+params:
+  weights: weights/gru_v8p2z3d.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: true
+  level_mode: rms_norm
+  target_rms: 0.079130
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 2                         # new augmentation draws (z3b used seed 0)
+  init_from: weights/gru_v8p2z3b.pt # continue gru_v8p2z3b: weights only, fresh optimizer
+  epochs: 200
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 0.2
+  lambda_mrstft: 0.0
+  lambda_sisdr: 0.0
+  lambda_pesq: 0.32
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 30         # early stop: 30 epochs without a val PESQ gain
+  rms_norm_target: 0.079130       # train-time rms_norm (= params.target_rms); gain augmentation off
+  remix:
+    p_original: 0.5
+    snr_db: [-5, 20]
+    peak: 0.99                    # peak guard before rms_norm
+    p_dm: 1.0                     # dynamic mixing for every sample
+    dm_snr_db: [-5, 20]           # SNR against the total noise
+    dm_p_second: 0.2              # probability of a second noise
+    dm_second_rel_db: [-10, 0]    # second noise level relative to the first
+    # clean-side augmentation (speaker diversity), applied to the clean before mixing; target = augmented clean
+    p_speed: 0.7                  # speed perturbation (Ko et al. 2015), factor U[0.85, 1.15], polyphase resampling
+    speed_range: [0.85, 1.15]
+    p_eq: 0.7                     # random EQ: low-shelf + high-shelf biquads (RBJ cookbook, S = 1), RMS kept
+    eq_low_hz: [150, 500]
+    eq_high_hz: [2000, 5000]
+    eq_gain_db: [-9, 9]
