@@ -37,6 +37,8 @@ def main() -> int:
                     help="noise categories for the per-type delta block (default weak-5; exp/r2-dpesq: top-5 headroom types)")
     ap.add_argument("--val-gate", type=float, default=VAL_GATE,
                     help="validation PESQ gate = current r2-prep submission (exp/r2-dpesq round 2: gru_v8p2 3.3983)")
+    ap.add_argument("--speakers", action="store_true",
+                    help="also print per-speaker paired deltas (speaker = segment_id prefix; exp/r2-dmix z3)")
     a = ap.parse_args()
     REF, CANDS = a.ref, a.cands
     names = [REF] + CANDS
@@ -73,6 +75,16 @@ def main() -> int:
                 st = paired_stats(dfs[REF].pesq[idx], dfs[n].pesq.reindex(idx))
                 line += f" | {n} {st['d_mean']:+.4f} (SE {st['d_se']:.4f})"
             print(line)
+        if a.speakers:
+            spk = dfs[REF].index.str.split("_").str[0]
+            print(f"\n[{split}] per-speaker paired deltas vs {REF} (delta / SE)")
+            for sp in sorted(set(spk)):
+                idx = dfs[REF].index[spk == sp]
+                line = f"  {sp:12s} n={len(idx):3d} ref {dfs[REF].pesq[idx].mean():.4f}"
+                for n in CANDS:
+                    st = paired_stats(dfs[REF].pesq[idx], dfs[n].pesq.reindex(idx))
+                    line += f" | {n} {st['d_mean']:+.4f} (SE {st['d_se']:.4f})"
+                print(line)
 
     print("\n===== level probe (validation, input gain dB) =====")
     probe = {}

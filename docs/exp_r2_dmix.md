@@ -214,3 +214,64 @@ Evaluation plan:
 
 Files: src/nrc/data/remix.py, scripts/train_dpesq.py (options line), configs/dl/gru_v8p2z3{a,b}.yaml,
 tests/test_caug.py, scripts/r2_caug_smoke.py, logs/r2_caug_smoke.log, notebooks/colab_train.ipynb.
+
+## Results 2026-11-24: gru_v8p2z3a / gru_v8p2z3b vs the submission gru_v8p2z2 + rms_norm (eval.py at 798ee67, 16-bit, --jobs 1)
+Training (Colab; logs/train_log_v8p2z3{a,b}.csv; both best.pt load with weights_only=True; 0 non-finite PESQ-loss steps):
+
+| model | best epoch / run | train-log val | val SNR | train64 | gap (z2 0.481) | curve |
+|---|---|---|---|---|---|---|
+| gru_v8p2z3a (+ speed) | 73 / 103, early stop | 3.5828 | 1.39 | 4.025 | 0.442 | flat (last 20 ep mean 3.5717, previous 20 3.5759) |
+| gru_v8p2z3b (+ speed + EQ) | 179 / 200, epoch cap | 3.6063 | 1.28 | 4.010 | **0.404** | still rising slowly (25-epoch block means 3.557 -> 3.600) |
+
+Clean-side augmentation narrows the gap further (0.48 -> 0.44 / 0.40). train64 stays about the same, while val rises.
+
+Evaluation: runner logs/run_r2_caug.sh, 12 runs with 0 PESQ failures and 0 clipped samples. The first pass was killed
+at the z3b -10 dB probe (host low on memory) and resumed with --resume. Tables are in logs/r2_caug_compare.txt
+(scripts/r2_v6_compare.py --speakers). Paired deltas are vs gru_v8p2z2 + rms_norm.
+
+| model | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | rule |
+|---|---|---|---|---|---|---|---|---|
+| v8p2z2 rms_norm (submission) | 3.5452 | 2.906/3.313/3.597/3.823 | 1.35 | - | 3.4065 | - | 3.545 x4 | ref |
+| v8p2z3a | 3.5828 | 2.927/3.366/3.627/3.862 | 1.39 | +0.0376 (0.0044, 8.47) | 3.4371 | +0.0306 (0.0035, 8.83) | 3.583 x4 | PASS |
+| **v8p2z3b** | **3.6063** | 2.988/3.375/3.658/3.879 | 1.28 | +0.0612 (0.0052, 11.76) | **3.4628** | +0.0562 (0.0047, 11.89) | **3.606 x4** | **PASS** |
+
+Per-SNR paired deltas at 0/5/10/15 dB:
+
+| model | validation | val_remix |
+|---|---|---|
+| z3a | +0.021/+0.053/+0.030/+0.039 (z 0.7/6.8/4.8/6.4) | +0.025/+0.036/+0.030/+0.032 (z 3.6/6.5/3.6/5.0) |
+| z3b | +0.082/+0.062/+0.061/+0.056 (z 3.7/5.1/7.7/6.6) | +0.059/+0.054/+0.064/+0.047 (z 6.1/6.6/6.1/5.1) |
+
+Per difficulty, validation easy/moderate/hard is 3.511/3.705/3.833 for z3b (submission 3.449/3.642/3.775). On
+val_remix it is 3.492/3.381/3.483 (3.432/3.327/3.438).
+
+Top-5 types (delta on validation / val_remix):
+
+| type | z3a | z3b |
+|---|---|---|
+| machine | +0.043 / +0.040 | +0.068 / +0.074 |
+| wind | +0.044 / +0.036 | +0.059 / +0.075 |
+| aircraft_cockpit | +0.014 / +0.027 | +0.070 / +0.043 |
+| broadband_noise | +0.029 / +0.017 | +0.070 / +0.042 |
+| alarm_siren | +0.042 / +0.035 | +0.056 / +0.058 |
+
+Per speaker (delta on validation / val_remix):
+
+| speaker | z3a | z3b |
+|---|---|---|
+| speaker007 | +0.046 / +0.038 | +0.044 / +0.049 |
+| speaker015 | +0.031 / +0.026 | +0.065 / +0.059 |
+| speaker016 | +0.057 / +0.054 | +0.105 / +0.102 |
+| speaker037 | +0.028 / +0.030 | +0.052 / +0.051 |
+| speaker040 | +0.030 / +0.008 | +0.045 / +0.025 |
+
+Every speaker and every top-5 type gains with both models, and with z3b all of these gains are at least 0.025.
+z2's alarm_siren loss on validation is reversed. The weakest speaker on val_remix is speaker040 (z3b +0.025, SE
+0.006). The largest gain is for speaker016, the lowest-scoring validation speaker. This is consistent with the
+speaker-mismatch hypothesis.
+
+Caveat: as before, the checkpoint is selected on validation (train-log val = eval val), so val is mildly optimistic.
+val_remix is the held-out gate: z3b gains +0.056 there at z 11.9.
+
+Rule: val >= 3.5452, val_remix d > 0 with z >= 2, every probe >= 3.525. Both pass. **The highest val PESQ is gru_v8p2z3b
+(3.6063), so it is promoted to r2-prep** (configs/dl/gru_v8p2z3b.yaml; level mode rms_norm, target_rms 0.079130).

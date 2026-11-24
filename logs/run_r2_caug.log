@@ -1,0 +1,24 @@
+start gru_v8p2z3a validation 10:06:04
+start gru_v8p2z3a val_remix 10:09:28
+start gru_v8p2z3a validation_gain-30dB 10:16:39
+start gru_v8p2z3a validation_gain-20dB 10:21:16
+start gru_v8p2z3a validation_gain-10dB 10:25:51
+start gru_v8p2z3a validation_gain0dB 10:30:27
+start gru_v8p2z3b validation 10:35:01
+start gru_v8p2z3b val_remix 10:39:48
+start gru_v8p2z3b validation_gain-30dB 10:46:51
+start gru_v8p2z3b validation_gain-20dB 10:51:41
+start gru_v8p2z3b validation_gain-10dB 10:56:11
+start gru_v8p2z3b validation_gain0dB 11:00:56
+skip gru_v8p2z3a validation
+skip gru_v8p2z3a val_remix
+skip gru_v8p2z3a validation_gain-30dB
+skip gru_v8p2z3a validation_gain-20dB
+skip gru_v8p2z3a validation_gain-10dB
+skip gru_v8p2z3a validation_gain0dB
+skip gru_v8p2z3b validation
+skip gru_v8p2z3b val_remix
+skip gru_v8p2z3b validation_gain-30dB
+skip gru_v8p2z3b validation_gain-20dB
+skip gru_v8p2z3b validation_gain-10dB
+skip gru_v8p2z3b validation_gain0dB
