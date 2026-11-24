@@ -2,7 +2,7 @@
 # (Ko et al. 2015) with p 0.7 and factor U[0.85, 1.15] (61 factors at 1/200 steps; the anti-aliasing filter bank grows to
 # 60 cached FIRs, ~11 MB), random EQ with p 0.7 and gains U[-9, +9] dB (corners as gru_v8p2z3b: low-shelf
 # U[150, 500] Hz, high-shelf U[2, 5] kHz, RMS kept). Everything else = gru_v8p2z3b (loss, lr, full dynamic mixing,
-# train-time rms_norm). Init weights/gru_v8p2z3b.pt (weights only, fresh Adam lr 5e-5), seed 0, 200 epochs,
+# train-time rms_norm). Init weights/gru_v8p2z3b.pt (weights only, fresh Adam lr 5e-5), seed 2, 200 epochs,
 # patience 30. Inference: level_mode rms_norm (target_rms 0.079130). Train: scripts/train_dpesq.py.
 method: gru_mask
 params:
@@ -22,7 +22,7 @@ model:            # = gru_v5b
   conv_norm: group
 
 train:
-  seed: 0
+  seed: 2                         # new augmentation draws (z3b used seed 0)
   init_from: weights/gru_v8p2z3b.pt # continue gru_v8p2z3b: weights only, fresh optimizer
   epochs: 200
   batch_size: 16

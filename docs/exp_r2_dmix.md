@@ -280,7 +280,7 @@ Rule: val >= 3.5452, val_remix d > 0 with z >= 2, every probe >= 3.525. Both pas
 Why: gru_v8p2z3b ran all 200 epochs and was still rising slowly (25-epoch block means 3.580 / 3.586 / 3.591 / 3.595 /
 3.600, best epoch 179). Its gap of 0.40 is the smallest so far, and the clean-side augmentation gave the largest gain
 of the batch. Two follow-ups, both init from weights/gru_v8p2z3b.pt (weights only, fresh Adam 5e-5), everything else
-as gru_v8p2z3b (loss, full dynamic mixing, train-time rms_norm 0.079130), seed 0, 200 epochs, patience 30:
+as gru_v8p2z3b (loss, full dynamic mixing, train-time rms_norm 0.079130), seed 1 (z3c) / 2 (z3d), 200 epochs, patience 30:
 
 | config | speed perturbation | random EQ |
 |---|---|---|
@@ -293,8 +293,9 @@ Filter bank: U[0.85, 1.15] has 61 factors at 1/200 steps. That needs 60 cached K
 40, 7.4 MB), well inside the 256-filter cache bound. The bank builds in 1.7 s on first use. No code change was
 needed beyond the comment in src/nrc/data/remix.py.
 
-Note: z3c restarts the seed-0 batch stream, so its sample sequence repeats z3b's from epoch 1. Only the starting
-weights differ.
+Seeds: z3c uses seed 1 and z3d seed 2. z3b used seed 0, so with seed 0 z3c would replay the same sample and augmentation
+sequence from epoch 1. With seeds 1 and 2 both continuations see new draws (2026-11-24 change; no other change). The 1-step CPU
+tests above ran with seed 0; only the RNG seed differs.
 
 ### CPU tests: PASS
 `python tests/test_caug.py`:

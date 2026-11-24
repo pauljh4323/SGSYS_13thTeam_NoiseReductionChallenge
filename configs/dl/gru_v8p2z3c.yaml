@@ -2,7 +2,7 @@
 # cap (best epoch 179). Same clean-side augmentation as gru_v8p2z3b: speed perturbation (Ko et al. 2015; p 0.5,
 # U[0.9, 1.1]) + random EQ (p 0.5; low-shelf U[150, 500] Hz, high-shelf U[2, 5] kHz, gains U[-6, +6] dB, RMS kept).
 # Everything else = gru_v8p2z3b (loss, lr, full dynamic mixing, train-time rms_norm). Init weights/gru_v8p2z3b.pt
-# (weights only, fresh Adam lr 5e-5), seed 0, 200 epochs, patience 30. Inference: level_mode rms_norm (target_rms
+# (weights only, fresh Adam lr 5e-5), seed 1, 200 epochs, patience 30. Inference: level_mode rms_norm (target_rms
 # 0.079130). Train: scripts/train_dpesq.py.
 method: gru_mask
 params:
@@ -22,7 +22,7 @@ model:            # = gru_v5b
   conv_norm: group
 
 train:
-  seed: 0
+  seed: 1                         # new augmentation draws (z3b used seed 0)
   init_from: weights/gru_v8p2z3b.pt # continue gru_v8p2z3b: weights only, fresh optimizer
   epochs: 200
   batch_size: 16
