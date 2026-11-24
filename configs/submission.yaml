@@ -1,20 +1,20 @@
-# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v8p2z3b.yaml (method/params verbatim):
-# gru_v8p2z3b = gru_v8p2z2 continued with clean-side (speaker) augmentation before dynamic mixing: speed perturbation
-# (Ko et al. 2015; p 0.5, factor U[0.9, 1.1], anti-aliased polyphase resampling, cropped/padded back to the length) and
-# random EQ (p 0.5; RBJ low-shelf corner U[150, 500] Hz + high-shelf corner U[2, 5] kHz, gains U[-6, +6] dB, RMS kept);
-# full dynamic mixing and train-time rms_norm as gru_v8p2z2; loss 0.2 cmag + 0.32 torch-pesq, init weights/gru_v8p2z2.pt,
-# fresh Adam 5e-5, best epoch 179 of 200; branch exp/r2-dmix, scripts/train_dpesq.py; train split only. The
-# augmentation is training-only (not on the inference path).
+# Submission config (Challenge 2, deep learning; branch r2-prep) = configs/dl/gru_v8p2z3d.yaml (method/params verbatim):
+# gru_v8p2z3d = gru_v8p2z3b continued with stronger clean-side (speaker) augmentation before dynamic mixing: speed
+# perturbation (Ko et al. 2015; p 0.7, factor U[0.85, 1.15], anti-aliased polyphase resampling, cropped/padded back to
+# the length) and random EQ (p 0.7; RBJ low-shelf corner U[150, 500] Hz + high-shelf corner U[2, 5] kHz, gains
+# U[-9, +9] dB, RMS kept); full dynamic mixing and train-time rms_norm as gru_v8p2z3b; loss 0.2 cmag + 0.32 torch-pesq,
+# init weights/gru_v8p2z3b.pt, fresh Adam 5e-5, seed 2, best epoch 139 of 169 (early stop); branch exp/r2-dmix,
+# scripts/train_dpesq.py; train split only. The augmentation is training-only (not on the inference path).
 # Level mode rms_norm: the input is scaled to target_rms = 0.079130 (median whole-file RMS of the train noisy files,
 # scripts/rms_target.py) before the model; the output stays at that level (no inverse gain; peak capped at 0.99).
-# val PESQ 3.6063 / SNR 1.28 dB, val_remix 3.4628 (vs gru_v8p2z2 + rms_norm +0.0562, z 11.9); level probe
-# -30/-20/-10/0 dB 3.606 each (docs/exp_r2_dmix.md on exp/r2-dmix).
-# Fallbacks (copy their method/params here to revert): gru_v8p2z2 + rms_norm (configs/dl/gru_v8p2z2.yaml; val 3.5452 /
-# 1.35 dB), gru_v8p2y + rms_norm (configs/dl/gru_v8p2y_rmsn.yaml; val 3.5077 / 1.88 dB) and gru_v5b
+# val PESQ 3.6359 / SNR 1.24 dB, val_remix 3.4868 (vs gru_v8p2z3b + rms_norm +0.0240, z 7.2); level probe
+# -30/-20/-10/0 dB 3.636 each (docs/exp_r2_dmix.md on exp/r2-dmix).
+# Fallbacks (copy their method/params here to revert): gru_v8p2z3b + rms_norm (configs/dl/gru_v8p2z3b.yaml; val 3.6063 /
+# 1.28 dB), gru_v8p2z2 + rms_norm (configs/dl/gru_v8p2z2.yaml; val 3.5452 / 1.35 dB) and gru_v5b
 # (configs/dl/gru_v5b_off.yaml; val 2.6962 / 16.81 dB). Round-1 submission (dsp-v7) stays on main.
 method: gru_mask
 params:
-  weights: weights/gru_v8p2z3b.pt  # resolved against the repo root, not the cwd
+  weights: weights/gru_v8p2z3d.pt  # resolved against the repo root, not the cwd
   device: cpu
   level_norm: true
   level_mode: rms_norm
