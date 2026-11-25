@@ -460,3 +460,68 @@ gru_v8p2z3d_w384.pt, resumes from last.pt and is fail-loud.
 Evaluation plan: as before, against gru_v8p2z3d + rms_norm.
 - Gate: val >= 3.6359, val_remix d > 0 with z >= 2, every probe >= 3.616.
 - Also check per-speaker and top-5 type deltas, the gap vs 0.371, and CPU time of main.py on the full validation set (< 180 s).
+
+### Results 2026-11-25: gru_v8p2z3e / gru_v8p2z4w (rms_norm) vs the submission gru_v8p2z3d + rms_norm
+Training (Colab T4; logs/train_log_v8p2z3e.csv, logs/train_log_v8p2z4w.csv; train-log val = eval validation). Both
+checkpoints load with weights_only=True.
+
+| run | epochs (early stop) | best epoch | best val | epoch-1 val | train64 at best | gap at best | gap first 10 / last 10 epochs |
+|---|---|---|---|---|---|---|---|
+| z3e | 134 (yes) | 104 | 3.6534 | 3.6386 | 3.9864 | 0.333 | 0.369 / 0.327 |
+| z4w | 92 (yes) | 62 | 3.6455 | 3.6289 | 4.0017 | 0.356 | 0.374 / 0.359 |
+
+z4w starts near z3d, as Net2Net intends (epoch 1 3.6289 vs z3d 3.6359; one Adam step on the fresh optimizer moves it).
+It peaks at epoch 62 and plateaus. z3e's stronger augmentation again pulls train64 down (4.003 -> 3.976) while val
+rises, so the gap narrows further (z3d 0.371 -> 0.333). The wider model keeps train64 near 4.00, and its gap narrows
+less (0.356).
+
+Evaluation: runner logs/run_r2_z3e_z4w.sh, 12 runs, all rc 0, 0 PESQ failures, 0 clipped samples, clean hash 3905f80.
+Tables are in logs/r2_z3e_z4w_compare.txt (scripts/r2_v6_compare.py --ref gru_v8p2z3d --speakers). The deltas are paired vs
+gru_v8p2z3d + rms_norm.
+
+| model | val PESQ | @0/5/10/15 dB | val SNR | val d (SE, z) | val_remix PESQ | val_remix d (SE, z) | probe -30/-20/-10/0 dB | main.py CPU, 164 val files | rule |
+|---|---|---|---|---|---|---|---|---|---|
+| v8p2z3d rms_norm (submission) | 3.6359 | 2.985/3.419/3.697/3.898 | 1.24 | - | 3.4868 | - | 3.636 x4 | 86-88 s (0.53 s/file) | ref |
+| **v8p2z3e** | **3.6534** | 3.009/3.431/3.714/3.918 | 1.21 | +0.0174 (0.0034, 5.19) | 3.4961 | +0.0093 (0.0030, 3.13) | **3.653 x4** | 88-96 s (0.56 s/file) | **PASS** |
+| v8p2z4w | 3.6455 | 3.005/3.426/3.708/3.905 | 1.20 | +0.0096 (0.0030, 3.25) | **3.4988** | +0.0120 (0.0031, 3.90) | 3.646 x4 | 107-120 s (0.69 s/file) | PASS |
+
+The CPU column gives the wall time of two main.py runs each, quiet machine, local CPU; all are well under 180 s.
+
+Per-SNR paired deltas at 0/5/10/15 dB:
+
+| model | validation | val_remix |
+|---|---|---|
+| z3e | +0.024/+0.012/+0.017/+0.020 (z 1.3/1.6/3.3/4.4) | +0.021/+0.004/+0.009/+0.003 (z 3.0/0.8/2.3/0.5) |
+| z4w | +0.020/+0.008/+0.011/+0.007 (z 1.2/1.5/2.1/1.6) | +0.016/+0.009/+0.012/+0.010 (z 2.3/2.0/1.6/2.7) |
+
+Top-5 types (delta on validation / val_remix):
+
+| type | z3e | z4w |
+|---|---|---|
+| machine | +0.027 / +0.008 | +0.025 / +0.003 |
+| wind | +0.018 / +0.012 | +0.008 / +0.016 |
+| aircraft_cockpit | +0.027 (SE 0.020) / +0.016 (SE 0.015) | +0.017 (SE 0.015) / +0.042 |
+| broadband_noise | +0.003 (SE 0.010) / +0.019 | -0.018 (SE 0.013) / +0.015 |
+| alarm_siren | +0.013 / +0.011 | +0.004 / +0.004 |
+
+Per speaker (delta on validation / val_remix):
+
+| speaker | z3e | z4w |
+|---|---|---|
+| speaker007 | +0.015 / +0.003 (SE 0.006) | +0.005 / +0.003 |
+| speaker015 | +0.010 / -0.009 (SE 0.010) | +0.014 / +0.025 |
+| speaker016 | +0.040 / +0.019 | +0.015 / -0.001 (SE 0.007) |
+| speaker037 | +0.014 / +0.020 | -0.001 (SE 0.004) / +0.007 |
+| speaker040 | +0.011 / +0.014 | +0.015 / +0.023 |
+
+z3e improves on z3d for every type on both sets. Its largest gain is again for speaker016, the weakest validation
+speaker. Its only negative entry (speaker015 on val_remix, -0.009) is within 1 SE. z4w's negatives (broadband_noise on
+validation, speaker037 on validation, speaker016 on val_remix) are each within about 1.4 SE.
+
+Caveat: the checkpoints are selected on validation, so val is mildly optimistic. On the held-out val_remix, z4w is
++0.0027 ahead of z3e, which is inside one paired SE (about 0.003). The rule ranks on val.
+
+Rule: val >= 3.6359, val_remix d > 0 with z >= 2, every probe >= 3.616. Both pass. **The highest val PESQ is gru_v8p2z3e
+(3.6534), so it is promoted to r2-prep** (configs/dl/gru_v8p2z3e.yaml; level mode rms_norm, target_rms 0.079130).
+z4w (Net2Net H 384) stays on exp/r2-dmix and is not merged. Next: a z3e-style stronger-augmentation continuation of the
+widened model would combine both effects.
