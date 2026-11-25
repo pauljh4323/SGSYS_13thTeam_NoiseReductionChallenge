@@ -1,0 +1,5 @@
+r1 main.py: processed=164 failed=0 clipped_samples=0 total=44.9s 
+r2 main.py: processed=164 failed=0 clipped_samples=0 total=33.2s 
+r3 main.py: processed=164 failed=0 clipped_samples=0 total=25.5s 
+r4 main.py: processed=164 failed=0 clipped_samples=0 total=26.4s 
+r5 main.py: processed=164 failed=0 clipped_samples=0 total=42.3s 
