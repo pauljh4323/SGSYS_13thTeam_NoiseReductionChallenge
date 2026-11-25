@@ -14,7 +14,9 @@ DEFAULT_DATA_ROOT = REPO_ROOT / "data" / "noise_reduction_challenge"
 SAMPLE_RATE = 16000
 SPLITS = ("train", "validation")
 # Derived held-out splits: name -> folder holding samples.csv (paths relative to that folder).
-EXTRA_SPLITS = {"val_remix": REPO_ROOT / "data" / "val_remix"}  # scripts/make_val_remix.py
+EXTRA_SPLITS = {"val_remix": REPO_ROOT / "data" / "val_remix",  # scripts/make_val_remix.py
+                **{s: REPO_ROOT / "data" / "gen" / s  # scripts/gen/make_gen_sets.py (exp/r2-gen)
+                   for s in ("gen_unseen_dev", "gen_unseen_test", "gen_multi_dev", "gen_multi_test", "gen_low")}}
 ALL_SPLITS = SPLITS + tuple(EXTRA_SPLITS)
 REQUIRED_COLUMNS = {
     "segment_id", "clean_path", "noisy_path", "sample_rate_hz", "num_samples",

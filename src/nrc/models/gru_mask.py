@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-MAX_PARAMS = 5_000_000
+MAX_PARAMS = 6_000_000  # exp/r2-gen only: admit gru_v8p2z4w (H 384, 5.03M params) for the generalisation suite
 FRONT_ENDS = ("none", "conv2d")
 CONV_NORMS = ("group", "batch")
 _DEFAULTS = {"front_end": "none", "conv_channels": 16, "conv_norm": "group"}

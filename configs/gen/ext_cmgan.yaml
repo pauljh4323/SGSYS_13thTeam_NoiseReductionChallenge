@@ -1,0 +1,4 @@
+# Pretrained reference cmgan (zero-shot, exp/r2-gen; docs/r2_gen_suite.md), scored from outputs/ext_cmgan/<split>
+# written by scripts/gen/ext_infer.py in its own conda env. Use only with eval.py --pred-dir; placeholder method.
+method: noisy
+params: {}

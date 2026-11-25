@@ -41,7 +41,7 @@ _METHOD_CACHE = {}
 
 
 def _get_method(name, params):
-    key = (name, tuple(sorted(params.items())))
+    key = (name, repr(sorted(params.items())))  # repr: list params (gru_ens weights)
     if key not in _METHOD_CACHE:
         _METHOD_CACHE[key] = get_method(name, **params)
     return _METHOD_CACHE[key]
@@ -114,7 +114,12 @@ def main(argv=None) -> int:
     parser.add_argument("--input-gain-db", type=float, default=None,
                         help="level probe: scale noisy by this gain (dB) before enhancement; "
                              "clean unchanged; logs only, not appended to results/experiments.csv")
+    parser.add_argument("--resume", action="store_true",
+                        help="--jobs 1 only: reuse rows already in the per-file partial CSV "
+                             "(eval_<split>..._partial.csv, written one row per file as it finishes)")
     args = parser.parse_args(argv)
+    if args.resume and args.jobs > 1:
+        parser.error("--resume needs --jobs 1")
     cfg = load_config(args.config)
     root = resolve_data_root(args.data_root)
     manifest = stratified_subset(load_manifest(root, args.split), args.subset)
@@ -148,24 +153,42 @@ def main(argv=None) -> int:
     tasks = [(root, row.to_dict(), cfg, args.split, source, pred_paths.get(row["noisy_path"]),
               args.shift_start, args.input_gain_db or 0.0)
              for _, row in manifest.iterrows()]
-    started = time.perf_counter()
-    if args.jobs > 1:
-        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
-            rows = list(pool.map(evaluate_row, tasks, chunksize=4))
-    else:
-        rows = [evaluate_row(t) for t in tasks]
-    elapsed = time.perf_counter() - started
-    detail = pd.DataFrame(rows)
-    if len(detail) != len(manifest):
-        raise RuntimeError("Not every manifest entry was evaluated.")
-
     out_dir = output_dir(cfg["name"], args.split).parent
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"_sub{args.subset}" if args.subset else ""
     sfx = ("" if source == "mem16" else f"_{source}") + (
         f"_shift{args.shift_start:g}" if args.shift_start else "") + (
         f"_gain{args.input_gain_db:g}dB" if args.input_gain_db is not None else "")
+    partial = out_dir / f"eval_{args.split}{tag}{sfx}_partial.csv"
+    started = time.perf_counter()
+    if args.jobs > 1:
+        with ProcessPoolExecutor(max_workers=args.jobs) as pool:
+            rows = list(pool.map(evaluate_row, tasks, chunksize=4))
+    else:
+        done = {}
+        if args.resume and partial.is_file():
+            prev = pd.read_csv(partial, keep_default_na=False, na_values=[""])
+            done = {str(r["segment_id"]): r for r in prev.to_dict("records")}
+            print(f"resume: {len(done)} rows from {partial.name}")
+        elif partial.exists():
+            partial.unlink()
+        rows = []
+        for t in tasks:
+            sid = str(t[1]["segment_id"])
+            if sid in done:
+                r = done[sid]
+                r.update({c: t[1][c] for c in META_COLUMNS})  # keep manifest dtypes
+            else:
+                r = evaluate_row(t)
+                pd.DataFrame([r]).to_csv(partial, mode="a", header=not partial.exists(), index=False)
+            rows.append(r)
+    elapsed = time.perf_counter() - started
+    detail = pd.DataFrame(rows)
+    if len(detail) != len(manifest):
+        raise RuntimeError("Not every manifest entry was evaluated.")
     detail.to_csv(out_dir / f"eval_{args.split}{tag}{sfx}.csv", index=False)
+    if partial.exists():
+        partial.unlink()
 
     tables = {"overall": summarize(detail),
               "by target_snr_db": summarize(detail, "target_snr_db"),
@@ -201,6 +224,8 @@ def main(argv=None) -> int:
              f"snr={detail.snr_db.mean():.3f} stoi={detail.stoi.mean():.4f} "
              f"clipped={n_clipped} src={source}"
              + (f" subset={args.subset}" if args.subset else "")
+             + ("".join(f" pesq@{s:g}dB={v:.4f}" for s, v in by_snr.items()
+                        if s not in (0.0, 5.0, 10.0, 15.0)))  # gen_* sets: -10/-5 dB columns
              + (f" | {args.notes}" if args.notes else ""))
     record = [date.today().isoformat(), git_hash(), cfg["name"], cfg["method"],
               f"{detail.pesq.mean():.4f}",
