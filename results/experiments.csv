@@ -91,3 +91,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-24,ccc60ca,submission,gru_mask,3.4628,2.8957,3.3519,3.6797,3.9205,-2.525,split=val_remix n=328 failed=0 snr=1.226 stoi=0.8886 clipped=0 src=pred | main.py outputs (gru_v8p2z3b rms_norm)
 2026-11-25,609785a,submission,gru_mask,3.6359,2.9854,3.4186,3.6968,3.8979,-2.672,split=validation n=164 failed=0 snr=1.238 stoi=0.9084 clipped=0 src=pred | e2e main.py outputs
 2026-11-25,609785a,submission,gru_mask,3.4868,2.9199,3.3773,3.7044,3.9421,-2.776,split=val_remix n=328 failed=0 snr=1.185 stoi=0.8889 clipped=0 src=pred | main.py outputs gru_v8p2z3d rms_norm
+2026-11-25,a1e5b9a,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs
