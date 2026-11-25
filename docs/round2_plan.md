@@ -35,6 +35,30 @@ Still depends on the round-2 notice: every open question below; whether r2-prep 
 `r2-main` from `round1-final` (branch plan step 2); main's e2e_check stays classical-only (no ROUND setting) until round 1 closes;
 and whether README / submissions.md need a round-2 submission row (only after the team confirms a submission).
 
+## Status 2026-11-25 (later): r2-prep submission -> gru_v8p2z3e + level mode rms_norm (tag r2-ready moved)
+
+- gru_v8p2z3e continues gru_v8p2z3d with the same loss, full dynamic mixing and train-time rms_norm (weights only,
+  fresh Adam 5e-5, 200 epochs max, patience 30, seed 3). The clean-side augmentation is stronger again:
+  - Speed perturbation p 0.8, factor U[0.80, 1.20] (z3d: p 0.7, U[0.85, 1.15]).
+  - Random EQ p 0.8, gains U[-12, +12] dB (z3d: p 0.7, +-9 dB); same shelf corners, RMS kept.
+  - Early stop at epoch 134; best epoch 104. Train64-val gap 0.33 (z3d 0.37).
+- eval.py at 3905f80 (exp/r2-dmix, 16-bit, --jobs 1): val PESQ 3.6534 / SNR 1.21 dB, val_remix 3.4961 / 1.15 dB.
+  - Paired d vs gru_v8p2z3d + rms_norm: val +0.0174 (z 5.2), val_remix +0.0093 (z 3.1).
+  - Probe -30/-20/-10/0 dB: 3.653 each (floor 3.616).
+  - The top-5 noise types are > 0 on both sets. All 5 speakers are > 0 on validation; on val_remix the only negative
+    is speaker015 (-0.009, within 1 SE).
+  - Sibling gru_v8p2z4w (z3d Net2Net-widened to BiGRU H 384, z3d augmentation, seed 4) also passed: val 3.6455,
+    val_remix +0.0120 (z 3.9). It has the lower val, so it is not promoted and stays on exp/r2-dmix.
+    Its val_remix lead over z3e (+0.0027) is within one paired SE.
+- main.py outputs: validation 3.6534 at a1e5b9a (e2e PASSED ROUND 2: fresh pip venv torch 2.15.0+cpu, bit-identical,
+  torch_pesq/torchaudio not importable, flat output/); val_remix 3.4961 at 8946e08.
+- Round-2 rule passed (docs/exp_r2_dmix.md, exp/r2-dmix). The promotion brings weights/gru_v8p2z3e.pt and
+  configs/dl/gru_v8p2z3e.yaml, with no inference-code change.
+- Fallbacks: gru_v8p2z3d + rms_norm (configs/dl/gru_v8p2z3d.yaml), gru_v8p2z3b + rms_norm (configs/dl/gru_v8p2z3b.yaml)
+  and gru_v5b (configs/dl/gru_v5b_off.yaml).
+- main.py CPU time on AC power, dev env, 164 validation files: median 33.2 s over 5 runs (25.5-44.9 s;
+  logs/cpu_time_r2_v8p2z3e.log). Fresh venv 24.6 s; val_remix 59.4 s.
+
 ## Status 2026-11-25: r2-prep submission -> gru_v8p2z3d + level mode rms_norm (tag r2-ready moved)
 
 - gru_v8p2z3d continues gru_v8p2z3b with the same loss, full dynamic mixing and train-time rms_norm (weights only,
