@@ -119,3 +119,10 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-26,1df63a4,gru_v5b_off,gru_mask,1.4645,nan,nan,nan,nan,5.440,split=gen_low n=328 failed=0 snr=6.989 stoi=0.7321 clipped=0 src=mem16 pesq@-10dB=1.3497 pesq@-5dB=1.5793 | exp/r2-gen
 2026-11-26,1df63a4,dsp_v8_pred,noisy,1.1536,nan,nan,nan,nan,-1.605,split=gen_low n=328 failed=0 snr=1.050 stoi=0.5950 clipped=0 src=pred pesq@-10dB=1.1180 pesq@-5dB=1.1892 | exp/r2-gen dsp-v8 (tag code via worktree)
 2026-11-26,1df63a4,gru_v8p2z4w,gru_mask,2.3107,nan,nan,nan,nan,-6.639,split=gen_low n=328 failed=0 snr=0.427 stoi=0.7181 clipped=0 src=mem16 pesq@-10dB=2.0856 pesq@-5dB=2.5359 | exp/r2-gen
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.7914,1.3583,1.6271,1.7500,2.0595,10.023,split=validation n=164 failed=0 snr=11.022 stoi=0.8191 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.6879,1.5517,1.8502,1.9584,nan,6.404,split=gen_unseen_test n=328 failed=0 snr=8.489 stoi=0.7499 clipped=0 src=pred pesq@-5dB=1.3914 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.2436,1.2436,nan,nan,nan,2.195,split=gen_multi_test n=164 failed=0 snr=4.996 stoi=0.6309 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.8144,1.6646,1.9604,2.1488,nan,11.090,split=gen_unseen_test n=328 failed=0 snr=11.402 stoi=0.8398 clipped=0 src=pred pesq@-5dB=1.4837 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.3884,1.3884,nan,nan,nan,7.494,split=gen_multi_test n=164 failed=0 snr=8.181 stoi=0.7712 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.1499,nan,nan,nan,nan,-8.655,split=gen_low n=328 failed=0 snr=0.870 stoi=0.4266 clipped=0 src=pred pesq@-10dB=1.1350 pesq@-5dB=1.1648 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.2292,nan,nan,nan,nan,-0.585,split=gen_low n=328 failed=0 snr=3.461 stoi=0.5786 clipped=0 src=pred pesq@-10dB=1.1638 pesq@-5dB=1.2946 | exp/r2-gen pretrained zero-shot

@@ -1,7 +1,6 @@
 # Round 2 generalisation suite (branch exp/r2-gen)
 
-**Status: v1, 2026-11-26.** The fast models are complete (dsp_v8, gru_v5b_off, gru_v8p2z3d/z3e/z4w, DeepFilterNet3).
-MP-SENet and CMGAN are still running (CMGAN val is done). This file is updated when they finish.
+**Status: v2 (final), 2026-11-26.** All 8 models are scored on all 4 sets (32/32).
 Tables come from `python scripts/gen/report_suite.py` (it reads the eval.py per-file CSVs; full output in
 logs/gen_report_tables.md). Metrics come from scripts/eval.py (pesq 0.0.4 WB, 16 kHz) and rows are in results/experiments.csv.
 No training was done. main.py and configs/submission.yaml are unchanged.
@@ -44,11 +43,14 @@ Details and SHA-256 hashes: docs/external_data.md. Split lists: splits/gen/ (det
 | **gru_v8p2z3e** (submitted) | **3.653** / 1.20 | **2.835** / 1.01 | **2.240** / 0.78 | **2.311** / 0.39 |
 | gru_v8p2z4w | 3.646 / 1.20 | 2.820 / 1.05 | 2.218 / 0.86 | 2.311 / 0.43 |
 | ext_dfn3 | 2.102 / 11.20 | 2.083 / 11.18 | 1.644 / 9.00 | 1.302 / 4.91 |
-| ext_mpsenet | running | running | running | running |
-| ext_cmgan | 2.046 / 14.22 | running | running | running |
+| ext_mpsenet | 1.791 / 11.02 | 1.688 / 8.49 | 1.244 / 5.00 | 1.150 / 0.87 |
+| ext_cmgan | 2.046 / 14.22 | 1.814 / 11.40 | 1.388 / 8.18 | 1.229 / 3.46 |
 
-There were 0 PESQ failures. Three G_low evals (dsp_v8, gru_v5b_off, gru_v8p2z4w) exited silently at file 87 without a traceback.
-`eval.py --resume` kept their first 86 per-file rows and scored the rest without error on the next run (transient native crash; cause not identified).
+There were 0 PESQ failures. **5 of 8 G_low evals (dsp_v8, gru_v5b_off, gru_v8p2z4w, ext_mpsenet, ext_cmgan) exited silently
+after 86 rows**, at G_low file 87 (`speaker015_utt01_seg0013_gl0`, N071 wind, −5 dB), with no traceback.
+`eval.py --resume` kept the 86 rows and scored the rest without error on the next run every time. The cause is not identified:
+it could be a native crash in pesq or soundfile on that file. **Open issue:** reproduce it with pesq alone on that file's
+clean/enhanced pair, because a PESQ error on a hidden-test file would withhold the round-2 score.
 
 ### Paired PESQ delta vs gru_v5b_off (mean ± 95 % CI, z)
 | model | val | G_unseen_test | G_multi_test | G_low |
@@ -58,6 +60,8 @@ There were 0 PESQ failures. Three G_low evals (dsp_v8, gru_v5b_off, gru_v8p2z4w)
 | gru_v8p2z3e | +0.957 ± 0.053 (35.7) | +0.921 ± 0.050 (35.9) | +0.901 ± 0.070 (25.1) | +0.847 ± 0.036 (45.5) |
 | gru_v8p2z4w | +0.949 ± 0.054 (34.7) | +0.906 ± 0.051 (34.8) | +0.880 ± 0.073 (23.6) | +0.846 ± 0.036 (45.6) |
 | ext_dfn3 | −0.594 ± 0.078 (−14.9) | +0.169 ± 0.053 (6.2) | +0.305 ± 0.057 (10.4) | −0.162 ± 0.043 (−7.5) |
+| ext_mpsenet | −0.905 ± 0.095 (−18.7) | −0.226 ± 0.062 (−7.1) | −0.095 ± 0.045 (−4.1) | −0.315 ± 0.058 (−10.7) |
+| ext_cmgan | −0.650 ± 0.096 (−13.3) | −0.100 ± 0.069 (−2.8) | +0.050 ± 0.053 (1.8) | −0.235 ± 0.046 (−10.0) |
 
 Among the v8p2 models, z3e is never beaten. Paired vs z3e: z3d −0.003 (z −0.7) / −0.014 (−1.6) / −0.005 (−1.0) on
 unseen/multi/low, and z4w −0.015 (z −3.0) / −0.022 (−2.5) / −0.001 (−0.2).
@@ -72,6 +76,8 @@ unseen/multi/low, and z4w −0.015 (z −3.0) / −0.022 (−2.5) / −0.001 (�
 | gru_v8p2z3e | 3.511 | 2.431 | 2.557 | 2.304 | 2.564 | 1.845 |
 | gru_v8p2z4w | 3.495 | 2.429 | 2.530 | 2.304 | 2.527 | 1.816 |
 | ext_dfn3 | 2.567 | 1.737 | 1.939 | 1.641 | 1.866 | 1.421 |
+| ext_mpsenet | 2.182 | 1.296 | 1.581 | 1.235 | 1.356 | 1.138 |
+| ext_cmgan | 2.193 | 1.465 | 1.781 | 1.450 | 1.502 | 1.210 |
 
 ### Per input SNR
 | model | G_unseen −5 | 0 | 5 | 10 dB | G_low −10 | −5 dB |
@@ -82,6 +88,8 @@ unseen/multi/low, and z4w −0.015 (z −3.0) / −0.022 (−2.5) / −0.001 (�
 | gru_v8p2z3e | 2.228 | 2.659 | 3.111 | 3.341 | 2.091 | 2.532 |
 | gru_v8p2z4w | 2.205 | 2.650 | 3.095 | 3.330 | 2.086 | 2.536 |
 | ext_dfn3 | 1.636 | 1.869 | 2.259 | 2.565 | 1.230 | 1.375 |
+| ext_mpsenet | 1.391 | 1.552 | 1.850 | 1.958 | 1.135 | 1.165 |
+| ext_cmgan | 1.484 | 1.665 | 1.960 | 2.149 | 1.164 | 1.295 |
 
 ## Findings so far
 1. **The PESQ-optimised v8p2 models do not collapse on unseen noise.** On G_unseen_test their margin over v5b is about the
@@ -90,9 +98,13 @@ unseen/multi/low, and z4w −0.015 (z −3.0) / −0.022 (−2.5) / −0.001 (�
    The absolute PESQ drop from val to G_unseen_test (−0.82) is mostly the lower input SNR of the set (noisy 2.50 dB vs 9.63 dB).
 2. **gru_v8p2z3e stays the best choice.** It is first or tied on every set. z4w (H 384) is significantly worse on
    G_unseen (−0.015, z −3.0), so the width doesn't buy generalisation.
-3. **The pretrained zero-shot baselines are far behind.** DFN3 beats v5b on external noise (+0.17 / +0.31) but is
-   −0.75 PESQ below z3e on G_unseen, and is weak at very low SNR (G_low 1.30). As a fine-tuning backbone it is the
-   cheapest (0.3–0.6 s CPU per file, 2.1 M params) and the only one trained on broad data. MP-SENet and CMGAN are pending.
+3. **The pretrained zero-shot baselines are far behind.** DFN3 is the best of the three on every set. It beats v5b on external
+   noise (+0.17 / +0.31) but is −0.75 PESQ below z3e on G_unseen, and is weak at very low SNR (G_low 1.30).
+   MP-SENet and CMGAN (VoiceBank-DEMAND) are worse than DFN3 everywhere, including on DEMAND (2.18 / 2.19 vs 2.57),
+   which is part of their training noise. This is consistent with a narrow training domain (VoiceBank-DEMAND: 28 speakers, 0–15 dB SNR; from memory).
+   **Best fine-tuning backbone: DeepFilterNet3.** It generalises best, is about 30× cheaper on CPU (0.3–0.6 s vs 11–19 s per file),
+   has a comparable size (2.1 M params) and is MIT/Apache-2.0. None of the three is a reason to change direction: our own
+   v8p2 models are already +0.75 PESQ above the best of them on unseen noise.
 4. The v8p2 output SNR stays about 1 dB on every set. This is the known PESQ-vs-SNR trade-off of the rms_norm/PESQ-loss
    models and is not new here. SNR is the auxiliary metric.
 5. dsp_v8 (round 1) is tuned on the challenge noises: −0.68 vs v5b on val, but only −0.14 on external noise.
@@ -105,8 +117,11 @@ file (PESQ is level-invariant). The number of rescaled files per model is listed
 | model | params | CPU s/file (val) | rescaled files (val / unseen / multi / low) | licence | checkpoint |
 |---|---|---|---|---|---|
 | DeepFilterNet3 | 2.14 M | 0.34 | 0 / 0 / 0 / 0 | MIT / Apache-2.0 | deepfilternet 0.5.6 default |
-| MP-SENet | 2.26 M | 10.7 | running (val was hard-clipped in the first run: 382 samples, so it is being rerun) | MIT | g_best_vb @ 89932cf |
-| CMGAN | 1.83 M | 12.7 | 0 / running | MIT | src/best_ckpt/ckpt @ 3994600 |
+| MP-SENet | 2.26 M | 11.0 (17–19 on G sets) | 3 / 7 / 12 / 13 | MIT | g_best_vb @ 89932cf |
+| CMGAN | 1.83 M | 12.7 (15–16.5 on G sets) | 0 / 2 / 5 / 5 | MIT | src/best_ckpt/ckpt @ 3994600 |
+
+MP-SENet val was first written hard-clipped (382 samples, PESQ 1.7913). Rerunning the 3 affected files with rescaling gave 1.7914.
+DFN3/CMGAN val metas predate the rescale field, but they had 0 would-clip samples, so 0 files were rescaled.
 
 ## Housekeeping notes
 - MUSAN download: an old curl from the first session was still appending to the same file when the download was resumed.
