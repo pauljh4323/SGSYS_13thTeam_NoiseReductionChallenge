@@ -4,7 +4,8 @@ Runs inside the model's own conda env (ext_dfn / ext_mpsenet / ext_cmgan; not in
 self-contained (no nrc import). For every file of a split it writes outputs/ext_<model>/<split>/<noisy name>
 (16-bit PCM, 16 kHz, same length: shorter/longer model outputs are zero-padded/cropped and counted) and
 outputs/ext_<model>/<split>_timing.csv (model CPU seconds per file, torch threads). Existing outputs are
-skipped (resumable). Score with eval.py --config configs/gen/ext_<model>.yaml --pred-dir ...
+skipped (resumable). A file whose output would clip in 16-bit is scaled as a whole to peak 0.99 (PESQ is
+level-invariant), counted as rescaled_files in <split>_meta.json. Score with eval.py --config configs/gen/ext_<model>.yaml --pred-dir ...
 
   dfn3     DeepFilterNet3 (pip deepfilternet 0.5.6, default model): 16 kHz -> 48 kHz resample_poly(3, 1),
            df.enhance.enhance, -> 16 kHz resample_poly(1, 3).
@@ -144,7 +145,8 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     tpath = out_root / f"{args.split}_timing.csv"
     timing = pd.read_csv(tpath).to_dict("records") if tpath.is_file() else []
-    seen = {r["file"] for r in timing}
+    # A row written before peak rescaling existed (no "rescaled" field) that clipped was hard-clipped: redo it.
+    seen = {r["file"] for r in timing if not (pd.isna(r.get("rescaled", np.nan)) and r.get("clipped", 0) > 0)}
     for _, r in man.iterrows():
         name = Path(r.noisy_path).name
         dst = out / name
@@ -161,17 +163,22 @@ def main(argv=None) -> int:
         if not np.isfinite(y).all():
             y = np.nan_to_num(y)
         scaled = np.round(y * 32768.0)
-        clipped = int(np.count_nonzero((scaled > 32767) | (scaled < -32768)))
+        clipped = int(np.count_nonzero((scaled > 32767) | (scaled < -32768)))  # would-clip samples before rescale
+        peak = float(np.max(np.abs(y))) if y.size else 0.0
+        rescaled = int(clipped > 0)
+        if rescaled:  # PESQ is level-invariant: scale the whole file to peak 0.99 instead of hard-clipping
+            scaled = np.round(y * (0.99 / peak) * 32768.0)
         sf.write(str(dst), np.clip(scaled, -32768, 32767).astype(np.int16), 16000, subtype="PCM_16")
         timing = [t for t in timing if t["file"] != name] + [
             {"file": name, "seconds_audio": x.size / 16000, "cpu_s": cpu, "wall_s": wall, "len_diff": len_diff,
-             "clipped": clipped}]
+             "clipped": clipped, "rescaled": rescaled, "peak": peak}]
         pd.DataFrame(timing).to_csv(tpath, index=False)
     t = pd.DataFrame(timing)
     meta = {"model": args.model, "params": n_params, "threads": torch.get_num_threads(), "torch": torch.__version__,
             **info, "files": len(t), "cpu_s_per_file_mean": float(t.cpu_s.mean()),
             "wall_s_per_file_mean": float(t.wall_s.mean()), "len_mismatch_files": int((t.len_diff != 0).sum()),
-            "clipped_samples": int(t.clipped.sum())}
+            "clipped_samples": int(t.clipped.sum()),
+            "rescaled_files": int(t["rescaled"].fillna(0).sum()) if "rescaled" in t else 0}
     (out_root / f"{args.split}_meta.json").write_text(json.dumps(meta, indent=2))
     print(json.dumps(meta))
     return 0
