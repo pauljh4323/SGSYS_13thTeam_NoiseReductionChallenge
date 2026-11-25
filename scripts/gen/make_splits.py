@@ -5,6 +5,7 @@ gen_test 20 % (exp/r2-gen).
           -> gen_dev, rest -> train_pool (17 environments at 16 kHz: 3 / 2 / 12).
   ESC-50  by fold: fold 5 -> gen_test, folds 1-3 -> train_pool, fold 4 split by freesound source id
           (sha1(src_file) parity: even -> train_pool, odd -> gen_dev), so a source recording never spans splits.
+          The fold used is the source's highest fold (4 sources have clips in two folds).
   MUSAN   by file: sha1(relative path) mod 100: < 70 train_pool, < 80 gen_dev, else gen_test.
 Files in splits/gen/excluded.txt (scripts/gen/check_overlap.py) are left out of every split.
 Writes splits/gen/<corpus>_<split>.txt (paths relative to data_ext/) and splits/gen/summary.csv.
@@ -38,8 +39,14 @@ def assign(corpus: str, rows: list[dict]) -> dict[str, str]:
                      for i, e in enumerate(envs)}
         return {r["rel"]: env_split[r["group"]] for r in rows}
     if corpus == "esc50":
+        # 4 of 1524 freesound sources have clips in two folds (2/3 and 4/5): decide per source by its highest
+        # fold so a source recording never spans splits (moves 4-209698-A-37 and 4-234879-A-6 to gen_test).
+        top = {}
+        for r in rows:
+            top[r["group"]] = max(top.get(r["group"], 0), int(r["fold"]))
+
         def one(r):
-            fold = int(r["fold"])
+            fold = top[r["group"]]
             if fold == 5:
                 return "gen_test"
             if fold == 4:
