@@ -1,0 +1,62 @@
+# gru_v8p2z6b (exp/r2-ext): gru_v8p2z3e continued on external clean speech + external noise (ext_mix), + weight EMA decay 0.999 (validation and best.pt use the EMA weights), seed 8.
+# Clean: LibriSpeech train-clean-100 subset (Panayotov et al. 2015; WADA-SNR >= 30 dB, Kim & Stern 2008; <= 40
+# utterances per speaker) p 0.5, else challenge train clean. Noise: DEMAND/ESC-50/MUSAN train_pool (splits/gen;
+# never gen_dev/gen_test) p 0.6, else challenge train noise; SNR U[-10, 20] dB; second noise p 0.3 at U[-10, 0] dB
+# relative. Then z3e's speed/EQ clean augmentation and train-time rms_norm. Selection: unweighted mean PESQ of
+# validation, gen_unseen_dev and gen_multi_dev. Init weights/gru_v8p2z3e.pt (weights only, fresh Adam lr 5e-5),
+# 300 epochs x 81 steps, patience 40. Inference: level_mode rms_norm (target_rms 0.079130). Train:
+# scripts/train_dpesq.py --ext-package <pkg> (Colab: notebooks/colab_train.ipynb).
+method: gru_mask
+params:
+  weights: weights/gru_v8p2z6b.pt  # copy <ckpt-dir>/best.pt here after training
+  device: cpu
+  level_norm: true
+  level_mode: rms_norm
+  target_rms: 0.079130
+
+model:            # = gru_v5b
+  n_fft: 512
+  hop: 128
+  hidden: 256
+  layers: 2
+  front_end: conv2d
+  conv_channels: 16
+  conv_norm: group
+
+train:
+  seed: 8
+  init_from: weights/gru_v8p2z3e.pt # continue the submission gru_v8p2z3e: weights only, fresh optimizer
+  epochs: 300
+  steps_per_epoch: 81             # = ceil(1296 / 16), as z3e (the external pools do not change the epoch length)
+  batch_size: 16
+  lr: 5.0e-5                      # Adam, constant
+  grad_clip: 5.0
+  compress: 0.3
+  loss: cmag+mrstft+sisdr         # regression part (terms with weight 0 are skipped)
+  lambda_cmag: 0.2
+  lambda_mrstft: 0.0
+  lambda_sisdr: 0.0
+  lambda_pesq: 0.32
+  val_every: 1
+  val_batch: 16
+  patience_val_points: 40         # early stop: 40 epochs without a selection PESQ gain
+  select_sets: [validation, gen_unseen_dev, gen_multi_dev]  # selection = unweighted mean of the three PESQ means
+  ema_decay: 0.999                # EMA of weights (time constant ~1000 steps ~ 12 epochs); validated + saved as best.pt
+  rms_norm_target: 0.079130       # train-time rms_norm (= params.target_rms); gain augmentation off
+  ext_mix:
+    package: data_ext/pkg/nrc_ext_z6  # Colab: --ext-package /content/nrc_ext_z6
+    p_libri: 0.5                  # clean: LibriSpeech subset (random 3 s crop) vs challenge train clean
+    p_ext_noise: 0.6              # noise: external train_pool (corpus uniform) vs challenge train noise
+    snr_db: [-10, 20]             # SNR against the total noise
+    p_second: 0.3                 # probability of a second noise (different source)
+    second_rel_db: [-10, 0]       # second noise level relative to the first
+  remix:
+    peak: 0.99                    # peak guard before rms_norm
+    p_dm: 0.0                     # ext_mix replaces dynamic mixing
+    # clean-side augmentation (= gru_v8p2z3e), applied to the clean before mixing; target = augmented clean
+    p_speed: 0.8
+    speed_range: [0.80, 1.20]
+    p_eq: 0.8
+    eq_low_hz: [150, 500]
+    eq_high_hz: [2000, 5000]
+    eq_gain_db: [-12, 12]

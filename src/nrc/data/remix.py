@@ -30,6 +30,14 @@ fixed); the target is the augmented clean and the SNR is set against it:
 - p_eq (random EQ): with probability p_eq, an RBJ-cookbook low-shelf (corner U(eq_low_hz)) and high-shelf
   (corner U(eq_high_hz)) biquad, shelf slope 1, gains each U(eq_gain_db) dB, cascaded (float64); the clean is then
   rescaled to its original RMS.
+exp/r2-ext ext_mix (gru_v8p2z6a/b; default None = off, no draws). Every sample is synthetic (replaces p_dm):
+- clean: a random 3 s crop of a LibriSpeech utterance (nrc.data.extpool package) with probability p_libri, else a
+  random challenge train clean; then the clean-side augmentation above (speed, EQ), so the target is the augmented
+  clean;
+- noise: external train_pool noise (corpus uniform, file uniform, random offset, looped if short) with probability
+  p_ext_noise, else a challenge train noise (valid, other file than the clean, random circular shift); with
+  probability p_second a second noise from a different source, drawn the same way, at U(second_rel_db) dB relative
+  to the first; the total noise is scaled to SNR U(snr_db) against the clean; then the peak guard and rms_norm.
 All randomness comes from the numpy Generator passed in, so batches are reproducible.
 """
 from __future__ import annotations
@@ -119,7 +127,10 @@ class RemixData:
                  gain_narrow_db=(-6.0, 3.0), rms_norm_target: float | None = None, p_dm: float = 0.0,
                  dm_snr_db=(-5.0, 20.0), dm_p_second: float = 0.2, dm_second_rel_db=(-10.0, 0.0),
                  p_speed: float = 0.0, speed_range=(0.9, 1.1), p_eq: float = 0.0, eq_low_hz=(150.0, 500.0),
-                 eq_high_hz=(2000.0, 5000.0), eq_gain_db=(-6.0, 6.0)):
+                 eq_high_hz=(2000.0, 5000.0), eq_gain_db=(-6.0, 6.0), ext_mix: dict | None = None):
+        self.ext = None
+        if ext_mix is not None:
+            self._init_ext(dict(ext_mix), p_dm)
         self.rms_norm_target = None if rms_norm_target is None else float(rms_norm_target)
         if self.rms_norm_target is not None:
             if not self.rms_norm_target > 0:
@@ -194,7 +205,9 @@ class RemixData:
 
     def sample(self, rng: np.random.Generator, info: dict | None = None) -> tuple[np.ndarray, np.ndarray]:
         """Return one (clean, noisy) float32 pair. `info` (tests): dynamic-mixing draws are written into it."""
-        if self.p_dm > 0 and rng.random() < self.p_dm:
+        if self.ext is not None:
+            c, m = self._ext_sample(rng, info)
+        elif self.p_dm > 0 and rng.random() < self.p_dm:
             c, m = self._dm_sample(rng, info)
         else:
             c, m = self._remix_sample(rng)
@@ -247,6 +260,92 @@ class RemixData:
         scale = np.sqrt(pc / (pn * 10 ** (snr / 10))) if pn > 0 and pc > 0 else 1.0
         if info is not None:
             info.update(clean=i, noise=j, noise2=k, rel_db=rel, snr_db=snr)
+        return self._peak_guard(c, c + n * scale)
+
+    # ------------------------------------------------------------------ ext_mix (exp/r2-ext, gru_v8p2z6a/b)
+    EXT_KEYS = ("package", "pool", "p_libri", "p_ext_noise", "snr_db", "p_second", "second_rel_db", "crop_tries",
+                "crop_min_rel_rms")
+
+    def _init_ext(self, cfg: dict, p_dm: float) -> None:
+        unknown = set(cfg) - set(self.EXT_KEYS)
+        if unknown:
+            raise ValueError(f"unknown ext_mix keys: {sorted(unknown)}")
+        if float(p_dm) > 0:
+            raise ValueError("ext_mix replaces dynamic mixing; set p_dm 0 (or remove it)")
+        pool = cfg.get("pool")
+        if pool is None:
+            from .extpool import ExtPool
+            pool = ExtPool(cfg["package"])
+        self.ext = pool
+        self.ext_p_libri, self.ext_p_noise = float(cfg.get("p_libri", 0.5)), float(cfg.get("p_ext_noise", 0.6))
+        self.ext_p_second = float(cfg.get("p_second", 0.3))
+        self.ext_snr_db, self.ext_rel_db = tuple(cfg.get("snr_db", (-10.0, 20.0))), tuple(cfg.get("second_rel_db",
+                                                                                                    (-10.0, 0.0)))
+        self.ext_crop_tries, self.ext_crop_rel = int(cfg.get("crop_tries", 5)), float(cfg.get("crop_min_rel_rms", 0.1))
+        for name, p in (("p_libri", self.ext_p_libri), ("p_ext_noise", self.ext_p_noise),
+                        ("p_second", self.ext_p_second)):
+            if not 0.0 <= p <= 1.0:
+                raise ValueError(f"ext_mix {name} must be in [0, 1], got {p}")
+        for name, r in (("snr_db", self.ext_snr_db), ("second_rel_db", self.ext_rel_db)):
+            if len(r) != 2 or r[0] > r[1]:
+                raise ValueError(f"ext_mix {name} must be (lo, hi) with lo <= hi, got {r}")
+
+    def _libri_crop(self, rng: np.random.Generator) -> tuple[np.ndarray, int]:
+        """Random utterance, random 3 s crop; a crop quieter than crop_min_rel_rms x the utterance RMS is redrawn
+        (same utterance, up to crop_tries crops; the last one is kept)."""
+        k = int(rng.integers(len(self.ext.clean)))
+        u, L = self.ext.clean.get(k), self.length
+        thr = self.ext_crop_rel * self.ext.clean_rms[k]
+        for _ in range(self.ext_crop_tries):
+            o = int(rng.integers(u.size - L + 1))
+            c = np.asarray(u[o:o + L], np.float64) / 32768.0
+            if np.sqrt(np.mean(c ** 2)) >= thr:
+                break
+        return c, k
+
+    def _ext_noise(self, rng: np.random.Generator, clean_i: int | None, exclude: tuple | None):
+        """One noise excerpt (float64, self.length) and its source key ("ch", j) / ("ext", k)."""
+        L = self.length
+        for _ in range(8):
+            if rng.random() < self.ext_p_noise:
+                corp = self.ext.corpora[int(rng.integers(len(self.ext.corpora)))]
+                k = int(rng.choice(self.ext.noise_by_corpus[corp]))
+                key = ("ext", k)
+                if key == exclude:
+                    continue
+                x = self.ext.noise.get(k)
+                idx = (int(rng.integers(x.size)) + np.arange(L)) % x.size  # looping excerpt (= noiselib.loop_excerpt)
+                n = np.asarray(x[idx], np.float64) / 32768.0
+            else:
+                ex = set() if clean_i is None else {clean_i}
+                if exclude is not None and exclude[0] == "ch":
+                    ex.add(exclude[1])
+                j = self._draw_other(rng, ex)
+                key = ("ch", j)
+                n = np.roll(self.noise[j], int(rng.integers(L))).astype(np.float64)
+            if float(np.mean(n ** 2)) > 0:
+                return n, key
+        raise RuntimeError("ext_mix: 8 silent noise draws in a row")
+
+    def _ext_sample(self, rng: np.random.Generator, info: dict | None) -> tuple[np.ndarray, np.ndarray]:
+        if rng.random() < self.ext_p_libri:
+            c, k = self._libri_crop(rng)
+            i, src = None, ("libri", k)
+        else:
+            i = int(rng.integers(len(self)))
+            c, src = self.clean[i].astype(np.float64), ("ch", i)
+        c = self._clean_aug(c, rng, info)
+        n, n1 = self._ext_noise(rng, i, None)
+        n2, rel = None, None
+        if rng.random() < self.ext_p_second:
+            m2, n2 = self._ext_noise(rng, i, n1)
+            rel = rng.uniform(*self.ext_rel_db)
+            n = n + m2 * np.sqrt(float(np.mean(n ** 2)) / float(np.mean(m2 ** 2)) * 10 ** (rel / 10))
+        snr = rng.uniform(*self.ext_snr_db)
+        pc, pn = float(np.mean(c ** 2)), float(np.mean(n ** 2))
+        scale = np.sqrt(pc / (pn * 10 ** (snr / 10))) if pn > 0 and pc > 0 else 1.0
+        if info is not None:
+            info.update(clean_src=src, noise=n1, noise2=n2, rel_db=rel, snr_db=snr)
         return self._peak_guard(c, c + n * scale)
 
     def _remix_sample(self, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:

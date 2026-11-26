@@ -18,10 +18,20 @@ g = target / max(rms, RMS_EPS) (float64, then float32) and each output is scaled
 The config's inference params must then be level_mode rms_norm with the same target_rms. train.remix.p_dm > 0 turns
 on dynamic mixing (nrc.data.remix). Both unset: unchanged behaviour (bit-identical loss stream).
 train.remix.p_speed / p_eq (gru_v8p2z3a/b) turn on clean-side speed perturbation / random EQ (nrc.data.remix).
+exp/r2-ext (gru_v8p2z6a/b; all default off = unchanged behaviour):
+- train.ext_mix {package, ...}: external clean + noise mixing (nrc.data.remix ext_mix, nrc.data.extpool); --ext-package
+  overrides the package path.
+- train.select_sets (default [validation]): the selection metric sel_pesq is the unweighted mean of the per-set PESQ
+  means (e.g. validation, gen_unseen_dev, gen_multi_dev); it drives best.pt and the patience counter. Each set's PESQ
+  is logged (val_pesq, gu_dev_pesq, gm_dev_pesq); train64 as before.
+- train.ema_decay d: an EMA of the weights (ema = d ema + (1 - d) w after every optimizer step, buffers copied,
+  initialised from init_from); validation and best.pt use the EMA weights; last.pt stores it for resume.
+- train.steps_per_epoch: fixed steps per epoch (default ceil(len(train) / batch_size)).
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import math
 import os
@@ -33,7 +43,7 @@ import numpy as np
 
 from _common import REPO_ROOT, load_config
 
-from nrc.io import load_manifest, read_row, resolve_data_root, stratified_subset
+from nrc.io import load_manifest, read_row, resolve_data_root, split_root, stratified_subset
 from train import _atomic_save, _enhance_batch, loss_weights
 from train_mgan import _val_item, g_regression, restore_torch_rng, validate
 
@@ -41,7 +51,8 @@ from nrc.methods.gru_mask import OUT_PEAK, RMS_EPS
 
 LOG_FIELDS = ("epoch", "step", "loss", "l_cmag", "l_mrstft", "l_sisdr", "l_pesq", "tpesq_mos", "pesq_rows_dropped",
               "pesq_nonfinite", "train64_pesq", "val_pesq", "val_snr", "gap", "val_failed", "lr", "epoch_s", "val_s",
-              "best_pesq", "early_stop")
+              "best_pesq", "early_stop", "gu_dev_pesq", "gm_dev_pesq", "sel_pesq")
+SET_COLUMNS = {"validation": "val_pesq", "gen_unseen_dev": "gu_dev_pesq", "gen_multi_dev": "gm_dev_pesq"}
 SILENT = 1e-8
 MAX_NONFINITE = 5
 TRAIN_SUBSET = 64
@@ -163,6 +174,7 @@ def main(argv=None) -> int:
     ap.add_argument("--train-subset", type=int, default=TRAIN_SUBSET, help="train64 PESQ subset size")
     ap.add_argument("--pesq-jobs", type=int, default=os.cpu_count() or 1, help="PESQ processes (val + train64)")
     ap.add_argument("--threads", type=int, default=None, help="torch CPU threads")
+    ap.add_argument("--ext-package", default=None, help="ext_mix package dir (overrides train.ext_mix.package)")
     args = ap.parse_args(argv)
 
     import torch
@@ -187,19 +199,36 @@ def main(argv=None) -> int:
     remix_kw = dict(tcfg.get("remix", {}))
     if rms_t is not None:
         remix_kw["rms_norm_target"] = rms_t
+    if tcfg.get("ext_mix") is not None:
+        remix_kw["ext_mix"] = dict(tcfg["ext_mix"])
+        if args.ext_package:
+            remix_kw["ext_mix"]["package"] = args.ext_package
+    elif args.ext_package:
+        raise ValueError("--ext-package given but the config has no train.ext_mix")
     data = RemixData.from_manifest(root, train_df, REPO_ROOT / "logs" / "noise_check.csv", **remix_kw)
     run_val = validate if rms_t is None else validate_rmsn
 
-    def load_set(df):
+    def load_set(df, base=root):
         if rms_t is not None:
-            d = {k: np.stack([read_row(root, r, k).astype(np.float64) for _, r in df.iterrows()])
+            d = {k: np.stack([read_row(base, r, k).astype(np.float64) for _, r in df.iterrows()])
                  for k in ("clean", "noisy")}
             d["noisy"] = rms_norm_rows(d["noisy"], rms_t)
             return d
-        return {k: np.stack([read_row(root, r, k).astype(np.float32 if k == "noisy" else np.float64)
+        return {k: np.stack([read_row(base, r, k).astype(np.float32 if k == "noisy" else np.float64)
                              for _, r in df.iterrows()]) for k in ("clean", "noisy")}
     val = load_set(stratified_subset(load_manifest(root, "validation"), args.val_subset))
     tr64 = load_set(stratified_subset(train_df, args.train_subset))
+    sel_sets = list(tcfg.get("select_sets") or ["validation"])
+    if sel_sets[0] != "validation" or len(set(sel_sets)) != len(sel_sets) or not set(sel_sets) <= set(SET_COLUMNS):
+        raise ValueError(f"train.select_sets must start with validation and use {list(SET_COLUMNS)}, got {sel_sets}")
+    extra = {s: load_set(stratified_subset(load_manifest(root, s), args.val_subset), split_root(root, s))
+             for s in sel_sets[1:]}
+    if extra:
+        print("selection sets: " + ", ".join(f"{s} {len(d['clean'])}" for s, d in
+                                             [("validation", val), *extra.items()]) + " (unweighted mean)")
+    if data.ext is not None:
+        print(data.ext.summary() + f"; p_libri {data.ext_p_libri}, p_ext_noise {data.ext_p_noise}, snr "
+              f"{data.ext_snr_db} dB, p_second {data.ext_p_second} at {data.ext_rel_db} dB", flush=True)
     print(f"data: train {len(data)} x {data.length} samples, val {len(val['clean'])}, train subset "
           f"{len(tr64['clean'])}, load {time.perf_counter() - t0:.1f}s, device {device}, pesq jobs {args.pesq_jobs}")
     print(f"data options: rms_norm_target {rms_t} (train + val/train64), gain augmentation "
@@ -215,6 +244,9 @@ def main(argv=None) -> int:
         raise ValueError("train_dpesq supports magnitude-mask models only")
     loss_fn = pesq_loss(1.0, 16000).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=float(tcfg.get("lr", 5e-5)))
+    ema_d = float(tcfg["ema_decay"]) if tcfg.get("ema_decay") else None
+    if ema_d is not None and not 0.0 < ema_d < 1.0:
+        raise ValueError(f"train.ema_decay must be in (0, 1), got {ema_d}")
     ckpt_dir = Path(args.ckpt_dir) if args.ckpt_dir else REPO_ROOT / "outputs" / "ckpt" / cfg["name"]
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     last_path, best_path, log_path = ckpt_dir / "last.pt", ckpt_dir / "best.pt", ckpt_dir / "train_log.csv"
@@ -230,6 +262,8 @@ def main(argv=None) -> int:
             return 0
         rng.bit_generator.state = ck["np_rng"]
         restore_torch_rng(ck)
+        if ema_d is not None and ck.get("ema") is None:
+            raise ValueError(f"{last_path} has no EMA state but train.ema_decay is set")
         print(f"resumed from {last_path}: epoch {start_epoch}, step {step}, best {best:.4f} (ep {best_epoch})")
     else:
         init_path = REPO_ROOT / tcfg["init_from"]
@@ -237,9 +271,17 @@ def main(argv=None) -> int:
         model.load_state_dict(ck["model_state"])  # strict: same architecture as gru_v5b
         print(f"init from {init_path.name} (epoch {ck.get('epoch')}, pesq {ck.get('pesq')}); "
               f"{count_params(model):,} params; fresh optimizer")
+    ema = None
+    if ema_d is not None:
+        ema = copy.deepcopy(model)
+        ema.requires_grad_(False)
+        if args.resume and last_path.is_file():
+            ema.load_state_dict(ck["ema"])
+        print(f"EMA of weights on: decay {ema_d} (validation and best.pt use the EMA weights)")
+    eval_model = model if ema is None else ema
 
     bs = int(tcfg.get("batch_size", 16))
-    steps_per_epoch = math.ceil(len(data) / bs)
+    steps_per_epoch = int(tcfg.get("steps_per_epoch") or math.ceil(len(data) / bs))
     clip, epochs, val_every = float(tcfg.get("grad_clip", 5.0)), int(tcfg["epochs"]), int(tcfg.get("val_every", 1))
     patience = int(tcfg["patience_val_points"]) if tcfg.get("patience_val_points") else None
     print(f"loss = {lw['cmag']} cmag + {lw['mrstft']} MR-STFT + {lw['sisdr']} (-SI-SDR) + {lam} PESQ; "
@@ -272,6 +314,12 @@ def main(argv=None) -> int:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                 opt.step()
+                if ema is not None:
+                    with torch.no_grad():
+                        for pe, p in zip(ema.parameters(), model.parameters()):
+                            pe.mul_(ema_d).add_(p.detach(), alpha=1.0 - ema_d)
+                        for be, b in zip(ema.buffers(), model.buffers()):
+                            be.copy_(b)
                 dropped_n += dropped
                 acc["loss"].append(loss.item())
                 for k in ("cmag", "mrstft", "sisdr", "pesq"):
@@ -286,18 +334,27 @@ def main(argv=None) -> int:
                         stop = True
                         break
             epoch_s = time.perf_counter() - te
-            pesq_v = snr_v = tr_v = float("nan")
+            pesq_v = snr_v = tr_v = sel_v = float("nan")
+            set_pesq = {}
             failed, val_s = "", 0.0
             if (epoch + 1) % val_every == 0 or epoch + 1 == epochs or stop:
                 tv = time.perf_counter()
-                pesq_v, snr_v, failed = run_val(model, val, device, vb, pool)
-                tr_v, _, _ = run_val(model, tr64, device, vb, pool)
+                pesq_v, snr_v, failed = run_val(eval_model, val, device, vb, pool)
+                set_pesq = {"validation": pesq_v}
+                for s, d in extra.items():
+                    set_pesq[s], _, f_s = run_val(eval_model, d, device, vb, pool)
+                    failed += f_s
+                sel_v = float(np.mean([set_pesq[s] for s in sel_sets]))
+                tr_v, _, _ = run_val(eval_model, tr64, device, vb, pool)
                 val_s = time.perf_counter() - tv
-                if math.isfinite(pesq_v):
-                    if pesq_v > best:
-                        best, best_epoch, since_best = pesq_v, epoch + 1, 0
+                if math.isfinite(sel_v):
+                    if sel_v > best:
+                        best, best_epoch, since_best = sel_v, epoch + 1, 0
                         tmp = best_path.with_suffix(".pt.tmp")
-                        save_weights(tmp, model, epoch=best_epoch, pesq=best, config=cfg["name"])
+                        meta = {} if not extra and ema is None else {
+                            "select_sets": ",".join(sel_sets), "ema_decay": ema_d,
+                            **{SET_COLUMNS[s]: v for s, v in set_pesq.items()}}
+                        save_weights(tmp, eval_model, epoch=best_epoch, pesq=best, config=cfg["name"], **meta)
                         os.replace(tmp, best_path)
                     else:
                         since_best += 1
@@ -307,7 +364,7 @@ def main(argv=None) -> int:
                           "early_stopped": early, "np_rng": rng.bit_generator.state,
                           "torch_rng": torch.get_rng_state(),
                           "cuda_rng": torch.cuda.get_rng_state_all() if device == "cuda" else None,
-                          "cfg": cfg}, last_path)
+                          "ema": None if ema is None else ema.state_dict(), "cfg": cfg}, last_path)
             mean = {k: (float(np.nanmean(v)) if len(v) and np.isfinite(v).any() else float("nan"))
                     for k, v in acc.items()}
             row = {"epoch": epoch + 1, "step": step, "loss": _fmt(mean["loss"]), "l_cmag": _fmt(mean["cmag"]),
@@ -316,18 +373,25 @@ def main(argv=None) -> int:
                    "train64_pesq": _fmt(tr_v, 4), "val_pesq": _fmt(pesq_v, 4), "val_snr": _fmt(snr_v, 3),
                    "gap": _fmt(tr_v - pesq_v, 4), "val_failed": failed, "lr": f"{opt.param_groups[0]['lr']:.2e}",
                    "epoch_s": f"{epoch_s:.1f}", "val_s": f"{val_s:.1f}",
-                   "best_pesq": f"{best:.4f}" if best > -math.inf else "", "early_stop": "1" if early else ""}
+                   "best_pesq": f"{best:.4f}" if best > -math.inf else "", "early_stop": "1" if early else "",
+                   "gu_dev_pesq": _fmt(set_pesq.get("gen_unseen_dev", float("nan")), 4),
+                   "gm_dev_pesq": _fmt(set_pesq.get("gen_multi_dev", float("nan")), 4),
+                   "sel_pesq": _fmt(sel_v, 4) if extra else ""}
             log.writerow(row)
             logf.flush()
             print(f"epoch {epoch + 1}/{epochs} step {step} loss {row['loss']} l_pesq {row['l_pesq']} "
                   f"tpesq_mos {row['tpesq_mos']} train64 {row['train64_pesq']} val_pesq {row['val_pesq']} "
-                  f"(gap {row['gap']}) val_snr {row['val_snr']} best {best:.4f} (ep {best_epoch}) "
+                  f"(gap {row['gap']}) val_snr {row['val_snr']}"
+                  + (f" gu_dev {row['gu_dev_pesq']} gm_dev {row['gm_dev_pesq']} sel {row['sel_pesq']}" if extra else "")
+                  + f" best {best:.4f} (ep {best_epoch}) "
                   f"[{epoch_s:.1f}s + val {val_s:.1f}s, {epoch_s / max(1, len(acc['loss'])):.3f}s/step]", flush=True)
             if early:
-                print(f"early stop: no val PESQ gain for {since_best} val points", flush=True)
+                print(f"early stop: no {'selection' if extra else 'val'} PESQ gain for {since_best} val points",
+                      flush=True)
             if stop or early:
                 break
-    print(f"done: best val PESQ {best:.4f} at epoch {best_epoch}; weights {best_path}")
+    sel_name = "selection (" + " + ".join(sel_sets) + ")" if extra else "val"
+    print(f"done: best {sel_name} PESQ {best:.4f} at epoch {best_epoch}; weights {best_path}")
     return 0
 
 

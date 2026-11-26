@@ -31,11 +31,12 @@ WIN, MAX_WIN = 3 * SR, 20
 
 
 class Index:
-    def __init__(self, files: list[dict]):
+    def __init__(self, files: list[dict], signals: list[np.ndarray] | None = None):
+        """files: [{rel, ...}] read with read_noise, or any labels when `signals` (same order) is given."""
         self.files, self.fps = files, []
         subs, fid, pos = [], [], []
         for i, f in enumerate(files):
-            s, v = fingerprint(read_noise(f["rel"]))
+            s, v = fingerprint(read_noise(f["rel"]) if signals is None else signals[i])
             self.fps.append((s, v))
             k = np.flatnonzero(v)
             subs.append(s[k]); fid.append(np.full(k.size, i, np.int32)); pos.append(k.astype(np.int64))
