@@ -1,14 +1,18 @@
 # CLAUDE.md — Speech Noise Reduction Challenge 1 (traditional DSP)
 ## Objective
-Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Deadline 2026-11-17 23:59 KST.
-Current submission candidate: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7 (first submission, not yet sent; supersedes dsp-v6 1.9637, dsp-v5 1.9570, dsp-v4 1.9497, dsp-v3 1.9352, dsp-v2 1.8746, dsp-v1 1.7505).
+Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR. Round 2 ends 2026-12-13 KST.
+Current round-2 candidate (r2-prep): gru_v8p2z3e + rms_norm / val PESQ 3.6534, SNR 1.21 dB / tag r2-ready (round 1: dsp_k 1.9884 / 12.84 dB, dsp-v7, sub-20261116).
 ## Rounds
 - Round 1 (classical DSP only, no ML/DL) ends 2026-11-17 23:59 KST; round 2 (DL) starts 2026-11-18 KST.
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
-- Round 2 (TA env: Python 3.12, torch 2.15.0+cpu, pesq 0.0.4): weights must load with torch.load(..., weights_only=True) (tensors + primitive metadata only); no downloads at inference.
-- Round 2 output: flat output/ with exactly the input WAV names (16 kHz mono, same sample count), nothing else in output/ (logs elsewhere); scripts/e2e_check.py enforces it.
-- Round 2 README must state every TA notice item (env, packages, model/weight paths, training settings, inference command/cell order, seed, epochs, main settings, chosen weights' val score, absolute-path locations).
-- Round 2: the best verified submission counts; missing/extra files or format/PESQ errors withhold the score.
+- Round 2 (DL allowed) 2026-11-18 to 2026-12-13 KST. Final report due 2026-12-14 (A4 ~10 pages, Malgun/Nanum Gothic 11 pt; outline docs/final_report/outline.md).
+- Hidden test: 483 files, 16 kHz mono, 48000 samples, includes noise types not in train/validation. Rank = mean PESQ-WB; SNR auxiliary.
+- TA env Python 3.12, torch 2.15.0+cpu, pesq 0.0.4; weights load with torch.load(..., weights_only=True); no downloads at inference; weights < 50 MB plain commit (LFS only if large).
+- Output: flat output/ with exactly the input WAV names (same sr, channels, sample count), nothing else; scripts/e2e_check.py prints the 8-item notice checklist.
+- README (Korean) states Python version, packages, install + inference commands, model/weight paths, main training settings, why these weights, validation PESQ/SNR, team (13조 잡음처리반), round, commit/tag.
+- External data, public code, pretrained weights: allowed only if logged in docs/external_data.md (source, version, licence, split/fold, train vs validation use).
+- First submission does not count toward the weekly limit; the best verified submission counts; missing/extra files or format/PESQ errors withhold the score.
+- Round-2 promotion: primary = pooled paired PESQ delta vs current candidate on G_unseen_test + G_multi_test + G_low > 0, z >= 2; secondary = val_remix delta >= -0.02, validation delta >= -0.03, level probe flat, full e2e PASS.
 - Standings live only in docs/leaderboard.md (newest snapshot first); never copy leaderboard numbers elsewhere.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.
@@ -28,7 +32,7 @@ Current submission candidate: dsp_k / val PESQ 1.9884, SNR 12.84 dB / tag dsp-v7
 - Tune on train (or a train subset), confirm on validation, gate on val_remix. Never select on val_remix.
 - Only scripts/eval.py produces metrics; append to results/experiments.csv with a clean hash (commit code before final evals).
 - Report PESQ and SNR together (overall, per SNR, per difficulty).
-- Promotion rule (revised 2026-11-11, docs/exp_dsp_g.md): full-train paired delta >= 0.003 and z >= 3, val PESQ and val_remix PESQ >= current, every probe level >= current - 0.02, main.py CPU < 180 s.
+- Round-1 promotion rule (revised 2026-11-11, docs/exp_dsp_g.md): full-train paired delta >= 0.003 and z >= 3, val PESQ and val_remix PESQ >= current, every probe level >= current - 0.02, main.py CPU < 180 s.
 - Branch exp/<name>; merge to main only when acceptance criteria pass; tags dsp-vN (new best), sub-YYYYMMDD (only after the team confirms it was actually submitted).
 - After each task append one row to docs/ai_usage_log.md (date | goal | key prompt (summary) | what AI did | verification | references).
 - Add every algorithm source to docs/references.md (title, authors, year, DOI/link) marked pending until the team verifies it.

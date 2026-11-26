@@ -126,3 +126,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-26,9f5dda1,ext_cmgan,noisy,1.3884,1.3884,nan,nan,nan,7.494,split=gen_multi_test n=164 failed=0 snr=8.181 stoi=0.7712 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
 2026-11-26,9f5dda1,ext_mpsenet,noisy,1.1499,nan,nan,nan,nan,-8.655,split=gen_low n=328 failed=0 snr=0.870 stoi=0.4266 clipped=0 src=pred pesq@-10dB=1.1350 pesq@-5dB=1.1648 | exp/r2-gen pretrained zero-shot
 2026-11-26,9f5dda1,ext_cmgan,noisy,1.2292,nan,nan,nan,nan,-0.585,split=gen_low n=328 failed=0 snr=3.461 stoi=0.5786 clipped=0 src=pred pesq@-10dB=1.1638 pesq@-5dB=1.2946 | exp/r2-gen pretrained zero-shot
+2026-11-26,9ff7662,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs
