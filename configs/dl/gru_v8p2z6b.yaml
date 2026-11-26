@@ -4,7 +4,7 @@
 # never gen_dev/gen_test) p 0.6, else challenge train noise; SNR U[-10, 20] dB; second noise p 0.3 at U[-10, 0] dB
 # relative. Then z3e's speed/EQ clean augmentation and train-time rms_norm. Selection: unweighted mean PESQ of
 # validation, gen_unseen_dev and gen_multi_dev. Init weights/gru_v8p2z3e.pt (weights only, fresh Adam lr 5e-5),
-# 300 epochs x 81 steps, patience 40. Inference: level_mode rms_norm (target_rms 0.079130). Train:
+# 300 epochs x 81 steps, val every 2 epochs, patience 20 val points (= 40 epochs). Inference: level_mode rms_norm (target_rms 0.079130). Train:
 # scripts/train_dpesq.py --ext-package <pkg> (Colab: notebooks/colab_train.ipynb).
 method: gru_mask
 params:
@@ -37,9 +37,9 @@ train:
   lambda_mrstft: 0.0
   lambda_sisdr: 0.0
   lambda_pesq: 0.32
-  val_every: 1
+  val_every: 2                    # validate every 2 epochs (halves the ~65 s evaluation per epoch)
   val_batch: 16
-  patience_val_points: 40         # early stop: 40 epochs without a selection PESQ gain
+  patience_val_points: 20         # early stop: 20 val points (= 40 epochs) without a selection PESQ gain
   select_sets: [validation, gen_unseen_dev, gen_multi_dev]  # selection = unweighted mean of the three PESQ means
   ema_decay: 0.999                # EMA of weights (time constant ~1000 steps ~ 12 epochs); validated + saved as best.pt
   rms_norm_target: 0.079130       # train-time rms_norm (= params.target_rms); gain augmentation off

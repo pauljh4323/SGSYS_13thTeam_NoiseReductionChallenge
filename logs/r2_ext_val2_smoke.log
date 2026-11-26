@@ -1,0 +1,33 @@
+=== gru_v8p2z6a: --max-steps 1 --val-subset 3 --train-subset 3 --device cpu --threads 4
+selection sets: validation 3, gen_unseen_dev 3, gen_multi_dev 3 (unweighted mean)
+ext pool D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\data_ext\pkg\nrc_ext_z6: LibriSpeech 7415 utts / 223 speakers / 22.6 h; noise demand 12 files 1.00 h, esc50 1355 files 1.56 h, musan 620 files 3.53 h; p_libri 0.5, p_ext_noise 0.6, snr (-10, 20) dB, p_second 0.3 at (-10, 0) dB
+data: train 1296 x 48000 samples, val 3, train subset 3, load 31.7s, device cpu, pesq jobs 16
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 0.0, clean aug: speed p 0.8 (0.8, 1.2), eq p 0.8 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-12, 12) dB)
+init from gru_v8p2z3e.pt (epoch 104, pesq 3.6533577965527044); 2,373,651 params; fresh optimizer
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 300 epochs x 81 steps
+  step 1: loss 0.609551 (cmag 0.07845 mrstft nan sisdr nan pesq 1.85582) tpesq_mos 2.9058 dropped 0 [2.813s]
+epoch 1/300 step 1 loss 0.609551 l_pesq 1.855817 tpesq_mos 2.9058 train64 3.5657 val_pesq 3.4702 (gap 0.0956) val_snr 1.674 gu_dev 2.3280 gm_dev 2.2368 sel 2.6783 best 2.6783 (ep 1) [3.0s + val 3.9s, 2.982s/step]
+done: best selection (validation + gen_unseen_dev + gen_multi_dev) PESQ 2.6783 at epoch 1; weights outputs\ckpt\smoke_z6a\best.pt
+exit=0
+best.pt
+last.pt
+train_log.csv
+=== gru_v8p2z6b: --max-steps 1 --val-subset 3 --train-subset 3 --device cpu --threads 4
+selection sets: validation 3, gen_unseen_dev 3, gen_multi_dev 3 (unweighted mean)
+ext pool D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\data_ext\pkg\nrc_ext_z6: LibriSpeech 7415 utts / 223 speakers / 22.6 h; noise demand 12 files 1.00 h, esc50 1355 files 1.56 h, musan 620 files 3.53 h; p_libri 0.5, p_ext_noise 0.6, snr (-10, 20) dB, p_second 0.3 at (-10, 0) dB
+data: train 1296 x 48000 samples, val 3, train subset 3, load 4.0s, device cpu, pesq jobs 16
+data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 0.0, clean aug: speed p 0.8 (0.8, 1.2), eq p 0.8 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-12, 12) dB)
+init from gru_v8p2z3e.pt (epoch 104, pesq 3.6533577965527044); 2,373,651 params; fresh optimizer
+EMA of weights on: decay 0.999 (validation and best.pt use the EMA weights)
+loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 300 epochs x 81 steps
+  step 1: loss 0.548629 (cmag 0.08121 mrstft nan sisdr nan pesq 1.66371) tpesq_mos 3.0585 dropped 0 [2.480s]
+epoch 1/300 step 1 loss 0.548629 l_pesq 1.663712 tpesq_mos 3.0585 train64 3.5670 val_pesq 3.4668 (gap 0.1002) val_snr 1.684 gu_dev 2.3132 gm_dev 2.2176 sel 2.6659 best 2.6659 (ep 1) [2.8s + val 4.8s, 2.762s/step]
+done: best selection (validation + gen_unseen_dev + gen_multi_dev) PESQ 2.6659 at epoch 1; weights outputs\ckpt\smoke_z6b\best.pt
+exit=0
+best.pt
+last.pt
+train_log.csv
+code cells 8 CONFIGS defined in code cell 0 used in [0, 5, 6, 7]
+CONFIGS = ['configs/dl/gru_v8p2z6a.yaml', 'configs/dl/gru_v8p2z6b.yaml']
+z6a val_every 2 patience_val_points 20 epochs 300 -> patience epochs 40
+z6b val_every 2 patience_val_points 20 epochs 300 -> patience epochs 40
