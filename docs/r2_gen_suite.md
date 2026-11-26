@@ -49,8 +49,37 @@ Details and SHA-256 hashes: docs/external_data.md. Split lists: splits/gen/ (det
 There were 0 PESQ failures. **5 of 8 G_low evals (dsp_v8, gru_v5b_off, gru_v8p2z4w, ext_mpsenet, ext_cmgan) exited silently
 after 86 rows**, at G_low file 87 (`speaker015_utt01_seg0013_gl0`, N071 wind, −5 dB), with no traceback.
 `eval.py --resume` kept the 86 rows and scored the rest without error on the next run every time. The cause is not identified:
-it could be a native crash in pesq or soundfile on that file. **Open issue:** reproduce it with pesq alone on that file's
-clean/enhanced pair, because a PESQ error on a hidden-test file would withhold the round-2 score.
+it could be a native crash in pesq or soundfile on that file.
+
+**Resolved (2026-11-26): native pesq crash on the *noisy* reference score, not on any model output.**
+The suite log shows `Segmentation fault` (Windows 0xC0000005) for all 5 exits. The repro used pesq 0.0.4 in env nrc
+(Python 3.12), with fresh processes and the signals as eval.py scores them (int16-quantised).
+- `pesq(16000, clean, y, 'wb')` alone, 20 fresh processes per signal plus 20 calls in one process:
+  - All 8 enhanced outputs: 0 crashes, and each gives the same score every time
+    (dsp_v8 1.1496, gru_v5b_off 1.6286, z3d 2.1896, z3e 2.1253, z4w 2.1154, dfn3 1.3614, mpsenet 1.6384, cmgan 1.5708).
+  - `noisy`: crashed in 1 of 20 fresh processes and in the 20-calls-in-one-process run. Its score changes from run to
+    run (1.0548–1.0666), which suggests pesq is reading uninitialised memory.
+- eval.py `evaluate_row` on this file, 3 × 8 models in fresh processes: 7 of 24 exited with 0xC0000005 and no stderr.
+  This is the original silent exit. The crashes do not follow the model (round 1: cmgan; rounds 2 and 3: dsp_v8, dfn3
+  and mpsenet), and `pesq_in` varies run to run (1.055–1.074). So the crash is in
+  `pesq_in = pesq_wb(clean, noisy)`. `--resume` worked because each retry is a new draw.
+- Minimal trigger, testing the noisy pair with 6 processes × 5 calls each:
+  - The crash is on the degraded side only. With noisy as the reference instead, it never crashed (0/6).
+  - Level does not matter: scaling the noisy signal by 0.1, 0.5 or 2 still crashes, and so does adding 1-LSB dither.
+  - It needs the full 3 s. Crops to the first, middle or last 2 s are deterministic.
+  - It needs broadband noise dominating the speech: wind noise alone (5/6) or high-passed at 300 Hz (4/6) still
+    crash. Low-passed at 300 Hz, or clean + 0.3 × noise, is deterministic.
+- Scan, 4 calls per pair in a fresh process, flagging a crash or a score that changes:
+  - validation: noisy, dsp_v8 and z3e (= `configs/submission.yaml`), 0/164 flagged each.
+  - G_low: noisy 2/328 flagged, both from this utterance and noise (`_gl0` at −5 dB and `_gl1` at −10 dB).
+    z3e 0/328.
+- **Hidden-test risk: low.** The TA scores clean vs our output. In every scan, none of our outputs triggered it,
+  including at −10 dB. Even the raw noisy validation inputs (0–15 dB) never did.
+  It would take an output that is almost all broadband noise, and z3e removes most of the noise on exactly these files.
+  **No main.py change.**
+- Optional hardening for our tooling only: run eval.py's `pesq_in` (or both PESQ calls) in a child process, retry once
+  on a native crash, and record any remaining failure as a PESQ failure.
+  Scripts: the session scratchpad (prep/isolation/variants/scan/evalpath), not committed.
 
 ### Paired PESQ delta vs gru_v5b_off (mean ± 95 % CI, z)
 | model | val | G_unseen_test | G_multi_test | G_low |
