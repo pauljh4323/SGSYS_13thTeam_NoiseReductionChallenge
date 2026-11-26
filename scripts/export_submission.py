@@ -75,7 +75,8 @@ def patch_registry(text: str) -> str:
         if text.count(old) != 1:
             raise SystemExit(f"methods/__init__.py: expected exactly one {old.strip()!r}")
         text = text.replace(old, new)
-    for name in ("mmse_lsa", "noisy", "wiener"):
+    # module references only ("noisy" is also the waveform parameter name, which stays)
+    for name in ("mmse_lsa", "noisy.enhance", '"noisy":', "wiener"):
         if name in text:
             raise SystemExit(f"methods/__init__.py still mentions {name!r} after the patch")
     return text
