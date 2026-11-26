@@ -1,0 +1,25 @@
+LibriSpeech train-clean-100 subset (scripts/gen/prepare_librispeech.py)
+{
+  "archive": "train-clean-100.tar.gz",
+  "utterances_total": 28539,
+  "speakers_total": 251,
+  "hours_total": 100.59,
+  "dur_ge_3s": 27952,
+  "wada_ge_min": 15230,
+  "eligible": 14921,
+  "overlap_matches": 0,
+  "overlap_ber_min": 0.4082,
+  "min_wada_db": 30.0,
+  "per_speaker_cap": 40,
+  "max_sec": 12.0,
+  "kept_utterances": 7415,
+  "kept_speakers": 223,
+  "speakers_below_cap": 68,
+  "kept_hours": 22.59,
+  "kept_hours_before_crop": 26.48,
+  "wada_median_all": 31.287,
+  "wada_median_kept": 53.278,
+  "shards": 10,
+  "size_bytes": 2601943686,
+  "seconds": 1435.1
+}

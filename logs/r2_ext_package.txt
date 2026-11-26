@@ -1,0 +1,4 @@
+package data_ext\pkg\nrc_ext_z6
+ext pool data_ext\pkg\nrc_ext_z6: LibriSpeech 7415 utts / 223 speakers / 22.6 h; noise demand 12 files 1.00 h, esc50 1355 files 1.56 h, musan 620 files 3.53 h
+noise status {'kept': 1431, 'trimmed': 556, 'silent': 13}; per corpus {'demand': 12, 'esc50': 1355, 'musan': 620}
+sizes (GB): librispeech 2.602, noise_pool 0.702, gen 0.095; total 3.399 GB (3.165 GiB), 1002 files

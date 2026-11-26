@@ -88,3 +88,10 @@ Added 2026-11-12 from memory (dl-main had no references.md) — every field must
 | DeepFilterNet: Perceptually Motivated Real-Time Speech Enhancement (Proc. Interspeech 2023) | H. Schröter, T. Rosenkranz, A. N. Escalante-B., A. Maier | 2023 | https://arxiv.org/abs/2305.08227 (from memory, verify) | exp/r2-gen zero-shot baseline (DeepFilterNet3, pip deepfilternet 0.5.6); reference only, not in main.py | pending (team must confirm) |
 | MP-SENet: A Speech Enhancement Model with Parallel Denoising of Magnitude and Phase Spectra (Proc. Interspeech 2023) | Y.-X. Lu, Y. Ai, Z.-H. Ling | 2023 | https://arxiv.org/abs/2305.13686 (code github.com/yxlu-0102/MP-SENet; from memory, verify) | exp/r2-gen zero-shot baseline (g_best_vb); reference only, not in main.py | pending (team must confirm) |
 | CMGAN: Conformer-based Metric GAN for Speech Enhancement (Proc. Interspeech 2022) | R. Cao, S. Abdulatif, B. Yang | 2022 | https://arxiv.org/abs/2203.15149 (code github.com/ruizhecao96/CMGAN; from memory, verify) | exp/r2-gen zero-shot baseline (best_ckpt/ckpt); reference only, not in main.py | pending (team must confirm) |
+
+## External training data and clean-speech filtering (exp/r2-ext, gru_v8p2z6a/b)
+
+| title | authors | year | DOI / link | used for | verification |
+|---|---|---|---|---|---|
+| Librispeech: An ASR corpus based on public domain audio books (Proc. IEEE ICASSP 2015, pp. 5206-5210) | V. Panayotov, G. Chen, D. Povey, S. Khudanpur | 2015 | https://doi.org/10.1109/ICASSP.2015.7178964 (data: https://www.openslr.org/12; from memory, verify) | exp/r2-ext: train-clean-100 subset as extra clean speech for training gru_v8p2z6a/b (scripts/gen/prepare_librispeech.py) | pending (team must confirm) |
+| Robust signal-to-noise ratio estimation based on waveform amplitude distribution analysis (Proc. Interspeech 2008, pp. 2598-2601) | C. Kim, R. M. Stern | 2008 | https://doi.org/10.21437/Interspeech.2008-644 (from memory, verify) | exp/r2-ext: WADA-SNR filter (>= 30 dB) on LibriSpeech utterances (scripts/gen/wada.py; G(SNR) table rebuilt by Monte-Carlo, no public code) | pending (team must confirm) |

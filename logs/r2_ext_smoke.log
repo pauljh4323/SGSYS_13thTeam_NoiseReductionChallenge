@@ -1,0 +1,37 @@
+1a. 1296 train files x 48000; gru_v8p2z3e settings, new vs 4e23a58 RemixData, 200 draws identical (samples + RNG state): True (7.4s)
+1b. gru_v8p2z3e training loss, 2 steps, options off vs 4e23a58 code: bitwise equal True (['0.4156619542', '0.3448399865'])
+1c. train_dpesq.py gru_v8p2z3e --max-steps 2, 4e23a58 vs new: step lines identical True
+   step 1: loss 0.365619 (cmag 0.10473 mrstft nan sisdr nan pesq 1.07710) tpesq_mos 3.7675 dropped 0
+   step 2: loss 0.479768 (cmag 0.08905 mrstft nan sisdr nan pesq 1.44362) tpesq_mos 3.3157 dropped 0
+2. ext pool data_ext\pkg\nrc_ext_z6: LibriSpeech 7415 utts / 223 speakers / 22.6 h; noise demand 12 files 1.00 h, esc50 1355 files 1.56 h, musan 620 files 3.53 h (load 0.1s)
+   100 draws: length/finite True, max |SNR err| 0.0000 dB, rms rel err 1.0e-09, LibriSpeech clean 53/100, external first noise 56/100, second noise 30/100, external noise per corpus {'demand': 24, 'esc50': 27, 'musan': 23}, speed 72/100, EQ 79/100; loader 160 ms/batch of 16: True
+3. leakage: 1987 pool noise files, none in gen_dev/gen_test/excluded (947 listed): True; injected gen_dev file raises: 3/3: True
+4. gru_v8p2z6a: scripts\train_dpesq.py --config configs/dl/gru_v8p2z6a.yaml --ckpt-dir <scratch>\smoke\gru_v8p2z6a --val-subset 3 --train-subset 3 --device cpu --max-steps 2 --threads 4
+   ext pool data_ext\pkg\nrc_ext_z6: LibriSpeech 7415 utts / 223 speakers / 22.6 h; noise demand 12 files 1.00 h, esc50 1355 files 1.56 h, musan 620 files 3.53 h; p_libri 0.5, p_ext_noise 0.6, snr (-10, 20) dB, p_second 0.3 at (-10, 0) dB
+   data: train 1296 x 48000 samples, val 3, train subset 3, load 3.6s, device cpu, pesq jobs 16
+   data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 0.0, clean aug: speed p 0.8 (0.8, 1.2), eq p 0.8 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-12, 12) dB)
+   init from gru_v8p2z3e.pt (epoch 104, pesq 3.6533577965527044); 2,373,651 params; fresh optimizer
+   loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 300 epochs x 81 steps
+     step 1: loss 0.609551 (cmag 0.07845 mrstft nan sisdr nan pesq 1.85582) tpesq_mos 2.9058 dropped 0 [3.959s]
+     step 2: loss 0.461497 (cmag 0.07772 mrstft nan sisdr nan pesq 1.39360) tpesq_mos 3.3975 dropped 0 [5.318s]
+   epoch 1/300 step 2 loss 0.535524 l_pesq 1.624709 tpesq_mos 3.1517 train64 3.5601 val_pesq 3.4746 (gap 0.0855) val_snr 1.660 gu_dev 2.3119 gm_dev 2.2522 sel 2.6796 best 2.6796 (ep 1) [9.8s + val 4.6s, 4.885s/step]
+   done: best selection (validation + gen_unseen_dev + gen_multi_dev) PESQ 2.6796 at epoch 1; weights <scratch>\smoke\gru_v8p2z6a\best.pt
+   (26.1s, exit 0)
+   2 steps finite + selection logged: True [('1', '0.609551', '1.85582'), ('2', '0.461497', '1.39360')]
+   best.pt weights_only=True + load_weights OK: epoch 1, sel pesq 2.6796, val 3.4746073881785073, gu_dev 2.311936338742574, gm_dev 2.2522475719451904, ema_decay None
+   no EMA: best.pt == last.pt model True: True
+4. gru_v8p2z6b: scripts\train_dpesq.py --config configs/dl/gru_v8p2z6b.yaml --ckpt-dir <scratch>\smoke\gru_v8p2z6b --val-subset 3 --train-subset 3 --device cpu --max-steps 2 --threads 4
+   data: train 1296 x 48000 samples, val 3, train subset 3, load 3.3s, device cpu, pesq jobs 16
+   data options: rms_norm_target 0.07913 (train + val/train64), gain augmentation off, dynamic mixing p_dm 0.0, clean aug: speed p 0.8 (0.8, 1.2), eq p 0.8 (low (150, 500) Hz, high (2000, 5000) Hz, gain (-12, 12) dB)
+   init from gru_v8p2z3e.pt (epoch 104, pesq 3.6533577965527044); 2,373,651 params; fresh optimizer
+   EMA of weights on: decay 0.999 (validation and best.pt use the EMA weights)
+   loss = 0.2 cmag + 0.0 MR-STFT + 0.0 (-SI-SDR) + 0.32 PESQ; lr 5.0e-05 (constant); 300 epochs x 81 steps
+     step 1: loss 0.548629 (cmag 0.08121 mrstft nan sisdr nan pesq 1.66371) tpesq_mos 3.0585 dropped 0 [2.484s]
+     step 2: loss 0.691183 (cmag 0.09234 mrstft nan sisdr nan pesq 2.10224) tpesq_mos 2.7092 dropped 0 [3.234s]
+   epoch 1/300 step 2 loss 0.619906 l_pesq 1.882974 tpesq_mos 2.8838 train64 3.5669 val_pesq 3.4669 (gap 0.1000) val_snr 1.684 gu_dev 2.3137 gm_dev 2.2177 sel 2.6661 best 2.6661 (ep 1) [6.1s + val 5.4s, 3.075s/step]
+   done: best selection (validation + gen_unseen_dev + gen_multi_dev) PESQ 2.6661 at epoch 1; weights <scratch>\smoke\gru_v8p2z6b\best.pt
+   (23.3s, exit 0)
+   2 steps finite + selection logged: True [('1', '0.548629', '1.66371'), ('2', '0.691183', '2.10224')]
+   best.pt weights_only=True + load_weights OK: epoch 1, sel pesq 2.6661, val 3.4669243494669595, gu_dev 2.3136565685272217, gm_dev 2.2177284558614097, ema_decay 0.999
+   EMA: best.pt == last.pt ema True, != raw model True: True
+SMOKE PASS
