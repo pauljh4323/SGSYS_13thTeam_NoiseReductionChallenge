@@ -13,6 +13,7 @@ Current round-2 candidate (r2-prep): gru_v8p2z3e + rms_norm / val PESQ 3.6534, S
 - External data, public code, pretrained weights: allowed only if logged in docs/external_data.md (source, version, licence, split/fold, train vs validation use).
 - First submission does not count toward the weekly limit; the best verified submission counts; missing/extra files or format/PESQ errors withhold the score.
 - Round-2 promotion: primary = pooled paired PESQ delta vs current candidate on G_unseen_test + G_multi_test + G_low > 0, z >= 2; secondary = val_remix delta >= -0.02, validation delta >= -0.03, level probe flat, full e2e PASS.
+- Submission repo = github.com/pauljh4323/sig_NalS_ANd_sYS_tem-team13-NoiseRC, built only via scripts/export_submission.py from a tag on r2-prep (mapping in docs/submissions.md); never edit it by hand.
 - Standings live only in docs/leaderboard.md (newest snapshot first); never copy leaderboard numbers elsewhere.
 ## Hard rules
 - No ML/DL in the submitted algorithm. Grid-searched parameters and rule-based input-adaptive parameters are allowed.

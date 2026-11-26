@@ -2,6 +2,15 @@
 
 Round 1 deadline: 2026-11-17 23:59 KST (at least one submission needed to be ranked). Round 2 (DL) starts 2026-11-18.
 
+## Round-2 submission repo (github.com/pauljh4323/sig_NalS_ANd_sYS_tem-team13-NoiseRC)
+
+Built only with `python scripts/export_submission.py --tag <tag> --target <clone outside this repo>` from a tag on
+r2-prep; file hashes in docs/submission_manifest.txt. No submission tag yet (placeholders `[태그]` / `[커밋]` in its README).
+
+| date | source tag / commit (this repo) | exporter commit | submission repo commit | model | verification |
+|---|---|---|---|---|---|
+| 2026-11-26 | r2-ready / 9ff7662 | 61dd793 | af7750b (main; 1df48b8 = earlier hand export of the same tree) | gru_v8p2z3e + rms_norm, val 3.6534 / 1.21 dB | 13 files, 9.09 MiB; outputs bit-identical to r2-ready on 164 validation files; e2e_check --repo-url (fresh GitHub clone, fresh venv torch 2.15.0+cpu): checklist 1-8 PASS, 0 FAIL (logs/e2e_submission_repo.log) |
+
 ## Rule change 2026-11-12
 
 Rule change 2026-11-12: README must be in Korean. README.md was rewritten in Korean at dsp-v7 (commands, paths,
