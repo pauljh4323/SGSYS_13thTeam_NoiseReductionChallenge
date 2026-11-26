@@ -141,8 +141,45 @@ python main.py
 
 ## 2차 챌린지
 
-2차 챌린지(딥러닝, 2026-11-18 시작) 제출본은 `r2-prep` 브랜치(태그 `r2-ready`)에 있습니다. 위의 1차 챌린지 내용(`dsp-v7`)은 `main` 브랜치 기준입니다.
+2차 챌린지(딥러닝, 2026-11-18 – 2026-12-13 KST) 제출본은 `r2-prep` 브랜치(태그 `r2-ready`)에 있습니다. 위의 1차 챌린지 내용(`dsp-v7`)은 `main` 브랜치 기준입니다.
 조교 공지 체크리스트(실행 환경, 패키지, 모델·가중치 경로, 학습 설정, 추론 명령, seed, epoch, 주요 설정, 선택 가중치의 validation 점수, 절대 경로 수정 위치)를 아래 항목 순서대로 정리했습니다.
+
+### 2차 챌린지 제출 정보
+
+| 항목 | 내용 |
+|---|---|
+| 팀 | 13조 잡음처리반 |
+| 회차 | 2차 챌린지 (딥러닝 허용) |
+| 태그 / 커밋 | `[태그]` / `[커밋]` (제출 시 기입; 현재 후보 = 태그 `r2-ready`) |
+| 제출 모델 | `gru_v8p2z3e` + 입력 레벨 모드 `rms_norm` (`configs/submission.yaml`, `weights/gru_v8p2z3e.pt`) |
+| Python / 설치 / 추론 | Python 3.12, `pip install -r requirements.txt`, `python main.py` (1·2·5절) |
+| 학습 계보 | `gru_v5b` → `gru_v8p2` → `gru_v8p2x` → `gru_v8p2y` → `gru_v8p2z2` → `gru_v8p2z3b` → `gru_v8p2z3d` → `gru_v8p2z3e` (4절) |
+| Validation PESQ / SNR | **3.6534** / 1.21 dB (164개 파일, `main.py` 출력, `pesq==0.0.4` 광대역; 6절) |
+
+**제출 가중치 선택 이유** — 다음 세 가지 근거를 모두 확인했습니다.
+1. validation: 후보 중 PESQ가 가장 높습니다 (3.6534; 직전 후보 `gru_v8p2z3d` 3.6359, 대응 차이 +0.0174, z 5.2).
+2. val_remix (체크포인트 선택에 쓰지 않은 보조 검증 세트): 직전 후보 대비 +0.0093 (z 3.1), 3.4961 (6절 선택 규칙).
+3. 일반화 세트 (`exp/r2-gen` 브랜치의 `docs/r2_gen_suite.md`; 학습에 쓰지 않은 외부 잡음 또는 학습 범위 밖 SNR로 만든 평가 전용 세트, 선택에는 쓰지 않음).
+   숨겨진 테스트에는 train/validation에 없는 잡음 종류가 포함되므로 이 세트로 일반화를 확인했습니다. PESQ:
+
+| 모델 | G_unseen_test (외부 잡음, 328) | G_multi_test (외부 잡음 2종 합성, 164) | G_low (−5/−10 dB, 328) |
+|---|---|---|---|
+| `gru_v5b` | 1.914 | 1.339 | 1.465 |
+| `gru_v8p2z3d` + rms_norm | 2.832 | 2.226 | 2.307 |
+| `gru_v8p2z4w` + rms_norm | 2.820 | 2.218 | 2.311 |
+| **`gru_v8p2z3e` + rms_norm** | **2.835** | **2.240** | **2.311** |
+
+`gru_v8p2z3e`는 세 세트 모두에서 가장 높거나 같습니다 (G_low는 `gru_v8p2z4w`와 같음).
+
+### 외부 자료
+
+- **외부 데이터: 현재 제출 모델에는 사용하지 않았습니다.** 학습에는 챌린지 train split만, 체크포인트 선택에는 validation만 썼습니다.
+  외부 잡음 코퍼스(DEMAND, ESC-50, MUSAN)는 `exp/r2-gen`의 일반화 평가에만 쓰며, 출처·버전·라이선스·분할은 `exp/r2-gen`의 `docs/external_data.md`에 기록했습니다.
+- **공개 코드 (학습에만 사용)**: torch-pesq (audiolabs, 0.1.2, MIT 라이선스)의 `PesqLoss`를 미분 가능한 PESQ 손실로 썼고,
+  torch-pesq가 쓰는 TorchAudio 함수(`Spectrogram`, `lfilter`, `Resample`)는 순수 torch로 다시 구현했습니다 (`src/nrc/tpesq.py`, `exp/r2-dpesq`).
+  둘 다 추론 경로에 없으며 `requirements.txt`에도 없습니다 (`scripts/e2e_check.py`가 확인).
+- **사전학습 가중치: 사용하지 않았습니다.** 모든 가중치는 챌린지 train split으로 처음부터 학습한 `gru_v5b`에서 이어서 학습했습니다.
+- 가중치 파일은 각각 9.5 MB로 Git LFS 없이 일반 파일로 커밋했습니다.
 
 ### 1. 실행 환경
 
@@ -178,7 +215,7 @@ pip install -r requirements.txt
   PESQ는 레벨에 무관하고 입출력 규칙은 샘플링 주파수·채널 수·샘플 수만 고정하므로, 출력 레벨은 자유롭게 정할 수 있습니다.
   이 모드에서는 모델 입력이 입력 레벨과 무관해집니다. 그래서 입력 이득 −30/−20/−10/0 dB에서 모두 같은 PESQ (3.653)가 나옵니다.
   `gru_v8p2z3e`는 학습 때도 같은 `rms_norm`을 적용했으므로 (입력 이득 증강 없음) 이 모드로만 사용합니다.
-- 예비(fallback): 직전 제출 `gru_v8p2z3d` + `rms_norm` (`configs/dl/gru_v8p2z3d.yaml`, `weights/gru_v8p2z3d.pt`, validation PESQ 3.6359 / SNR 1.24 dB),
+- 예비(fallback): 직전 후보 `gru_v8p2z3d` + `rms_norm` (`configs/dl/gru_v8p2z3d.yaml`, `weights/gru_v8p2z3d.pt`, validation PESQ 3.6359 / SNR 1.24 dB),
   `gru_v8p2z3b` + `rms_norm` (`configs/dl/gru_v8p2z3b.yaml`, `weights/gru_v8p2z3b.pt`, validation PESQ 3.6063 / SNR 1.28 dB),
   `gru_v8p2z2` + `rms_norm` (`configs/dl/gru_v8p2z2.yaml`, `weights/gru_v8p2z2.pt`, validation PESQ 3.5452 / SNR 1.35 dB),
   `gru_v8p2y` + `rms_norm` (`configs/dl/gru_v8p2y_rmsn.yaml`, `weights/gru_v8p2y.pt`, validation PESQ 3.5077 / SNR 1.88 dB),
@@ -306,7 +343,7 @@ python main.py --input <noisy dir> --output <out dir>
   `output/`에는 입력 WAV와 같은 이름의 파일만 생기며 로그 등 다른 파일은 쓰지 않습니다 (진행 정보는 화면에만 출력).
 - 16 kHz가 아닌 입력·다채널 입력도 처리하며 입력과 같은 샘플링 주파수, 채널 수, 샘플 수로 저장합니다. 처리에 실패한 파일은 원본을 복사합니다.
 - 처리 시간 (2026-11-25, Windows 11 노트북, AC 전원, 다른 앱 종료): validation 164개 파일 CPU **33.2 s** (개발 환경 5회 중앙값, 범위 25.5–44.9 s,
-  `logs/cpu_time_r2_v8p2z3e.log`), 새 pip venv (`torch 2.15.0+cpu`) 24.6 s; val_remix 328개 59.4 s. 모델 구조는 직전 제출과 같습니다.
+  `logs/cpu_time_r2_v8p2z3e.log`), 새 pip venv (`torch 2.15.0+cpu`) 24.6 s; val_remix 328개 59.4 s. 모델 구조는 직전 후보과 같습니다.
 
 ### 6. 선택 가중치의 validation 점수
 
@@ -350,9 +387,9 @@ val_remix = validation 쌍만으로 만든 보조 검증 세트 (잡음 재조�
 - gru_v5b: 2.614/2.670/2.684/2.696
 
 선택 규칙: 다음 세 조건을 모두 만족하는 (모델, 레벨 모드) 조합 중 validation PESQ가 가장 높은 것을 골랐습니다.
-- validation PESQ ≥ 직전 제출 (`gru_v8p2z3d` + rms_norm 3.6359)
-- val_remix에서 직전 제출 대비 대응 차이 > 0, z ≥ 2 (`gru_v8p2z3e` + rms_norm: +0.0093, z 3.1; 함께 평가한 `gru_v8p2z4w`(hidden 384로 확장)도 +0.0120, z 3.9로 통과했으나 validation 3.6455로 낮음)
-- 모든 입력 레벨에서 직전 제출 − 0.02 (3.616) 이상
+- validation PESQ ≥ 직전 후보 (`gru_v8p2z3d` + rms_norm 3.6359)
+- val_remix에서 직전 후보 대비 대응 차이 > 0, z ≥ 2 (`gru_v8p2z3e` + rms_norm: +0.0093, z 3.1; 함께 평가한 `gru_v8p2z4w`(hidden 384로 확장)도 +0.0120, z 3.9로 통과했으나 validation 3.6455로 낮음)
+- 모든 입력 레벨에서 직전 후보 − 0.02 (3.616) 이상
 
 ### 7. 절대 경로 수정 위치
 
@@ -380,7 +417,7 @@ val_remix = validation 쌍만으로 만든 보조 검증 세트 (잡음 재조�
 ```bash
 pip install -r requirements-dev.txt
 python scripts/selfcheck.py
-python scripts/e2e_check.py      # 입출력 형식, output/ 파일 목록 = 입력 WAV 이름, 새 clone, 새 pip venv, 방법 allow-list (1차: torch 미사용)
+python scripts/e2e_check.py      # 공지 체크리스트 8항목 PASS/FAIL (새 clone, 새 pip venv 설치, README 명령, 가중치·LFS, 절대 경로, output/ 구성, 16 kHz 모노 48000 샘플, PESQ 계산 가능) + 방법 allow-list; --ref <태그>로 태그 clone 점검
 python scripts/eval.py --config configs/submission.yaml --split validation
 python scripts/report_val.py     # -> docs/validation_results.md
 ```
