@@ -1,0 +1,21 @@
+# Submission repo export manifest (scripts/export_submission.py; not exported)
+repo: https://github.com/pauljh4323/sig_NalS_ANd_sYS_tem-team13-NoiseRC
+source_tag: r2-ready
+source_commit: 9ff7662562751a013c8b854c1bbfefeda548f237
+files: 13
+total_bytes: 9533917
+
+sha256  bytes  path
+2a99d4e17243d1fd623430eef5485a046e6c7bd8521789a2756def3027562b1a  28  .gitignore
+b1d89195b25680491dabbc1b58180a94d8eb52dddd579edbb05cabc2e40b5335  1538  README.md
+423c39c61fb89910e94b0155abf0576c3faf18709877c271ecd81c22c6a6bfa4  434  configs/submission.yaml
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0  input/.gitkeep
+b3a7ef9968f0bc77a56eed0ba211e19b0356c48c1ee7160be59d03f142310e83  4289  main.py
+fcca13c4e48dbefaf8cb43633a871df41423453b6f255281feae366162b80411  601  requirements.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0  src/nrc/__init__.py
+b42344323a2646eefcdd57e8506a99ef0595e3648eb017887e35dc1a98fe81fb  5608  src/nrc/io.py
+1ac1242c0cac652fd6bde9c676d16a693523a07c0331f3b05c7a3b1332292245  999  src/nrc/methods/__init__.py
+6a1da68a74546927092cb80c23dfdf5869dc51dd1aa9e5fb5fa2d3d4753c6753  7495  src/nrc/methods/gru_mask.py
+00b4fc9a2fd8937ed145e451f82e5b902622e89628748fe9faaf5783c96c659c  82  src/nrc/models/__init__.py
+c38cc6144e4bf33320812b6844edefa7ee30fcc8f651577722f1c6772bf0f711  5838  src/nrc/models/gru_mask.py
+c39c343764f2150d1ce1252093b19e2b41a596123ff5a4771f338614a0ab2bfd  9507005  weights/gru_v8p2z3e.pt

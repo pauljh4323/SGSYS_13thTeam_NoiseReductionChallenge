@@ -18,6 +18,10 @@ Compliance depends on ROUND (override with --round):
   ROUND 2: the submission method must be in CLASSICAL_METHODS | ROUND2_METHODS (torch allowed).
 (d) also reports the fresh-venv pip install time and venv size.
 --ref <tag|branch|commit> clones that ref instead of HEAD (use the submission tag before submitting).
+--repo-url <url> clones that repository (e.g. the submission repo built by scripts/export_submission.py)
+instead of this one for (b) and (d); --ref then names a ref of that repo (default: its HEAD = ls-remote
+HEAD), the compliance method check also reads the clone's configs/submission.yaml, and (a)==(b) /
+(a)==(d) compare its outputs bit for bit with this checkout's main.py.
 Ends with the TA notice checklist (CHECKLIST, 8 items), each PASS only if all its checks passed.
 Item 8 only checks that pesq 0.0.4 returns a finite score per file (in a subprocess, so a native
 crash is a FAIL); the metric itself comes from scripts/eval.py in (a).
@@ -256,6 +260,9 @@ def main(argv=None) -> int:
                         help=f"challenge round for the compliance checks (default {ROUND})")
     parser.add_argument("--ref", default="HEAD",
                         help="tag/branch/commit to clone for (b) and (d), e.g. the submission tag")
+    parser.add_argument("--repo-url", default=None,
+                        help="clone this repository for (b) and (d) instead of the local repo "
+                             "(e.g. the submission repo); (a)/(c) still run the local main.py")
     args = parser.parse_args(argv)
     root = resolve_data_root(args.data_root)
     manifest = load_manifest(root, "validation").sort_values("segment_id")
@@ -288,14 +295,30 @@ def main(argv=None) -> int:
     # (b) fresh clone of --ref (default HEAD)
     clone, out_b = E2E / "clone", E2E / "output_clone"
     rmtree(clone)
-    want = run(["git", "rev-parse", f"{args.ref}^{{commit}}"], cwd=REPO_ROOT).strip()
-    run(["git", "clone", "--quiet", "--no-hardlinks", REPO_ROOT, clone], cwd=REPO_ROOT)
+    if args.repo_url:
+        run(["git", "clone", "--quiet", args.repo_url, clone], cwd=REPO_ROOT)
+        if args.ref == "HEAD":
+            want = run(["git", "ls-remote", args.repo_url, "HEAD"], cwd=REPO_ROOT).split()[0]
+        else:
+            ref = args.ref
+            if subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=clone,
+                              capture_output=True).returncode != 0:
+                ref = f"origin/{ref}"  # a branch of the cloned repo
+            want = run(["git", "rev-parse", f"{ref}^{{commit}}"], cwd=clone).strip()
+        print(f"repo: {args.repo_url}")
+    else:
+        want = run(["git", "rev-parse", f"{args.ref}^{{commit}}"], cwd=REPO_ROOT).strip()
+        run(["git", "clone", "--quiet", "--no-hardlinks", REPO_ROOT, clone], cwd=REPO_ROOT)
     if args.ref != "HEAD":
         run(["git", "-c", "advice.detachedHead=false", "checkout", "--quiet", want], cwd=clone)
     head = run(["git", "rev-parse", "HEAD"], cwd=clone).strip()
     print(f"clone of {args.ref}: {head[:7]}")
     check(head == want, f"(b) clone checked out {args.ref} = {want[:7]}", 1)
     check(not (clone / "data").exists(), "(b) clone has no data/", 1)
+    if args.repo_url:
+        clone_cfg = yaml.safe_load((clone / "configs" / "submission.yaml").read_text(encoding="utf-8"))
+        check(clone_cfg.get("method") in allowed,
+              f"(compliance) clone submission method {clone_cfg.get('method')!r} in {sorted(allowed)}")
     names, bad_w = weight_problems(clone)
     check(bool(names) and not bad_w, f"(b) clone weights present, no LFS pointers ({len(names)} files"
           + (f"; {bad_w[:3]})" if bad_w else ")"), 4)
@@ -399,7 +422,7 @@ def main(argv=None) -> int:
     else:
         print("SKIP (compliance) torch-free probe: round 2 allows torch", flush=True)
 
-    print(f"\nTA notice checklist (clone of {args.ref} = {head[:7]}):")
+    print(f"\nTA notice checklist ({args.repo_url or 'local repo'}, clone of {args.ref} = {head[:7]}):")
     for k, label in CHECKLIST.items():
         res = ITEMS[k]
         verdict = "PASS" if res and all(res) else "FAIL"
