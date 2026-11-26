@@ -94,3 +94,4 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-25,a1e5b9a,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs
 2026-11-25,8946e08,submission,gru_mask,3.4961,2.9406,3.3817,3.7129,3.9455,-2.876,split=val_remix n=328 failed=0 snr=1.145 stoi=0.8896 clipped=0 src=pred | main.py outputs gru_v8p2z3e rms_norm
 2026-11-26,9ff7662,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs
+2026-11-26,ad99e9c,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,"split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs (submission repo e2e, logs/e2e_submission_repo.log)"

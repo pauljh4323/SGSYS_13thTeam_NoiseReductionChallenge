@@ -4,6 +4,7 @@ Maximize PESQ-WB (pesq==0.0.4, 16 kHz) on the hidden test; auxiliary metric SNR.
 Current round-2 candidate (r2-prep): gru_v8p2z3e + rms_norm / val PESQ 3.6534, SNR 1.21 dB / tag r2-ready (round 1: dsp_k 1.9884 / 12.84 dB, dsp-v7, sub-20261116).
 ## Rounds
 - Round 1 (classical DSP only, no ML/DL) ends 2026-11-17 23:59 KST; round 2 (DL) starts 2026-11-18 KST.
+- Submission repo = github.com/pauljh4323/sig_NalS_ANd_sYS_tem-team13-NoiseRC, built only via scripts/export_submission.py from a tag on r2-prep (mapping: docs/submissions.md).
 - main stays classical until tag round1-final; DL work stays on dl-main until then. Round-2 plan: docs/round2_plan.md.
 - Round 2 (DL allowed) 2026-11-18 to 2026-12-13 KST. Final report due 2026-12-14 (A4 ~10 pages, Malgun/Nanum Gothic 11 pt; outline docs/final_report/outline.md).
 - Hidden test: 483 files, 16 kHz mono, 48000 samples, includes noise types not in train/validation. Rank = mean PESQ-WB; SNR auxiliary.

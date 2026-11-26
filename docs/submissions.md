@@ -2,6 +2,21 @@
 
 Round 1 deadline: 2026-11-17 23:59 KST (at least one submission needed to be ranked). Round 2 (DL) starts 2026-11-18.
 
+## Round-2 submission repo (2026-11-26)
+
+Submission repo: https://github.com/pauljh4323/sig_NalS_ANd_sYS_tem-team13-NoiseRC (branch `main`). It is built only by
+`scripts/export_submission.py --tag <tag on r2-prep> --target <clone outside this repo>`. File list and SHA-256 values:
+`docs/submission/MANIFEST.txt`. README template: `docs/submission/README_template.md`.
+
+| source tag | source commit (this repo) | submission repo commit | model | val PESQ / SNR | e2e (8-item checklist vs fresh clone of the submission repo) | submitted |
+|---|---|---|---|---|---|---|
+| r2-ready | 9ff7662 | 1df48b8 | gru_v8p2z3e + rms_norm | 3.6534 / 1.21 dB | all 8 PASS; (a)==(b)==(d) bit-identical on 164 validation files, fresh venv torch 2.15.0+cpu (`logs/e2e_submission_repo.log`) | not yet (no submission tag) |
+
+- Exported tree: 13 files, 9,533,917 B. The weights `weights/gru_v8p2z3e.pt` are 9,507,005 B, committed as a plain file with no LFS.
+- One code change from r2-ready: `src/nrc/methods/__init__.py` imports and registers only `gru_mask`.
+  - Traced with an "open" audit hook plus `sys.modules` on 5 validation files, and a static import scan. The r2-ready registry also loaded the DSP modules `mmse_lsa`, `noisy`, `wiener` and `stft`, which main.py does not use.
+  - The gru_mask path is unchanged: outputs of the submission repo's main.py are byte-identical to a `git archive r2-ready` main.py on all 164 validation files.
+
 ## Rule change 2026-11-12
 
 Rule change 2026-11-12: README must be in Korean. README.md was rewritten in Korean at dsp-v7 (commands, paths,
