@@ -224,6 +224,8 @@ def main(argv=None) -> int:
              f"snr={detail.snr_db.mean():.3f} stoi={detail.stoi.mean():.4f} "
              f"clipped={n_clipped} src={source}"
              + (f" subset={args.subset}" if args.subset else "")
+             + ("".join(f" pesq@{s:g}dB={v:.4f}" for s, v in by_snr.items()
+                        if s not in (0.0, 5.0, 10.0, 15.0)))  # gen_* sets: -10/-5 dB columns
              + (f" | {args.notes}" if args.notes else ""))
     record = [date.today().isoformat(), git_hash(), cfg["name"], cfg["method"],
               f"{detail.pesq.mean():.4f}",

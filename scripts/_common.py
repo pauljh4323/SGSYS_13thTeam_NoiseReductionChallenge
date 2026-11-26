@@ -26,7 +26,8 @@ def load_config(path) -> dict:
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", required=True, help="configs/<name>.yaml")
-    parser.add_argument("--split", default="validation", choices=("train", "validation", "val_remix"))
+    from nrc.io import ALL_SPLITS  # train, validation, val_remix, gen_* (exp/r2-gen)
+    parser.add_argument("--split", default="validation", choices=ALL_SPLITS)
     parser.add_argument("--subset", type=int, default=None,
                         help="fixed stratified subset of N files (seed 0)")
     parser.add_argument("--data-root", default=None)

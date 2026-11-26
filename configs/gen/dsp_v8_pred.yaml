@@ -1,0 +1,5 @@
+# dsp-v8 (tag dsp-v8, configs/submission.yaml there) scored from its 16-bit outputs (scripts/gen/run_dsp_v8.py
+# runs the tagged code from a worktree; r2-prep's mmse_lsa lacks the NLM a priori SNR). Use only with
+# eval.py --pred-dir outputs/dsp_v8_pred/<split>; the method below is a placeholder that is never called.
+method: noisy
+params: {}

@@ -107,3 +107,39 @@ date,git_hash,config,method,pesq_mean,pesq_0db,pesq_5db,pesq_10db,pesq_15db,si_s
 2026-11-25,3905f80,gru_v8p2z3e,gru_mask,3.4961,2.9406,3.3817,3.7129,3.9455,-2.876,split=val_remix n=328 failed=0 snr=1.145 stoi=0.8896 clipped=0 src=mem16
 2026-11-25,3905f80,gru_v8p2z4w,gru_mask,3.6455,3.0053,3.4261,3.7081,3.9045,-2.749,split=validation n=164 failed=0 snr=1.201 stoi=0.9087 clipped=0 src=mem16
 2026-11-25,3905f80,gru_v8p2z4w,gru_mask,3.4988,2.9362,3.3863,3.7167,3.9523,-2.786,split=val_remix n=328 failed=0 snr=1.154 stoi=0.8893 clipped=0 src=mem16
+2026-11-25,a1e5b9a,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs
+2026-11-25,8946e08,submission,gru_mask,3.4961,2.9406,3.3817,3.7129,3.9455,-2.876,split=val_remix n=328 failed=0 snr=1.145 stoi=0.8896 clipped=0 src=pred | main.py outputs gru_v8p2z3e rms_norm
+2026-11-25,ba1a110,dsp_v8_pred,noisy,2.0214,1.3441,1.7803,2.0002,2.3873,12.909,split=validation n=164 failed=0 snr=12.807 stoi=0.8952 clipped=0 src=pred | exp/r2-gen dsp-v8 (tag code via worktree)
+2026-11-25,unknown,gru_v5b_off,gru_mask,2.6962,1.9531,2.4100,2.7022,3.0834,16.844,split=validation n=164 failed=0 snr=16.812 stoi=0.9406 clipped=0 src=mem16 | exp/r2-gen
+2026-11-25,ba1a110,gru_v8p2z3d,gru_mask,3.6359,2.9854,3.4186,3.6968,3.8979,-2.672,split=validation n=164 failed=0 snr=1.238 stoi=0.9084 clipped=0 src=mem16 | exp/r2-gen
+2026-11-25,ba1a110,gru_v8p2z3e,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=mem16 | exp/r2-gen
+2026-11-25,ba1a110,gru_v8p2z4w,gru_mask,3.6455,3.0053,3.4261,3.7081,3.9045,-2.749,split=validation n=164 failed=0 snr=1.201 stoi=0.9087 clipped=0 src=mem16 | exp/r2-gen
+2026-11-25,ba1a110,ext_dfn3,noisy,2.1019,1.5718,1.8770,2.1736,2.3261,12.169,split=validation n=164 failed=0 snr=11.204 stoi=0.9019 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-25,ba1a110,ext_mpsenet,noisy,1.7913,1.3577,1.6271,1.7499,2.0595,10.030,split=validation n=164 failed=0 snr=11.000 stoi=0.8191 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-25,ba1a110,ext_cmgan,noisy,2.0459,1.6582,1.8506,2.1088,2.2204,14.186,split=validation n=164 failed=0 snr=14.219 stoi=0.9045 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,1df63a4,dsp_v8_pred,noisy,1.7780,1.5965,1.8831,2.1478,nan,8.522,split=gen_unseen_test n=328 failed=0 snr=8.982 stoi=0.8245 clipped=0 src=pred pesq@-5dB=1.4845 | exp/r2-gen dsp-v8 (tag code via worktree)
+2026-11-26,1df63a4,dsp_v8_pred,noisy,1.2241,1.2241,nan,nan,nan,3.871,split=gen_multi_test n=164 failed=0 snr=4.803 stoi=0.7424 clipped=0 src=pred | exp/r2-gen dsp-v8 (tag code via worktree)
+2026-11-26,1df63a4,gru_v5b_off,gru_mask,1.9140,1.7484,2.0607,2.3170,nan,12.016,split=gen_unseen_test n=328 failed=0 snr=12.341 stoi=0.8606 clipped=1 src=mem16 pesq@-5dB=1.5298 | exp/r2-gen
+2026-11-26,1df63a4,gru_v5b_off,gru_mask,1.3387,1.3387,nan,nan,nan,6.550,split=gen_multi_test n=164 failed=0 snr=7.177 stoi=0.7937 clipped=0 src=mem16 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3d,gru_mask,2.8315,2.6619,3.1121,3.3331,nan,-3.456,split=gen_unseen_test n=328 failed=0 snr=1.090 stoi=0.8350 clipped=0 src=mem16 pesq@-5dB=2.2190 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3d,gru_mask,2.2260,2.2260,nan,nan,nan,-4.545,split=gen_multi_test n=164 failed=0 snr=0.879 stoi=0.7760 clipped=0 src=mem16 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3d,gru_mask,2.3066,nan,nan,nan,nan,-6.777,split=gen_low n=328 failed=0 snr=0.437 stoi=0.7158 clipped=0 src=mem16 pesq@-10dB=2.0887 pesq@-5dB=2.5244 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3e,gru_mask,2.8349,2.6593,3.1110,3.3410,nan,-3.909,split=gen_unseen_test n=328 failed=0 snr=1.011 stoi=0.8353 clipped=0 src=mem16 pesq@-5dB=2.2284 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3e,gru_mask,2.2402,2.2402,nan,nan,nan,-5.252,split=gen_multi_test n=164 failed=0 snr=0.780 stoi=0.7766 clipped=0 src=mem16 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z3e,gru_mask,2.3114,nan,nan,nan,nan,-7.056,split=gen_low n=328 failed=0 snr=0.395 stoi=0.7176 clipped=0 src=mem16 pesq@-10dB=2.0910 pesq@-5dB=2.5317 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z4w,gru_mask,2.8199,2.6500,3.0951,3.3299,nan,-3.437,split=gen_unseen_test n=328 failed=0 snr=1.055 stoi=0.8353 clipped=0 src=mem16 pesq@-5dB=2.2046 | exp/r2-gen
+2026-11-26,1df63a4,gru_v8p2z4w,gru_mask,2.2182,2.2182,nan,nan,nan,-4.596,split=gen_multi_test n=164 failed=0 snr=0.857 stoi=0.7764 clipped=0 src=mem16 | exp/r2-gen
+2026-11-26,1df63a4,ext_dfn3,noisy,2.0825,1.8692,2.2594,2.5652,nan,11.625,split=gen_unseen_test n=328 failed=0 snr=11.182 stoi=0.8695 clipped=0 src=pred pesq@-5dB=1.6363 | exp/r2-gen pretrained zero-shot
+2026-11-26,1df63a4,ext_dfn3,noisy,1.6439,1.6439,nan,nan,nan,8.814,split=gen_multi_test n=164 failed=0 snr=9.001 stoi=0.8162 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,1df63a4,ext_dfn3,noisy,1.3023,nan,nan,nan,nan,2.421,split=gen_low n=328 failed=0 snr=4.915 stoi=0.6574 clipped=0 src=pred pesq@-10dB=1.2300 pesq@-5dB=1.3746 | exp/r2-gen pretrained zero-shot
+2026-11-26,1df63a4,gru_v5b_off,gru_mask,1.4645,nan,nan,nan,nan,5.440,split=gen_low n=328 failed=0 snr=6.989 stoi=0.7321 clipped=0 src=mem16 pesq@-10dB=1.3497 pesq@-5dB=1.5793 | exp/r2-gen
+2026-11-26,1df63a4,dsp_v8_pred,noisy,1.1536,nan,nan,nan,nan,-1.605,split=gen_low n=328 failed=0 snr=1.050 stoi=0.5950 clipped=0 src=pred pesq@-10dB=1.1180 pesq@-5dB=1.1892 | exp/r2-gen dsp-v8 (tag code via worktree)
+2026-11-26,1df63a4,gru_v8p2z4w,gru_mask,2.3107,nan,nan,nan,nan,-6.639,split=gen_low n=328 failed=0 snr=0.427 stoi=0.7181 clipped=0 src=mem16 pesq@-10dB=2.0856 pesq@-5dB=2.5359 | exp/r2-gen
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.7914,1.3583,1.6271,1.7500,2.0595,10.023,split=validation n=164 failed=0 snr=11.022 stoi=0.8191 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.6879,1.5517,1.8502,1.9584,nan,6.404,split=gen_unseen_test n=328 failed=0 snr=8.489 stoi=0.7499 clipped=0 src=pred pesq@-5dB=1.3914 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.2436,1.2436,nan,nan,nan,2.195,split=gen_multi_test n=164 failed=0 snr=4.996 stoi=0.6309 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.8144,1.6646,1.9604,2.1488,nan,11.090,split=gen_unseen_test n=328 failed=0 snr=11.402 stoi=0.8398 clipped=0 src=pred pesq@-5dB=1.4837 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.3884,1.3884,nan,nan,nan,7.494,split=gen_multi_test n=164 failed=0 snr=8.181 stoi=0.7712 clipped=0 src=pred | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_mpsenet,noisy,1.1499,nan,nan,nan,nan,-8.655,split=gen_low n=328 failed=0 snr=0.870 stoi=0.4266 clipped=0 src=pred pesq@-10dB=1.1350 pesq@-5dB=1.1648 | exp/r2-gen pretrained zero-shot
+2026-11-26,9f5dda1,ext_cmgan,noisy,1.2292,nan,nan,nan,nan,-0.585,split=gen_low n=328 failed=0 snr=3.461 stoi=0.5786 clipped=0 src=pred pesq@-10dB=1.1638 pesq@-5dB=1.2946 | exp/r2-gen pretrained zero-shot
+2026-11-26,9ff7662,submission,gru_mask,3.6534,3.0090,3.4307,3.7136,3.9179,-2.788,split=validation n=164 failed=0 snr=1.205 stoi=0.9093 clipped=0 src=pred | e2e main.py outputs

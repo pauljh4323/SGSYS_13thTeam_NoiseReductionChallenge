@@ -1,0 +1,10 @@
+corpus,split,files,units,excluded,share_of_corpus,units_list
+demand,train_pool,12,12,0,0.706,DLIVING;DWASHING;NFIELD;NPARK;NRIVER;OHALLWAY;OMEETING;OOFFICE;PCAFETER;PRESTO;SPSQUARE;STRAFFIC
+demand,gen_dev,2,2,0,0.118,DKITCHEN;PSTATION
+demand,gen_test,3,3,0,0.176,TBUS;TCAR;TMETRO
+esc50,train_pool,1359,1032,35,0.697,
+esc50,gen_dev,198,153,6,0.102,
+esc50,gen_test,389,298,13,0.201,
+musan,train_pool,629,629,31,0.71,
+musan,gen_dev,92,92,2,0.101,
+musan,gen_test,167,167,9,0.189,

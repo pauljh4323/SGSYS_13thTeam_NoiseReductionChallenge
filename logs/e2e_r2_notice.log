@@ -1,0 +1,81 @@
+ROUND 2: allowed methods ['gru_mask', 'mmse_lsa', 'noisy', 'wiener']
+PASS (compliance) round 2: submission method 'gru_mask' in ['gru_mask', 'mmse_lsa', 'noisy', 'wiener']
+PASS (a) copied 164 validation noisy wavs
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\input --output D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output
+main.py: processed=164 failed=0 clipped_samples=0 total=70.7s -> D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output
+PASS (a) main.py failed=0
+PASS [6] (a): same filenames/count (164/164)
+PASS [7] (a): sr/length/channels/subtype preserved
+PASS [6] (a): output/ holds exactly the input WAV names (164 entries)
+PASS [6] (a): 164 outputs for 164 inputs, all directly under output/
+PASS [7] (a): every output 16000 Hz, mono, 48000 samples
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\scripts\eval.py --config D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\configs\submission.yaml --split validation --pred-dir D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output --jobs 4 --notes e2e main.py outputs
+submission (gru_mask) | validation n=164 | pred-dir D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output | jobs=4 | 25.2s | PESQ failed=0 | clipped samples=0
+
+[overall]
+group   n  failed  pesq_mean  pesq_std  delta_pesq  si_sdr   stoi  snr_db  delta_snr_db
+  all 164       0     3.6534    0.5272      2.2587 -2.7881 0.9093  1.2050       -8.4292
+
+$ git rev-parse HEAD^{commit}
+$ git clone --quiet --no-hardlinks D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\clone
+$ git rev-parse HEAD
+clone of HEAD: 9ff7662
+PASS [1] (b) clone checked out HEAD = 9ff7662
+PASS [1] (b) clone has no data/
+PASS [4] (b) clone weights present, no LFS pointers (8 files)
+PASS [5] (b) no absolute paths in main.py, src/, configs/, requirements.txt
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\clone\main.py --input D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\input --output D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output_clone
+main.py: processed=164 failed=0 clipped_samples=0 total=68.1s -> D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output_clone
+PASS [1] (b) clone main.py failed=0
+PASS [6] (b): same filenames/count (164/164)
+PASS [7] (b): sr/length/channels/subtype preserved
+PASS [6] (b): output/ holds exactly the input WAV names (164 entries)
+PASS [6] (b): 164 outputs for 164 inputs, all directly under output/
+PASS [7] (b): every output 16000 Hz, mono, 48000 samples
+PASS [1] (a)==(b) bit-identical (164 files, 0 differ)
+$ D:\miniconda3\envs\nrc\python.exe -m venv D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\venv_ci
+$ D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\venv_ci\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\clone\requirements.txt
+PASS [2] (d) fresh venv: pip install -r requirements.txt
+venv: pip install 274 s, size 813 MB
+$ D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\venv_ci\Scripts\python.exe -m pip freeze
+venv packages: cffi==2.1.1 filelock==4.3.1 fsspec==2026.9.0 Jinja2==3.1.6 MarkupSafe==3.0.4 mpmath==1.3.0 networkx==3.7 numpy==2.5.4 pycparser==3.12 PyYAML==6.0.3 scipy==1.18.1 setuptools==84.2.1 soundfile==0.14.0 sympy==1.14.0 torch==2.15.0+cpu typing_extensions==4.16.0
+PASS [2] (d) torch_pesq / torchaudio not importable in the venv (found: none)
+PASS [2] (d) src/nrc/tpesq.py not in the clone
+PASS [3] (d) README states `pip install -r requirements.txt` and `python main.py`
+$ D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\venv_ci\Scripts\python.exe main.py
+main.py: processed=164 failed=0 clipped_samples=0 total=2652.8s -> D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\clone\output
+PASS [3] (d) README command `python main.py` (clone, fresh venv, input/ -> output/) failed=0
+PASS [6] (d): same filenames/count (164/164)
+PASS [7] (d): sr/length/channels/subtype preserved
+PASS [6] (d): output/ holds exactly the input WAV names (164 entries)
+PASS [6] (d): 164 outputs for 164 inputs, all directly under output/
+PASS [7] (d): every output 16000 Hz, mono, 48000 samples
+PASS [3] (a)==(d) fresh pip venv bit-identical (164 files, 0 differ)
+PASS (d) venv deleted
+PASS [8] (d): pesq 0.0.4 WB finite on 164/164 outputs (exit code 0)
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\input --output D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output_cwd
+main.py: processed=164 failed=0 clipped_samples=0 total=87.4s -> D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\output_cwd
+PASS (c) main.py from cwd=outputs/ failed=0
+PASS (a)==(c) bit-identical (164 files, 0 differ)
+PASS [6] (c): output/ holds exactly the input WAV names (164 entries)
+$ D:\miniconda3\envs\nrc\python.exe D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\main.py --input D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\extra_input --output D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\extra_output
+main.py: processed=2 failed=0 clipped_samples=0 total=6.3s -> D:\2_CLASS\2st grade 2nd semester\SGSYS_Signals and Systems\PROJECT\OPR_HR\outputs\e2e\extra_output
+PASS (extra) main.py failed=0
+PASS (extra): same filenames/count (2/2)
+PASS (extra): sr/length/channels/subtype preserved
+PASS (extra): output/ holds exactly the input WAV names (3 entries)
+PASS (extra) short_1p7s.wav enhanced (not passthrough): 16000 Hz, 1 ch, 27200 frames
+PASS (extra) sub/stereo44k.WAV enhanced (not passthrough): 44100 Hz, 2 ch, 132300 frames
+SKIP (compliance) torch-free probe: round 2 allows torch
+
+TA notice checklist (clone of HEAD = 9ff7662):
+  1. PASS  fresh clone of the tag/ref runs (4/4 checks)
+  2. PASS  fresh venv install from requirements.txt (3/3 checks)
+  3. PASS  README install + inference commands run (3/3 checks)
+  4. PASS  weights present (no Git LFS pointer files) (1/1 checks)
+  5. PASS  no absolute paths (main.py, src/, configs/, requirements.txt) (1/1 checks)
+  6. PASS  exactly one output per input, directly under output/ (10/10 checks)
+  7. PASS  outputs 16 kHz mono 48000 samples (6/6 checks)
+  8. PASS  PESQ computable on every validation output (1/1 checks)
+
+E2E PASSED: 0 failing check(s)

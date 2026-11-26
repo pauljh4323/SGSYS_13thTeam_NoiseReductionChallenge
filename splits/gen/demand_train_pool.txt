@@ -1,0 +1,12 @@
+demand/DLIVING/ch01.wav
+demand/DWASHING/ch01.wav
+demand/NFIELD/ch01.wav
+demand/NPARK/ch01.wav
+demand/NRIVER/ch01.wav
+demand/OHALLWAY/ch01.wav
+demand/OMEETING/ch01.wav
+demand/OOFFICE/ch01.wav
+demand/PCAFETER/ch01.wav
+demand/PRESTO/ch01.wav
+demand/SPSQUARE/ch01.wav
+demand/STRAFFIC/ch01.wav
